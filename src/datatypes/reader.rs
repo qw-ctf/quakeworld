@@ -7,6 +7,8 @@ use thiserror::Error;
 #[cfg(feature = "trace")]
 use crate::trace::{trace_start, trace_stop, Trace};
 
+use super::common::AsciiString;
+
 #[derive(Error, Debug)]
 pub enum DataTypeReaderError {
     #[error("read error")]
@@ -48,7 +50,7 @@ pub trait DataTypeBoundCheck {
     fn check_bounds(&self, datatypereader: &mut DataTypeReader) -> Result<(), DataTypeReaderError>;
 }
 
-macro_rules! data_type_reader_gen_base {
+macro_rules! datatypereader_generate_base_type {
     ($($ty:ty), *) => {
         $(
         paste! {
@@ -82,49 +84,77 @@ macro_rules! data_type_reader_gen_base {
     }
 }
 
-macro_rules! data_type_reader_gen_sized {
-    ($(($ty:ty, $size: expr, $default: expr, $typename: expr)), *) => {
-        $(
+macro_rules! datatypereader_generate_sized {
+    // Base case: empty input
+    () => {};
+
+    // Recursive case: process the first tuple and continue with the rest
+    (($ty:tt, $size:expr, $default: expr, $typename: expr) $($rest:tt)*) => {
+        // Dispatch to a specific macro for u8 types
+        datatypereader_generate_sized_dispatch!($ty, $size, $default, $typename);
+        // Recur to process the rest of the tuples
+        datatypereader_generate_sized!($($rest)*);
+    };
+}
+
+macro_rules! datatypereader_generate_sized_dispatch {
+    (u8, $size: expr, $default: expr, $typename: expr) => {
         paste! {
-
-#[derive(Serialize, Debug,  Clone, Default)]
-        pub struct $typename(pub Vec<$ty>);
-        impl DataTypeRead for $typename {
-            fn  [< read >] (datareader: &mut DataTypeReader,
-            ) ->  Result<$typename, DataTypeReaderError> {
-                const TYPE_SIZE:usize = std::mem::size_of::<$ty>();
-                let current_position: u64 = datareader.cursor.position();
-                #[cfg(feature = "trace")]
-                trace_start!(datareader, stringify!($ty));
-                let len = datareader.cursor.get_ref().len() as u64;
-                if (current_position + TYPE_SIZE as u64 * $size) > len {
-                    return Err(DataTypeReaderError::ReadSizeError(current_position, len, TYPE_SIZE as u64));
-                    }
-                    let mut ret: Vec<$ty> = vec![];
-                    for _ in 0..$size {
-                        let mut a: [u8; TYPE_SIZE] = [0; TYPE_SIZE];
-                        match datareader.cursor.read_exact(&mut a) {
-                        Err(_) => {
-                            return Err(DataTypeReaderError::ReadError)
-                        }
-                            Ok(_) => {},
-                        };
-
-                        let v;
-                        v = $ty::from_le_bytes(a);
-
-                        ret.push(v);
-                    }
-                    trace_stop!(datareader, ret, $ty);
-                    Ok($typename(ret))
+        impl AsciiString for $typename {
+                fn ascii_string(&self) -> String {
+                    let owned = self.0.to_owned();
+                    let conv = String::from_utf8_lossy(&owned);
+                    conv.chars().filter(|&c| c != '\0').collect()
                 }
             }
         }
-        )*
-    }
+        datatypereader_generate_sized_dispatch_general!(u8, $size, $default, $typename);
+    };
+    ($ty:ty, $size: expr, $default: expr, $typename: expr) => {
+        datatypereader_generate_sized_dispatch_general!($ty, $size, $default, $typename);
+    };
+}
+
+macro_rules! datatypereader_generate_sized_dispatch_general {
+    ($ty:ty, $size: expr, $default: expr, $typename: expr) => {
+        paste! {
+        #[derive(Serialize, Debug,  Clone, Default)]
+        pub struct $typename(pub Vec<$ty>);
+        impl DataTypeRead for $typename {
+        fn  [< read >] (datareader: &mut DataTypeReader,
+        ) ->  Result<$typename, DataTypeReaderError> {
+        const TYPE_SIZE:usize = std::mem::size_of::<$ty>();
+        let current_position: u64 = datareader.cursor.position();
+        #[cfg(feature = "trace")]
+        trace_start!(datareader, stringify!($ty));
+        let len = datareader.cursor.get_ref().len() as u64;
+        if (current_position + TYPE_SIZE as u64 * $size) > len {
+        return Err(DataTypeReaderError::ReadSizeError(current_position, len, TYPE_SIZE as u64));
+        }
+        let mut ret: Vec<$ty> = vec![];
+        for _ in 0..$size {
+        let mut a: [u8; TYPE_SIZE] = [0; TYPE_SIZE];
+        match datareader.cursor.read_exact(&mut a) {
+        Err(_) => {
+        return Err(DataTypeReaderError::ReadError)
+        }
+        Ok(_) => {},
+        };
+
+        let v;
+        v = $ty::from_le_bytes(a);
+
+        ret.push(v);
+        }
+        trace_stop!(datareader, ret, $ty);
+        Ok($typename(ret))
+        }
+        }
+        }
+    };
 }
 
 // generate read function for base types
-data_type_reader_gen_base!(u8, u16, u32, i8, i16, i32, f32);
+datatypereader_generate_base_type!(u8, u16, u32, i8, i16, i32, f32);
 // generate read functions for sized types
-data_type_reader_gen_sized!((u8, 56, 0, PakFileName));
+datatypereader_generate_sized!((u8, 56, 0, PakFileName));

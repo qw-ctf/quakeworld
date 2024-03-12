@@ -1,24 +1,23 @@
 use std::env;
 use std::error::Error;
-use std::fs::File;
+use std::fs;
 use std::hash::{DefaultHasher, Hasher};
 use std::io::prelude::*;
 
 use quakeworld::bsp::Bsp;
+use quakeworld::datatypes::common::AsciiString;
 use quakeworld::pak::Pak;
 use quakeworld::trace::Trace;
 
 fn parse_file(filename: String, bspname: String) -> Result<bool, Box<dyn Error>> {
     // read the file into a buffer
-    let file = match File::open(&filename) {
-        Ok(file) => file,
-        Err(err) => return Err(Box::new(err)),
-    };
-    let pak = Pak::parse(filename.clone(), file)?;
+    let data = fs::read(&filename)?;
+    let mut trace = Trace::new();
+    let pak = Pak::parse(filename.clone(), data, Some(&mut trace))?;
     let f = pak
         .files
         .iter()
-        .find(|&item| item.name == bspname.as_bytes())
+        .find(|&item| item.name.ascii_string() == bspname)
         .or_else(|| {
             println!("\"{}\" not found in \"{}\".", bspname, filename);
             None
@@ -29,7 +28,7 @@ fn parse_file(filename: String, bspname: String) -> Result<bool, Box<dyn Error>>
     let d = pak.get_data(f.unwrap())?;
     println!("{}", d.len());
     let mut tr = Trace::new();
-    let b = Bsp::parse(d, &mut tr)?;
+    let b = Bsp::parse(d, Some(&mut tr))?;
     println!("{:?}", b);
     Ok(true)
 }

@@ -16,6 +16,11 @@ use crate::trace::{trace_start, trace_stop};
 
 use super::bsp;
 
+/// A trait to get an ascii string
+pub trait AsciiString {
+    fn ascii_string(&self) -> String;
+}
+
 /// A vector or position
 #[derive(Serialize, Clone, Debug, Copy, DataTypeRead)]
 pub struct Vector3<T: DataTypeRead + 'static>

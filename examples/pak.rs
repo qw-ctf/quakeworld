@@ -28,7 +28,7 @@ fn parse_file(filename: String) -> Result<bool, Box<dyn Error>> {
         }
     }
     for file in &pak.files {
-        let b = pak.get_data(file)?;
+        //let b = pak.get_data(file)?;
         println!(
             "{} - {} {}",
             String::from_utf8_lossy(&file.name.0),
