@@ -1,6 +1,5 @@
 use thiserror::Error;
 use serde::Serialize;
-use byteorder::{LittleEndian, ReadBytesExt};
 
 #[derive(Error, Debug)]
 pub enum PaletteError {

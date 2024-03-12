@@ -1,5 +1,4 @@
 use paste::paste;
-use protocol_macros::DataTypeRead;
 use serde::Serialize;
 
 use std::io::{Cursor, Read};

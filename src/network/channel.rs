@@ -63,8 +63,7 @@ impl Channel {
         let acknowledged_reliable = acknowledged_in & (1 << 31) != 0;
         let acknowledged_sequence =  acknowledged_in & !(1 << 31);
         if acknowledged_reliable {
-            if self.outgoing.last_reliable != acknowledged_sequence {
-            }
+            self.outgoing.last_reliable != acknowledged_sequence;
             self.outgoing.last_reliable = 0;
             self.outgoing.reliable_state = ReliableState::Ack;
         }

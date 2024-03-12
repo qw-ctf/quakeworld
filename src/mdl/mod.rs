@@ -1,7 +1,6 @@
 use std::io::Cursor;
 use std::io::Read;
 use std::io::prelude::*;
-use std::io::SeekFrom;
 
 use serde::Serialize;
 use byteorder::{LittleEndian, ReadBytesExt};
@@ -205,7 +204,7 @@ impl Mdl {
             model.frames.push(Frame::read(&mut cursor, model.verxtex_count)?);
         }
 
-        return Ok(model)
+        Ok(model)
     }
 }
 

@@ -1,4 +1,3 @@
-use crate::datatypes::{common::DataType, reader::DataTypeRead};
 use serde::Serialize;
 use std::any::Any;
 
@@ -31,7 +30,7 @@ impl Trace {
             stack: vec![],
         }
     }
-    pub fn start(self: &mut Self, index: u64, annotation: impl Into<String>) {
+    pub fn start(&mut self, index: u64, annotation: impl Into<String>) {
         let annotation = annotation.into();
         let ts = TraceEntry {
             annotation,
@@ -44,11 +43,11 @@ impl Trace {
         self.stack.push(ts);
     }
 
-    pub fn annotate(self: &mut Self, annptation_prepend: impl Into<String>) {
+    pub fn annotate(&mut self, annptation_prepend: impl Into<String>) {
         // pop the most recent trace
     }
 
-    pub fn stop(self: &mut Self, size: u64, value: Option<Box<dyn Any>>) {
+    pub fn stop(&mut self, size: u64, value: Option<Box<dyn Any>>) {
         // pop the most recent trace
         if let Some(mut p) = self.stack.pop() {
             p.value = value;
@@ -139,4 +138,3 @@ macro_rules! trace_annotate {
         }
     };
 }
-pub(crate) use trace_annotate;

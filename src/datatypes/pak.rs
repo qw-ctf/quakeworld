@@ -7,7 +7,7 @@ use serde::Serialize;
 
 use protocol_macros::DataTypeBoundCheckDerive;
 
-use crate::trace::{trace_start, trace_stop, TraceValue};
+use crate::trace::{trace_start, trace_stop};
 /// PAK related structs
 /// PAK Header
 type Version = u32;

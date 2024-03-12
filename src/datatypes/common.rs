@@ -12,7 +12,7 @@ use crate::datatypes::reader::{
 
 use crate::pak;
 #[cfg(feature = "trace")]
-use crate::trace::{trace_start, trace_stop, TraceValue};
+use crate::trace::{trace_start, trace_stop};
 
 use super::bsp;
 
