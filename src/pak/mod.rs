@@ -100,7 +100,7 @@ impl Pak {
             #[cfg(feature = "trace")]
             trace,
         );
-        let header = <pak::PakHeader as DataTypeRead>::read(&mut datatypereader)?;
+        let header = <pak::Header as DataTypeRead>::read(&mut datatypereader)?;
         header.check_bounds(&mut datatypereader)?;
 
         let file_count = header.directory_offset.size / (NAME_LENGTH + 4 * 2);

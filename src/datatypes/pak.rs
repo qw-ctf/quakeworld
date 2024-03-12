@@ -12,10 +12,10 @@ use crate::trace::{trace_start, trace_stop};
 /// PAK Header
 type Version = u32;
 #[derive(Serialize, Clone, Debug, Copy, DataTypeRead, DataTypeBoundCheckDerive)]
-pub struct PakHeader {
-    /// Model version
+pub struct Header {
+    /// Pak version
     pub version: Version,
-    /// List of entities
+    /// List of files
     #[check_bounds]
     pub directory_offset: super::common::DirectoryEntry,
 }
