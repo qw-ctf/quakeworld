@@ -1,17 +1,8 @@
 use proc_macro::TokenStream;
-use quote::{quote, format_ident};
+use quote::{format_ident, quote};
+use syn::spanned::Spanned;
+use syn::{parse_macro_input, AngleBracketedGenericArguments, Attribute, DeriveInput, Meta, Type};
 use syn::{Data, DataStruct, Fields};
-
-/*
-#[proc_macro]
-pub fn to_value(_item: TokenStream) -> TokenStream {
-    fn type_of<T>(_: T) -> &'static str {
-        std::any::type_name::<T>()
-    }
-    println!("{:?}", _item);
-    "fn answer() -> u32 { 42 }".parse().unwrap()
-}
-*/
 
 #[proc_macro_derive(ParseMessage)]
 pub fn parse_message_derive(input: TokenStream) -> TokenStream {
@@ -25,7 +16,10 @@ pub fn parse_message_derive(input: TokenStream) -> TokenStream {
 
 fn impl_parsemessage_macro(ast: &syn::DeriveInput) -> TokenStream {
     let fields = match &ast.data {
-        Data::Struct(DataStruct { fields: Fields::Named(fields), .. }) => &fields.named,
+        Data::Struct(DataStruct {
+            fields: Fields::Named(fields),
+            ..
+        }) => &fields.named,
         _ => panic!("expected a struct with named fields"),
     };
     let field_name = fields.iter().map(|field| &field.ident);
@@ -77,3 +71,112 @@ fn impl_parsemessage_macro(ast: &syn::DeriveInput) -> TokenStream {
     gen.into()
 }
 
+#[proc_macro_derive(DataTypeRead)]
+pub fn data_type_read_derive(input: TokenStream) -> TokenStream {
+    // Parse the input tokens into a syntax tree
+    let ast = parse_macro_input!(input as DeriveInput);
+
+    // Extract the name of the struct
+    let struct_name = &ast.ident;
+
+    // Extract field names and types
+    let fields = if let syn::Data::Struct(data_struct) = &ast.data {
+        if let syn::Fields::Named(fields) = &data_struct.fields {
+            fields
+                .named
+                .iter()
+                .map(|f| {
+                    let ident = &f.ident;
+                    let ty = &f.ty;
+                    quote! {
+                    #ident : <#ty as DataTypeRead>::read(datareader)?,
+                    }
+                })
+                .collect::<Vec<_>>()
+        } else {
+            panic!("DataTypeRead can only be derived for structs with named fields");
+        }
+    } else {
+        panic!("DataTypeRead can only be derived for structs");
+    };
+
+    // Extract generic parameters
+    let generics = &ast.generics;
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+    // Generate the implementation
+    let gen = quote! {
+        impl #impl_generics DataTypeRead for #struct_name #ty_generics #where_clause {
+            fn read(datareader: &mut DataTypeReader) -> Result<Self, DataTypeReaderError> {
+                trace_start!(datareader, stringify!( #struct_name));
+                let s = Self {
+                    #(#fields)*
+                };
+                trace_stop!(datareader, s, #struct_name);
+                Ok(s)
+            }
+        }
+    };
+
+    // Return the generated implementation as a TokenStream
+    gen.into()
+}
+
+#[proc_macro_derive(DataTypeBoundCheckDerive, attributes(check_bounds))]
+pub fn data_type_bound_check_derive(input: TokenStream) -> TokenStream {
+    // Parse the input tokens into a syntax tree
+    let ast = parse_macro_input!(input as DeriveInput);
+    // Extract the name of the struct
+    let struct_name = &ast.ident;
+
+    // Extract field names, types, and tags
+    let fields = if let syn::Data::Struct(data_struct) = &ast.data {
+        if let syn::Fields::Named(fields) = &data_struct.fields {
+            fields
+                .named
+                .iter()
+                .map(|f| {
+                    let ident = &f.ident;
+                    let tag = check_tag(&f.attrs, "check_bounds");
+                    if tag {
+                        quote! {
+                            self.#ident.check_bounds(datareader)?;
+                        }
+                    } else {
+                        quote! {}
+                    }
+                })
+                .collect::<Vec<_>>()
+        } else {
+            panic!("DataTypeRead can only be derived for structs with named fields");
+        }
+    } else {
+        panic!("DataTypeRead can only be derived for structs");
+    };
+
+    // Generate the implementation
+    let gen = quote! {
+        impl DataTypeBoundCheck for #struct_name {
+            fn check_bounds(&self, datareader: &mut DataTypeReader) -> Result<(), DataTypeReaderError> {
+                #(#fields)*
+                Ok(())
+            }
+        }
+    };
+
+    // Return the generated implementation as a TokenStream
+    gen.into()
+}
+
+fn check_tag(attrs: &[Attribute], tag: &str) -> bool {
+    for attr in attrs {
+        if let Ok(meta) = attr.parse_meta() {
+            if let Meta::Path(name_value) = meta {
+                if name_value.is_ident(tag) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}

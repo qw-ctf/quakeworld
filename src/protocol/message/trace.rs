@@ -1,10 +1,10 @@
-use serde::Serialize;
 use paste::paste;
+use serde::Serialize;
 use strum_macros::Display;
 
-use crate::protocol::message::{ServerMessage, Packet, Message};
-use crate::protocol::types::*;
 use crate::mvd::*;
+use crate::protocol::message::{Message, Packet, ServerMessage};
+use crate::protocol::types::*;
 
 #[cfg(feature = "trace")]
 #[derive(Serialize, Clone, Debug, Default)]
@@ -39,7 +39,6 @@ pub enum TraceValue {
 }
 */
 
-
 #[cfg(feature = "trace")]
 #[derive(Serialize, Clone, Default, Debug)]
 pub struct MessageTrace {
@@ -62,7 +61,6 @@ pub(crate) trait ToTraceValue {
     fn to_tracevalue(&self) -> TraceValue;
 }
 
-
 impl Message {
     #[cfg(feature = "trace")]
     pub fn read_trace_annotate(&mut self, annotation: &str) {
@@ -73,7 +71,7 @@ impl Message {
     }
 
     #[cfg(feature = "trace")]
-    pub fn read_trace_start (&mut self, function: impl Into<String>, readahead: bool) {
+    pub fn read_trace_start(&mut self, function: impl Into<String>, readahead: bool) {
         if !self.trace.enabled {
             return;
         }
@@ -83,7 +81,7 @@ impl Message {
             annotation = self.trace.annotation.clone();
             self.trace.annotation = None;
         }
-        let res = ReadTrace{
+        let res = ReadTrace {
             function,
             start: self.position,
             readahead,
@@ -107,7 +105,7 @@ impl Message {
 
             let len = self.trace.stack.len();
             if len > 0 {
-                self.trace.stack[len-1].read.push(trace);
+                self.trace.stack[len - 1].read.push(trace);
             } else {
                 self.trace.read.push(trace);
             }
@@ -125,7 +123,7 @@ impl Message {
 
             let len = self.trace.stack.len();
             if len > 0 {
-                self.trace.stack[len-1].read.push(trace);
+                self.trace.stack[len - 1].read.push(trace);
             } else {
                 self.trace.read.push(trace);
             }
@@ -133,13 +131,11 @@ impl Message {
     }
 }
 
-
 #[cfg(not(feature = "trace"))]
-macro_rules! trace_start{
-}
+macro_rules! trace_start {}
 
 #[cfg(feature = "trace")]
-macro_rules! trace_start{
+macro_rules! trace_start {
     ($self:expr, $readahead:ident) => {
         if $self.trace.enabled && !$self.trace.locked {
             $self.read_trace_start(format!("{}", function!()), $readahead);
@@ -149,16 +145,15 @@ macro_rules! trace_start{
         if $self.trace.enabled && !$self.trace.locked {
             $self.read_trace_start(format!("{}", function!()), $readahead);
         }
-    }
+    };
 }
 pub(crate) use trace_start;
 
 #[cfg(not(feature = "trace"))]
-macro_rules! trace_stop {
-}
+macro_rules! trace_stop {}
 
 #[cfg(feature = "trace")]
-macro_rules! trace_stop{
+macro_rules! trace_stop {
     ($self:expr, $value:expr, $valueType:ident) => {
         paste! {
         if $self.trace.enabled && !$self.trace.locked {
@@ -175,13 +170,12 @@ macro_rules! trace_stop{
         if $self.trace.enabled && !$self.trace.locked {
             $self.read_trace_stop(TraceValue::None);
         }
-    }
+    };
 }
 pub(crate) use trace_stop;
 
 #[cfg(not(feature = "trace"))]
-macro_rules! trace_abort {
-}
+macro_rules! trace_abort {}
 
 #[cfg(feature = "trace")]
 macro_rules! trace_abort {
@@ -189,14 +183,13 @@ macro_rules! trace_abort {
         if $self.trace.enabled && !$self.trace.locked {
             $self.read_trace_abort();
         }
-    }
+    };
 }
 
 pub(crate) use trace_abort;
 
 #[cfg(not(feature = "trace"))]
-macro_rules! trace_annotate {
-}
+macro_rules! trace_annotate {}
 
 #[cfg(feature = "trace")]
 macro_rules! trace_annotate {
@@ -204,7 +197,7 @@ macro_rules! trace_annotate {
         if $self.trace.enabled && !$self.trace.locked {
             $self.read_trace_annotate($value);
         }
-    }
+    };
 }
 pub(crate) use trace_annotate;
 
@@ -215,7 +208,7 @@ macro_rules! trace_lock {
             assert_eq!($self.trace.locked, false);
             $self.trace.locked = true;
         }
-    }
+    };
 }
 pub(crate) use trace_lock;
 
@@ -225,7 +218,7 @@ macro_rules! trace_unlock {
             assert_eq!($self.trace.locked, true);
             $self.trace.locked = false;
         }
-    }
+    };
 }
 pub(crate) use trace_unlock;
 
@@ -260,10 +253,9 @@ macro_rules! function {
         }
         let name = type_name_of(f);
         &name[..name.len() - 3]
-    }}
+    }};
 }
 pub(crate) use function;
-
 
 impl ToTraceValue for Vec<u8> {
     fn to_tracevalue(&self) -> TraceValue {
@@ -285,5 +277,5 @@ create_trace_enums!(
     (StringByte, StringByte),
     (DeltaUserCommand, DeltaUserCommand),
     (StringVector, StringVector),
-    (MvdFrame, MvdFrame));
-
+    (MvdFrame, MvdFrame)
+);

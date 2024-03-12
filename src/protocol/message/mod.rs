@@ -215,44 +215,44 @@ impl Message {
         let position = self.position;
         s += self.write_u8(0);
 
-        if delta_usercommand.angle.x.is_some() {
+        if let Some(x) = delta_usercommand.angle.x {
             bits |= UserCommandFlags::ANGLE1;
-            s += self.write_angle16(delta_usercommand.angle.x.unwrap());
+            s += self.write_angle16(x);
         }
-        if delta_usercommand.angle.y.is_some() {
+        if let Some(y) = delta_usercommand.angle.y {
             bits |= UserCommandFlags::ANGLE2;
-            s += self.write_angle16(delta_usercommand.angle.y.unwrap());
+            s += self.write_angle16(y);
         }
-        if delta_usercommand.angle.z.is_some() {
+        if let Some(z) = delta_usercommand.angle.z {
             bits |= UserCommandFlags::ANGLE3;
-            s += self.write_angle16(delta_usercommand.angle.z.unwrap());
+            s += self.write_angle16(z);
         }
 
-        if delta_usercommand.forward.is_some() {
+        if let Some(forward) = delta_usercommand.forward {
             bits |= UserCommandFlags::FORWARD;
-            s += self.write_i16(delta_usercommand.forward.unwrap());
+            s += self.write_i16(forward);
         }
-        if delta_usercommand.side.is_some() {
+        if let Some(side) = delta_usercommand.side {
             bits |= UserCommandFlags::SIDE;
-            s += self.write_i16(delta_usercommand.side.unwrap());
+            s += self.write_i16(side);
         }
-        if delta_usercommand.up.is_some() {
+        if let Some(up) = delta_usercommand.up {
             bits |= UserCommandFlags::UP;
-            s += self.write_i16(delta_usercommand.up.unwrap());
+            s += self.write_i16(up);
         }
 
-        if delta_usercommand.buttons.is_some() {
+        if let Some(buttons) = delta_usercommand.buttons {
             bits |= UserCommandFlags::BUTTONS;
-            s += self.write_u8(delta_usercommand.buttons.unwrap());
+            s += self.write_u8(buttons);
         }
 
-        if delta_usercommand.impulse.is_some() {
+        if let Some(impulse) = delta_usercommand.impulse {
             bits |= UserCommandFlags::IMPULSE;
-            s += self.write_u8(delta_usercommand.impulse.unwrap());
+            s += self.write_u8(impulse);
         }
 
-        if delta_usercommand.msec.is_some() {
-            s += self.write_u8(delta_usercommand.msec.unwrap());
+        if let Some(msec) = delta_usercommand.msec {
+            s += self.write_u8(msec);
         }
         self.buffer[position] = bits.bits();
         s
@@ -586,9 +586,12 @@ impl Message {
         };
 
         #[cfg(feature = "ascii_strings")]
-        let ss = s.string;
+        let ss = s.string.clone();
 
-        let challenge = ss.parse::<i32>().unwrap();
+        let challenge = match ss.parse::<i32>() {
+            Ok(i) => i,
+            Err(_) => return Err(MessageError::StringError(format!("could not parse challlenge: {}", s))),
+        };
         trace_annotate!(self, "protocol");
         while let Ok(prot_r) = self.read_u32(false) {
             let prot = ProtocolVersion::try_from(prot_r)?;

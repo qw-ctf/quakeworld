@@ -6,6 +6,11 @@ extern crate paste;
 extern crate quote;
 extern crate unstringify;
 
+pub mod datatypes;
+
+#[cfg(feature = "trace")]
+pub mod trace;
+
 #[cfg(feature = "utils")]
 pub mod utils;
 #[cfg(feature = "protocol")]
@@ -22,6 +27,15 @@ pub mod crc;
 
 #[cfg(feature = "pak")]
 pub mod pak;
+
+#[cfg(feature = "mdl")]
+pub mod mdl;
+
+#[cfg(feature = "lmp")]
+pub mod lmp;
+
+#[cfg(feature = "bsp")]
+pub mod bsp;
 
 #[cfg(test)]
 mod tests {

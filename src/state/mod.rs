@@ -66,32 +66,25 @@ pub struct Entity {
 impl Entity {
     /// apply [`ServerMessage::Packetentity`] as a deltapacket_entity to this [`Entity`]
     pub fn apply_delta(&mut self, delta: &Packetentity) {
-        if delta.model.is_some() {
-            let v = delta.model.unwrap();
+        if let Some(v) = delta.model {
             self.model = v;
         }
-        if delta.frame.is_some() {
-            let v = delta.frame.unwrap();
+        if let Some(v) = delta.frame {
             self.frame= v;
         }
-        if delta.colormap.is_some() {
-            let v = delta.colormap.unwrap();
+        if let Some(v) = delta.colormap {
             self.frame= v;
         }
-        if delta.skin.is_some() {
-            let v = delta.skin.unwrap();
+        if let Some(v) = delta.skin {
             self.frame= v;
         }
-        if delta.effects.is_some() {
-            let v = delta.effects.unwrap();
+        if let Some(v) = delta.effects {
             self.frame= v;
         }
-        if delta.origin.is_some() {
-            let v = delta.origin.unwrap();
+        if let Some(v) = delta.origin {
             v.apply_to(&mut self.origin);
         }
-        if delta.angle.is_some() {
-            let v = delta.angle.unwrap();
+        if let Some(v) = delta.angle {
             v.apply_to(&mut self.angle);
         }
 
@@ -126,12 +119,12 @@ impl Entity {
     /// create [`Entity`] from [`ServerMessage::Packetentity`]
     pub fn from_packetentity(packet_entity: &Packetentity) -> Entity {
         let mut angle = AngleVector{ ..Default::default()};
-        if packet_entity.angle.is_some() {
-            packet_entity.angle.unwrap().apply_to(&mut angle);
+        if let Some(pe_angle) = packet_entity.angle {
+            pe_angle.apply_to(&mut angle);
         }
         let mut origin  = CoordinateVector{ ..Default::default()};
-        if packet_entity.origin.is_some() {
-            packet_entity.origin.unwrap().apply_to(&mut origin);
+        if let Some(pe_o) = packet_entity.origin {
+            pe_o.apply_to(&mut origin);
         }
         Entity {
             index: packet_entity.entity_index,
@@ -199,7 +192,8 @@ impl State {
         let p = self.players.get_mut(&player_index);
         let player = match p {
             Some(player) =>  player,
-            None => { self.players.insert(player_index, Player{..Default::default()});
+            None => {
+                self.players.insert(player_index, Player{..Default::default()});
                 self.players.get_mut(&player_index).unwrap()
             },
         };

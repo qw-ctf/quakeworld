@@ -1,13 +1,13 @@
-use std::fmt;
-use num_enum::TryFromPrimitive;
-use strum_macros::Display;
-use paste::paste;
 use bitflags::bitflags;
+use num_enum::TryFromPrimitive;
+use paste::paste;
 use serde::Serialize;
+use std::fmt;
+use strum_macros::Display;
 
-use crate::protocol::message::*;
 use crate::protocol::message::errors::*;
 use crate::protocol::message::trace::*;
+use crate::protocol::message::*;
 
 use protocol_macros::ParseMessage;
 
@@ -122,10 +122,10 @@ impl DeltaUserCommand {
                 msec = Some(message.read_u8(false)?);
             }
         } else {
-                trace_annotate!(message, "msec");
-                msec = Some(message.read_u8(false)?);
+            trace_annotate!(message, "msec");
+            msec = Some(message.read_u8(false)?);
         }
-        let r = DeltaUserCommand{
+        let r = DeltaUserCommand {
             bits: flags,
             angle,
             forward,
@@ -133,7 +133,7 @@ impl DeltaUserCommand {
             up,
             buttons,
             impulse,
-            msec
+            msec,
         };
 
         trace_stop!(message, r);
@@ -148,7 +148,7 @@ pub struct StringByte {
     pub string: String,
 }
 #[cfg(feature = "ascii_strings")]
-impl fmt::Display for StringByte{
+impl fmt::Display for StringByte {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "String: {},", self.string)?;
         write!(f, "Byte:")?;
@@ -160,7 +160,7 @@ impl fmt::Display for StringByte{
 }
 
 #[cfg(not(feature = "ascii_strings"))]
-impl fmt::Display for StringByte{
+impl fmt::Display for StringByte {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Byte:")?;
         for x in &self.bytes {
@@ -170,33 +170,26 @@ impl fmt::Display for StringByte{
     }
 }
 
-
 impl StringByte {
-#[cfg(not(feature = "ascii_strings"))]
-    pub fn new (bytes: impl Into<Vec<u8>>) -> StringByte {
+    #[cfg(not(feature = "ascii_strings"))]
+    pub fn new(bytes: impl Into<Vec<u8>>) -> StringByte {
         let bytes = bytes.into();
-        StringByte{
-            bytes,
-        }
+        StringByte { bytes }
     }
 
-#[cfg(feature = "ascii_strings")]
-    pub fn new (bytes: impl Into<Vec<u8>>, ascii_converter: &AsciiConverter) -> StringByte {
+    #[cfg(feature = "ascii_strings")]
+    pub fn new(bytes: impl Into<Vec<u8>>, ascii_converter: &AsciiConverter) -> StringByte {
         let bytes = bytes.into();
         let string = ascii_converter.convert(bytes.clone());
-        StringByte{
-            bytes,
-            string,
-        }
+        StringByte { bytes, string }
     }
 }
 
 pub type StringVector = Vec<StringByte>;
 
-
 pub type Coordinate = f32;
 #[derive(Debug, PartialEq, PartialOrd, Default, Serialize, Clone, Copy)]
-pub struct CoordinateVector { 
+pub struct CoordinateVector {
     pub x: Coordinate,
     pub y: Coordinate,
     pub z: Coordinate,
@@ -204,14 +197,14 @@ pub struct CoordinateVector {
 
 pub type Velocity = i16;
 #[derive(Debug, PartialEq, Eq, PartialOrd, Copy, Clone, Serialize, Default)]
-pub struct VelocityVectorOption { 
+pub struct VelocityVectorOption {
     pub x: Option<Velocity>,
     pub y: Option<Velocity>,
     pub z: Option<Velocity>,
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Copy, Clone, Serialize)]
-pub struct CoordinateVectorOption { 
+pub struct CoordinateVectorOption {
     pub x: Option<Coordinate>,
     pub y: Option<Coordinate>,
     pub z: Option<Coordinate>,
@@ -219,44 +212,42 @@ pub struct CoordinateVectorOption {
 
 impl CoordinateVectorOption {
     pub fn apply_to(&self, target: &mut CoordinateVector) {
-        if self.x.is_some() {
-            target.x = self.x.unwrap();
+        if let Some(v) = self.x {
+            target.x = v;
         }
-        if self.y.is_some() {
-            target.y = self.y.unwrap();
+        if let Some(v) = self.y {
+            target.y = v;
         }
-        if self.z.is_some() {
-            target.z = self.z.unwrap();
+        if let Some(v) = self.z {
+            target.z = v;
         }
     }
     fn empty() -> CoordinateVectorOption {
-        CoordinateVectorOption{
+        CoordinateVectorOption {
             x: None,
             y: None,
-            z:None}
+            z: None,
+        }
     }
 
     fn is_empty(self) -> bool {
-        if self.x.is_none() &&
-            self.y.is_none() &&
-                self.z.is_none() {
-                    return true
-                }
+        if self.x.is_none() && self.y.is_none() && self.z.is_none() {
+            return true;
+        }
         false
     }
 }
 
 pub type Angle = f32;
 #[derive(Debug, PartialEq, PartialOrd, Serialize, Default, Copy, Clone)]
-pub struct AngleVector { 
+pub struct AngleVector {
     pub x: Angle,
     pub y: Angle,
     pub z: Angle,
 }
 
-
 #[derive(Debug, PartialEq, PartialOrd, Copy, Clone, Serialize, Default)]
-pub struct AngleVectorOption { 
+pub struct AngleVectorOption {
     pub x: Option<Angle>,
     pub y: Option<Angle>,
     pub z: Option<Angle>,
@@ -264,53 +255,55 @@ pub struct AngleVectorOption {
 
 impl AngleVectorOption {
     pub fn apply_to(&self, target: &mut AngleVector) {
-        if self.x.is_some() {
-            target.x = self.x.unwrap();
+        if let Some(x) = self.x {
+            target.x = x;
         }
-        if self.y.is_some() {
-            target.y = self.y.unwrap();
+        if let Some(y) = self.y {
+            target.y = y;
         }
-        if self.z.is_some() {
-            target.z = self.z.unwrap();
+        if let Some(z) = self.z {
+            target.z = z;
         }
     }
     fn empty() -> AngleVectorOption {
-        AngleVectorOption{
+        AngleVectorOption {
             x: None,
             y: None,
-            z:None}
+            z: None,
+        }
     }
 
     fn is_empty(self) -> bool {
-        if self.x.is_none() &&
-            self.y.is_none() &&
-                self.z.is_none() {
-                    return true
-                }
+        if self.x.is_none() && self.y.is_none() && self.z.is_none() {
+            return true;
+        }
         false
     }
 }
 
-#[derive(Debug, Eq, PartialEq, PartialOrd, Ord, TryFromPrimitive, Display, Copy, Clone, Serialize)]
+#[derive(
+    Debug, Eq, PartialEq, PartialOrd, Ord, TryFromPrimitive, Display, Copy, Clone, Serialize,
+)]
 #[repr(u8)]
 pub enum DemoCommand {
     Command = 0,
-	Read,
-	Set,
-	Multiple,
-	Single,
-	Stats,
-	All,
-    Empty
+    Read,
+    Set,
+    Multiple,
+    Single,
+    Stats,
+    All,
+    Empty,
 }
 
-
-#[derive(Debug, Eq, PartialEq, PartialOrd, Ord, TryFromPrimitive, Display, Clone, Serialize, Default)]
+#[derive(
+    Debug, Eq, PartialEq, PartialOrd, Ord, TryFromPrimitive, Display, Clone, Serialize, Default,
+)]
 #[repr(u32)]
 pub enum ProtocolVersion {
     #[default]
     None = 0,
-	Standard = 28,
+    Standard = 28,
     Fte = u32::from_ne_bytes(*b"FTEX"),
     Fte2 = u32::from_ne_bytes(*b"FTE2"),
     Mvd1 = u32::from_ne_bytes(*b"MVD1"),
@@ -321,19 +314,17 @@ pub const OOB_HEADER: u32 = 0xFFFFFFFF;
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, TryFromPrimitive, Display, Serialize)]
 #[repr(u32)]
 pub enum ProtocolExtensionFte {
-	Trans             = 0x00000008, // .alpha support
-	AccurateTimings   = 0x00000040,
-	HlBsp             = 0x00000200, //stops fte servers from complaining
-	Modeldbl          = 0x00001000,
-	Entitydbl         = 0x00002000, //max =of 1024 ents instead of 512
-	Entitydbl2        = 0x00004000, //max =of 1024 ents instead of 512
-	Floatcoords       = 0x00008000, //supports =floating point origins.
-	Spawnstatic2      = 0x00400000, //Sends =an entity delta instead of a baseline.
-	Packetentities256 = 0x01000000, //Client =can recieve 256 packet entities.
-	ChunkedDownloads  = 0x20000000 //alternate =file download method. Hopefully it'll give quadroupled download speed, especially on higher pings.
+    Trans = 0x00000008, // .alpha support
+    AccurateTimings = 0x00000040,
+    HlBsp = 0x00000200, //stops fte servers from complaining
+    Modeldbl = 0x00001000,
+    Entitydbl = 0x00002000,         //max =of 1024 ents instead of 512
+    Entitydbl2 = 0x00004000,        //max =of 1024 ents instead of 512
+    Floatcoords = 0x00008000,       //supports =floating point origins.
+    Spawnstatic2 = 0x00400000,      //Sends =an entity delta instead of a baseline.
+    Packetentities256 = 0x01000000, //Client =can recieve 256 packet entities.
+    ChunkedDownloads = 0x20000000, //alternate =file download method. Hopefully it'll give quadroupled download speed, especially on higher pings.
 }
-
-
 
 bitflags! {
 #[derive(Serialize, Default)]
@@ -376,7 +367,7 @@ pub struct Serverdata {
     pub gamedir: StringByte,
     pub player_number: u8,
     pub map: StringByte,
-    pub movevars: [f32;10]
+    pub movevars: [f32; 10],
 }
 
 impl Serverdata {
@@ -394,27 +385,30 @@ impl Serverdata {
 
             match protocol {
                 ProtocolVersion::None => {
-                    return Err(MessageError::StringError("ProtocolVersion None(0) should never happen, probable parser error".to_string()))
-                },
+                    return Err(MessageError::StringError(
+                        "ProtocolVersion None(0) should never happen, probable parser error"
+                            .to_string(),
+                    ))
+                }
                 ProtocolVersion::Standard => break,
                 ProtocolVersion::Mvd1 => {
                     trace_annotate!(message, "mvd1");
                     let u = message.read_u32(false)?;
                     mvd_protocol_extension = MvdProtocolExtensions::from_bits_truncate(u);
                     continue;
-                },
-                ProtocolVersion::Fte  => {
+                }
+                ProtocolVersion::Fte => {
                     trace_annotate!(message, "fte");
                     let u = message.read_u32(false)?;
                     fte_protocol_extension = FteProtocolExtensions::from_bits_truncate(u);
                     continue;
-                },
-                ProtocolVersion::Fte2  => {
+                }
+                ProtocolVersion::Fte2 => {
                     trace_annotate!(message, "fte2");
                     let u = message.read_u32(false)?;
                     fte_protocol_extension_2 = FteProtocolExtensions2::from_bits_truncate(u);
                     continue;
-                },
+                }
             }
         }
         trace_annotate!(message, "servercount");
@@ -427,36 +421,37 @@ impl Serverdata {
             MessageType::Connection => {
                 trace_annotate!(message, "player_number");
                 player_number = message.read_u8(false)?;
-            },
+            }
             MessageType::Mvd => {
                 trace_annotate!(message, "demotime");
                 demotime = message.read_f32(false)?;
-            },
+            }
             _ => {
-                return Err(MessageError::StringError("MessageType None should never happen, probable parser error".to_string()))
+                return Err(MessageError::StringError(
+                    "MessageType None should never happen, probable parser error".to_string(),
+                ))
             }
         }
         trace_annotate!(message, "map");
         let map = message.read_stringbyte(false)?;
-        let mut movevars:  [f32;10] = [0.0; 10];
+        let mut movevars: [f32; 10] = [0.0; 10];
         for mv in &mut movevars {
             trace_annotate!(message, "movevar");
             *mv = message.read_f32(false)?;
         }
 
-        let r = ServerMessage::Serverdata(
-                Serverdata {
-                    protocol,
-                    fte_protocol_extension,
-                    fte_protocol_extension_2,
-                    mvd_protocol_extension,
-                    servercount,
-                    gamedir,
-                    demotime,
-                    player_number,
-                    map,
-                    movevars
-                });
+        let r = ServerMessage::Serverdata(Serverdata {
+            protocol,
+            fte_protocol_extension,
+            fte_protocol_extension_2,
+            mvd_protocol_extension,
+            servercount,
+            gamedir,
+            demotime,
+            player_number,
+            map,
+            movevars,
+        });
         trace_stop!(message, r);
         Ok(r)
     }
@@ -466,24 +461,24 @@ impl Serverdata {
 pub struct Soundlist {
     pub start: u8,
     pub sounds: StringVector,
-    pub offset: u8
+    pub offset: u8,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, ParseMessage, Serialize, Clone)]
 pub struct Modellist {
     pub start: u8,
     pub models: StringVector,
-    pub offset: u8
+    pub offset: u8,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd,ParseMessage, Serialize, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, ParseMessage, Serialize, Clone)]
 pub struct Cdtrack {
-    pub track: u8
+    pub track: u8,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, ParseMessage, Serialize, Clone)]
 pub struct Stufftext {
-    pub text: StringByte 
+    pub text: StringByte,
 }
 
 #[derive(Debug, PartialEq, PartialOrd, ParseMessage, Serialize, Default, Copy, Clone)]
@@ -493,7 +488,7 @@ pub struct Spawnstatic {
     pub colormap: u8,
     pub skinnum: u8,
     pub origin: CoordinateVector,
-    pub angle: AngleVector
+    pub angle: AngleVector,
 }
 
 #[derive(Debug, PartialEq, PartialOrd, ParseMessage, Serialize, Default, Clone)]
@@ -504,33 +499,33 @@ pub struct Spawnbaseline {
     pub colormap: u8,
     pub skinnum: u8,
     pub origin: CoordinateVector,
-    pub angle: AngleVector
+    pub angle: AngleVector,
 }
 
 #[derive(Debug, PartialEq, PartialOrd, ParseMessage, Serialize, Clone, Default)]
-pub struct Spawnstaticsound{
+pub struct Spawnstaticsound {
     pub origin: CoordinateVector,
     pub index: u8,
     pub volume: u8,
-    pub attenuation: u8
+    pub attenuation: u8,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, ParseMessage, Serialize, Clone)]
 pub struct Updatefrags {
     pub player_number: u8,
-    pub frags: i16
+    pub frags: i16,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, ParseMessage, Serialize, Clone)]
 pub struct Updateping {
     pub player_number: u8,
-    pub ping: u16
+    pub ping: u16,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, ParseMessage, Serialize, Clone)]
 pub struct Updatepl {
     pub player_number: u8,
-    pub pl: u8
+    pub pl: u8,
 }
 
 #[derive(Debug, PartialEq, PartialOrd, ParseMessage, Serialize, Clone)]
@@ -543,36 +538,36 @@ pub struct Updateentertime {
 pub struct Updateuserinfo {
     pub player_number: u8,
     pub uid: u32,
-    pub userinfo: StringByte
+    pub userinfo: StringByte,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, ParseMessage, Serialize, Clone)]
-pub struct Updatestatlong{
+pub struct Updatestatlong {
     pub stat: u8,
-    pub value: i32
+    pub value: i32,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, ParseMessage, Serialize, Clone)]
-pub struct Updatestat{
+pub struct Updatestat {
     pub stat: u8,
-    pub value: i8
+    pub value: i8,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, ParseMessage, Serialize, Clone)]
 pub struct Lightstyle {
     pub index: u8,
-    pub style: StringByte 
+    pub style: StringByte,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, ParseMessage, Serialize, Clone)]
 pub struct Serverinfo {
     pub key: StringByte,
-    pub value: StringByte 
+    pub value: StringByte,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, ParseMessage, Serialize, Clone)]
 pub struct Centerprint {
-    pub message: StringByte 
+    pub message: StringByte,
 }
 
 bitflags! {
@@ -616,7 +611,7 @@ bitflags! {
 #[derive(Clone, Debug, PartialEq, Serialize, PartialOrd)]
 pub enum Playerinfo {
     PlayerinfoMvdT(PlayerinfoMvd),
-    PlayerinfoConnectionT(PlayerinfoConnection)
+    PlayerinfoConnectionT(PlayerinfoConnection),
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Serialize, Clone)]
@@ -633,7 +628,7 @@ pub struct PlayerinfoMvd {
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Serialize, Clone)]
-pub struct PlayerinfoConnection{
+pub struct PlayerinfoConnection {
     pub player_number: u8,
     pub flags: PFTypes,
     pub origin: CoordinateVector,
@@ -645,7 +640,7 @@ pub struct PlayerinfoConnection{
     pub skinnum: Option<u8>,
     pub effects: Option<u8>,
     pub weaponframe: Option<u8>,
-    pub alpha: Option<u8>
+    pub alpha: Option<u8>,
 }
 
 fn playerinfo_read_demo(message: &mut Message) -> Result<ServerMessage, MessageError> {
@@ -655,7 +650,11 @@ fn playerinfo_read_demo(message: &mut Message) -> Result<ServerMessage, MessageE
     let frame = message.read_u8(false)?;
     let mut origin = None;
     let mut origin_read = false;
-    let mut origin_vec =  CoordinateVectorOption{x: None, y: None, z: None};
+    let mut origin_vec = CoordinateVectorOption {
+        x: None,
+        y: None,
+        z: None,
+    };
     for i in 0..3 {
         let f = DfTypes::from_bits_truncate(DfTypes::ORIGIN.bits() << i);
         if flags.contains(f) {
@@ -676,7 +675,11 @@ fn playerinfo_read_demo(message: &mut Message) -> Result<ServerMessage, MessageE
     }
     let mut angle = None;
     let mut angle_read = false;
-    let mut angle_vec =  AngleVectorOption{x: None, y: None, z: None};
+    let mut angle_vec = AngleVectorOption {
+        x: None,
+        y: None,
+        z: None,
+    };
     for i in 0..3 {
         let f = DfTypes::from_bits_truncate(DfTypes::ANGLE.bits() << i);
         if flags.contains(f) {
@@ -719,24 +722,28 @@ fn playerinfo_read_demo(message: &mut Message) -> Result<ServerMessage, MessageE
         let i = message.read_u8(false)?;
         weaponframe = Some(i);
     }
-    Ok(ServerMessage::Playerinfo(Playerinfo::PlayerinfoMvdT(PlayerinfoMvd{
-        player_number,
-        flags,
-        frame,
-        origin,
-        angle,
-        model,
-        skinnum,
-        effects,
-        weaponframe
-    })))
+    Ok(ServerMessage::Playerinfo(Playerinfo::PlayerinfoMvdT(
+        PlayerinfoMvd {
+            player_number,
+            flags,
+            frame,
+            origin,
+            angle,
+            model,
+            skinnum,
+            effects,
+            weaponframe,
+        },
+    )))
 }
 
 fn playerinfo_read_connection(message: &mut Message) -> Result<ServerMessage, MessageError> {
     let player_number = message.read_u8(false)?;
     let u = message.read_u16(false)?;
     let flags = PFTypes::from_bits_truncate(u as u32);
-    let mut origin = CoordinateVector{..Default::default()};
+    let mut origin = CoordinateVector {
+        ..Default::default()
+    };
 
     origin.x = message.read_coordinate(false)?;
     origin.y = message.read_coordinate(false)?;
@@ -754,7 +761,9 @@ fn playerinfo_read_connection(message: &mut Message) -> Result<ServerMessage, Me
         command = Some(DeltaUserCommand::read(message)?);
     }
 
-    let mut velocity = VelocityVectorOption{ ..Default::default()};
+    let mut velocity = VelocityVectorOption {
+        ..Default::default()
+    };
 
     if flags.contains(PFTypes::VELOCITY1) {
         velocity.x = Some(message.read_i16(false)?);
@@ -773,41 +782,48 @@ fn playerinfo_read_connection(message: &mut Message) -> Result<ServerMessage, Me
 
     let mut skinnum = None;
     if flags.contains(PFTypes::SKINNUM) {
-        skinnum  = Some(message.read_u8(false)?);
+        skinnum = Some(message.read_u8(false)?);
     }
 
     let mut effects = None;
     if flags.contains(PFTypes::EFFECTS) {
-        effects  = Some(message.read_u8(false)?);
+        effects = Some(message.read_u8(false)?);
     }
 
     let mut weaponframe = None;
     if flags.contains(PFTypes::WEAPONFRAME) {
-        weaponframe  = Some(message.read_u8(false)?);
+        weaponframe = Some(message.read_u8(false)?);
     }
 
     let mut alpha = None;
-    if flags.contains(PFTypes::TRANS) && message.flags.fte_protocol_extensions.contains(FteProtocolExtensions::TRANS) {
+    if flags.contains(PFTypes::TRANS)
+        && message
+            .flags
+            .fte_protocol_extensions
+            .contains(FteProtocolExtensions::TRANS)
+    {
         alpha = Some(message.read_u8(false)?);
     }
 
-    Ok(ServerMessage::Playerinfo(Playerinfo::PlayerinfoConnectionT(PlayerinfoConnection{
-        player_number,
-        flags,
-        origin,
-        frame,
-        msec,
-        command,
-        velocity,
-        model,
-        skinnum,
-        effects,
-        weaponframe,
-        alpha
-    })))
+    Ok(ServerMessage::Playerinfo(
+        Playerinfo::PlayerinfoConnectionT(PlayerinfoConnection {
+            player_number,
+            flags,
+            origin,
+            frame,
+            msec,
+            command,
+            velocity,
+            model,
+            skinnum,
+            effects,
+            weaponframe,
+            alpha,
+        }),
+    ))
 }
 
-impl Playerinfo  {
+impl Playerinfo {
     pub fn read(message: &mut Message) -> Result<ServerMessage, MessageError> {
         if message.r#type == MessageType::Connection {
             playerinfo_read_connection(message)
@@ -820,16 +836,16 @@ impl Playerinfo  {
 bitflags! {
 #[derive(Serialize, Default)]
     pub struct FteProtocolExtensions: u32 {
-	const TRANS             = 0x00000008; // .alpha support
-	const ACCURATETIMINGS   = 0x00000040;
-	const HLBSP             = 0x00000200; //stops fte servers from complaining
-	const MODELDBL          = 0x00001000;
-	const ENTITYDBL         = 0x00002000; //max =of 1024 ents instead of 512
-	const ENTITYDBL2        = 0x00004000; //max =of 1024 ents instead of 512
-	const FLOATCOORDS       = 0x00008000; //supports =floating point origins.
-	const SPAWNSTATIC2      = 0x00400000; //Sends =an entity delta instead of a baseline.
-	const PACKETENTITIES_256 = 0x01000000; //Client =can recieve 256 packet entities.
-	const CHUNKEDDOWNLOADS  = 0x20000000; //alternate =file download method. Hopefully it'll give quadroupled download speed, especially on higher pings.
+    const TRANS             = 0x00000008; // .alpha support
+    const ACCURATETIMINGS   = 0x00000040;
+    const HLBSP             = 0x00000200; //stops fte servers from complaining
+    const MODELDBL          = 0x00001000;
+    const ENTITYDBL         = 0x00002000; //max =of 1024 ents instead of 512
+    const ENTITYDBL2        = 0x00004000; //max =of 1024 ents instead of 512
+    const FLOATCOORDS       = 0x00008000; //supports =floating point origins.
+    const SPAWNSTATIC2      = 0x00400000; //Sends =an entity delta instead of a baseline.
+    const PACKETENTITIES_256 = 0x01000000; //Client =can recieve 256 packet entities.
+    const CHUNKEDDOWNLOADS  = 0x20000000; //alternate =file download method. Hopefully it'll give quadroupled download speed, especially on higher pings.
     }
 }
 
@@ -888,10 +904,10 @@ pub struct Packetentity {
 
 #[derive(Debug, PartialEq, PartialOrd, Serialize, Clone)]
 pub struct Packetentities {
-    pub entities: Vec<Packetentity>
+    pub entities: Vec<Packetentity>,
 }
 
-impl Packetentities  {
+impl Packetentities {
     pub fn read(message: &mut Message) -> Result<ServerMessage, MessageError> {
         trace_start!(message, false);
         let mut entities = Vec::new();
@@ -901,7 +917,7 @@ impl Packetentities  {
             trace_annotate!(message, "bits");
             let mut bits = message.read_u16(false)?;
             if bits == 0 {
-                break
+                break;
             }
             let baseline_index = bits & 511;
             bits &= !511;
@@ -1003,7 +1019,7 @@ impl Packetentities  {
                 angle = Some(angle_internal);
             }
 
-            let p = Packetentity{
+            let p = Packetentity {
                 entity_index: baseline_index,
                 bits,
                 remove,
@@ -1023,15 +1039,14 @@ impl Packetentities  {
                 panic!();
             }
         }
-        let r = ServerMessage::Packetentities(Packetentities{ entities });
+        let r = ServerMessage::Packetentities(Packetentities { entities });
         trace_stop!(message, r);
         Ok(r)
     }
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Serialize, Clone)]
-pub struct Bad {
-}
+pub struct Bad {}
 impl Bad {
     pub fn read(_message: &mut Message) -> Result<ServerMessage, MessageError> {
         Err(MessageError::BadRead)
@@ -1049,176 +1064,172 @@ impl FteSpawnbaseline2 {
         trace_start!(message, false);
         let from = 0;
 
-            let mut morebits =  FteDeltaExtension::empty();
+        let mut morebits = FteDeltaExtension::empty();
 
+        #[cfg(feature = "trace")]
+        message.read_trace_annotate("bits");
+        let mut bits = message.read_u16(false)?;
+        let mut baseline_index = bits & 511;
+        bits &= !511;
+        let mut flags = UpdateTypes::from_bits_truncate(bits);
+        if flags.contains(UpdateTypes::MOREBITS) {
             #[cfg(feature = "trace")]
-            message.read_trace_annotate("bits");
-            let mut bits = message.read_u16(false)?;
-            let mut baseline_index = bits & 511;
-            bits &= !511;
-            let mut flags = UpdateTypes::from_bits_truncate(bits);
-            if flags.contains(UpdateTypes::MOREBITS) {
+            message.read_trace_annotate("morebits");
+            let morebits = message.read_u8(false)?;
+            bits |= morebits as u16;
+            flags = UpdateTypes::from_bits_truncate(bits);
+        }
+
+        let cflags = UpdateTypes::from_bits_truncate(FteDeltaCheck::EVENMORE.bits());
+        if flags.contains(cflags) {
+            #[cfg(feature = "trace")]
+            message.read_trace_annotate("fte evenmore");
+            let mut b = message.read_u8(false)? as u16;
+            if b & FteDeltaExtension::YETMORE.bits() > 0 {
                 #[cfg(feature = "trace")]
-                message.read_trace_annotate("morebits");
-                let morebits = message.read_u8(false)?;
-                bits |= morebits as u16;
-                flags = UpdateTypes::from_bits_truncate(bits);
+                message.read_trace_annotate("fte yetmore");
+                let mb = message.read_u8(false)? as u16;
+                b |= mb << 8;
             }
+            morebits = FteDeltaExtension::from_bits_truncate(b);
+        }
 
+        let mut remove = false;
+        if flags.contains(UpdateTypes::REMOVE) {
+            remove = true;
+        }
 
-            let cflags = UpdateTypes::from_bits_truncate( FteDeltaCheck::EVENMORE.bits());
-            if flags.contains(cflags) {
-                #[cfg(feature = "trace")]
-                message.read_trace_annotate("fte evenmore");
-                let mut b = message.read_u8(false)? as u16;
-                if b & FteDeltaExtension::YETMORE.bits() > 0 {
-                    #[cfg(feature = "trace")]
-                    message.read_trace_annotate("fte yetmore");
-                    let mb = message.read_u8(false)? as u16;
-                    b |= mb << 8;
-                }
-                morebits = FteDeltaExtension::from_bits_truncate(b);
-            }
+        let mut model = None;
+        if flags.contains(UpdateTypes::MODEL) {
+            #[cfg(feature = "trace")]
+            message.read_trace_annotate("model");
+            let tmp = message.read_u8(false)? as u16;
+            model = Some(tmp);
+        }
 
-            let mut remove = false;
-            if flags.contains(UpdateTypes::REMOVE) {
-                remove = true;
-            }
+        let mut frame = None;
+        if flags.contains(UpdateTypes::FRAME) {
+            #[cfg(feature = "trace")]
+            message.read_trace_annotate("frame");
+            let tmp = message.read_u8(false)?;
+            frame = Some(tmp);
+        }
 
-            let mut model = None;
-            if flags.contains(UpdateTypes::MODEL) {
-                #[cfg(feature = "trace")]
-                message.read_trace_annotate("model");
-                let tmp = message.read_u8(false)? as u16;
-                model = Some(tmp);
-            }
+        let mut colormap = None;
+        if flags.contains(UpdateTypes::COLORMAP) {
+            #[cfg(feature = "trace")]
+            message.read_trace_annotate("colormap");
+            let tmp = message.read_u8(false)?;
+            colormap = Some(tmp);
+        }
 
-            let mut frame = None;
-            if flags.contains(UpdateTypes::FRAME) {
-                #[cfg(feature = "trace")]
-                message.read_trace_annotate("frame");
-                let tmp = message.read_u8(false)?;
-                frame = Some(tmp);
-            }
+        let mut skin = None;
+        if flags.contains(UpdateTypes::SKIN) {
+            #[cfg(feature = "trace")]
+            message.read_trace_annotate("skin");
+            let tmp = message.read_u8(false)?;
+            skin = Some(tmp);
+        }
 
-            let mut colormap = None;
-            if flags.contains(UpdateTypes::COLORMAP) {
-                #[cfg(feature = "trace")]
-                message.read_trace_annotate("colormap");
-                let tmp = message.read_u8(false)?;
-                colormap = Some(tmp);
-            }
+        let mut effects = None;
+        if flags.contains(UpdateTypes::EFFECTS) {
+            #[cfg(feature = "trace")]
+            message.read_trace_annotate("effects");
+            let tmp = message.read_u8(false)?;
+            effects = Some(tmp);
+        }
 
-            let mut skin = None;
-            if flags.contains(UpdateTypes::SKIN) {
-                #[cfg(feature = "trace")]
-                message.read_trace_annotate("skin");
-                let tmp = message.read_u8(false)?;
-                skin = Some(tmp);
-            }
+        let mut origin = None;
+        let mut origin_internal = CoordinateVectorOption::empty();
 
-            let mut effects = None;
-            if flags.contains(UpdateTypes::EFFECTS) {
-                #[cfg(feature = "trace")]
-                message.read_trace_annotate("effects");
-                let tmp = message.read_u8(false)?;
-                effects = Some(tmp);
-            }
+        let mut angle = None;
+        let mut angle_internal = AngleVectorOption::empty();
 
-            let mut origin = None;
-            let mut origin_internal = CoordinateVectorOption::empty();
+        if flags.contains(UpdateTypes::ORIGIN1) {
+            #[cfg(feature = "trace")]
+            message.read_trace_annotate("origin1");
+            let tmp = message.read_coordinate(false)?;
+            origin_internal.x = Some(tmp);
+        }
 
-            let mut angle = None;
-            let mut angle_internal = AngleVectorOption::empty();
+        if flags.contains(UpdateTypes::ANGLE1) {
+            #[cfg(feature = "trace")]
+            message.read_trace_annotate("angle1");
+            let tmp = message.read_angle(false)?;
+            angle_internal.x = Some(tmp);
+        }
 
-            if flags.contains(UpdateTypes::ORIGIN1) {
-                #[cfg(feature = "trace")]
-                message.read_trace_annotate("origin1");
-                let tmp = message.read_coordinate(false)?;
-                origin_internal.x = Some(tmp);
-            }
+        if flags.contains(UpdateTypes::ORIGIN2) {
+            #[cfg(feature = "trace")]
+            message.read_trace_annotate("origin2");
+            let tmp = message.read_coordinate(false)?;
+            origin_internal.y = Some(tmp);
+        }
 
-            if flags.contains(UpdateTypes::ANGLE1) {
-                #[cfg(feature = "trace")]
-                message.read_trace_annotate("angle1");
-                let tmp = message.read_angle(false)?;
-                angle_internal.x = Some(tmp);
-            }
+        if flags.contains(UpdateTypes::ANGLE2) {
+            #[cfg(feature = "trace")]
+            message.read_trace_annotate("angle2");
+            let tmp = message.read_angle(false)?;
+            angle_internal.y = Some(tmp);
+        }
 
-            if flags.contains(UpdateTypes::ORIGIN2) {
-                #[cfg(feature = "trace")]
-                message.read_trace_annotate("origin2");
-                let tmp = message.read_coordinate(false)?;
-                origin_internal.y = Some(tmp);
-            }
+        if flags.contains(UpdateTypes::ORIGIN3) {
+            #[cfg(feature = "trace")]
+            message.read_trace_annotate("origin3");
+            let tmp = message.read_coordinate(false)?;
+            origin_internal.z = Some(tmp);
+        }
 
-            if flags.contains(UpdateTypes::ANGLE2) {
-                #[cfg(feature = "trace")]
-                message.read_trace_annotate("angle2");
-                let tmp = message.read_angle(false)?;
-                angle_internal.y = Some(tmp);
-            }
+        if flags.contains(UpdateTypes::ANGLE3) {
+            #[cfg(feature = "trace")]
+            message.read_trace_annotate("angle3");
+            let tmp = message.read_angle(false)?;
+            angle_internal.z = Some(tmp);
+        }
 
-            if flags.contains(UpdateTypes::ORIGIN3) {
-                #[cfg(feature = "trace")]
-                message.read_trace_annotate("origin3");
-                let tmp = message.read_coordinate(false)?;
-                origin_internal.z = Some(tmp);
-            }
+        if !origin_internal.is_empty() {
+            origin = Some(origin_internal);
+        }
 
-            if flags.contains(UpdateTypes::ANGLE3) {
-                #[cfg(feature = "trace")]
-                message.read_trace_annotate("angle3");
-                let tmp = message.read_angle(false)?;
-                angle_internal.z = Some(tmp);
-            }
+        if !angle_internal.is_empty() {
+            angle = Some(angle_internal);
+        }
 
-            if !origin_internal.is_empty() {
-                origin = Some(origin_internal);
-            }
+        let mut transparency = None;
+        if morebits.contains(FteDeltaExtension::TRANS) {
+            #[cfg(feature = "trace")]
+            message.read_trace_annotate("fte trans");
+            transparency = Some(message.read_u8(false)?);
+        }
 
-            if !angle_internal.is_empty() {
-                angle = Some(angle_internal);
-            }
+        if morebits.contains(FteDeltaExtension::ENTITYDOUBLE) {
+            baseline_index += 512;
+        }
 
-            let mut transparency = None;
-            if morebits.contains(FteDeltaExtension::TRANS) {
-                #[cfg(feature = "trace")]
-                message.read_trace_annotate("fte trans");
-                transparency = Some(message.read_u8(false)?);
-            }
+        if morebits.contains(FteDeltaExtension::ENTITYDOUBLE2) {
+            baseline_index += 1024;
+        }
 
-            if morebits.contains(FteDeltaExtension::ENTITYDOUBLE) {
-                baseline_index += 512;
-            }
+        if morebits.contains(FteDeltaExtension::MODELDOUBLE) && model.is_some() {
+            model = Some(model.unwrap() + 512);
+        }
 
-            if morebits.contains(FteDeltaExtension::ENTITYDOUBLE2) {
-                baseline_index += 1024;
-            }
+        let p = Packetentity {
+            entity_index: baseline_index,
+            bits,
+            ftebits: morebits,
+            remove,
+            model,
+            frame,
+            colormap,
+            skin,
+            effects,
+            origin,
+            angle,
+            transparency,
+        };
 
-            if morebits.contains(FteDeltaExtension::MODELDOUBLE) && model.is_some() {
-                model = Some(model.unwrap() + 512);
-            }
-
-            let p = Packetentity{
-                entity_index: baseline_index,
-                bits,
-                ftebits: morebits,
-                remove,
-                model,
-                frame,
-                colormap,
-                skin,
-                effects,
-                origin,
-                angle,
-                transparency,
-            };
-
-        let v = ServerMessage::SpawnstaticFte2(SpawnstaticFte2{
-            from,
-            entity: p,
-        });
+        let v = ServerMessage::SpawnstaticFte2(SpawnstaticFte2 { from, entity: p });
         trace_stop!(message, v);
         Ok(v)
     }
@@ -1230,12 +1241,12 @@ pub struct SpawnstaticFte2 {
     pub entity: Packetentity,
 }
 
-impl SpawnstaticFte2  {
+impl SpawnstaticFte2 {
     pub fn read(message: &mut Message) -> Result<ServerMessage, MessageError> {
         trace_start!(message, false);
         let from = 0;
 
-        let mut morebits =  FteDeltaExtension::empty();
+        let mut morebits = FteDeltaExtension::empty();
 
         trace_annotate!(message, "bits");
         let mut bits = message.read_u16(false)?;
@@ -1249,7 +1260,7 @@ impl SpawnstaticFte2  {
             flags = UpdateTypes::from_bits_truncate(bits);
         }
 
-        let cflags = UpdateTypes::from_bits_truncate( FteDeltaCheck::EVENMORE.bits());
+        let cflags = UpdateTypes::from_bits_truncate(FteDeltaCheck::EVENMORE.bits());
         if flags.contains(cflags) {
             trace_annotate!(message, "fte evenmore");
             let mut b = message.read_u8(false)? as u16;
@@ -1370,7 +1381,7 @@ impl SpawnstaticFte2  {
             model = Some(model.unwrap() + 512);
         }
 
-        let p = Packetentity{
+        let p = Packetentity {
             entity_index: baseline_index,
             bits,
             ftebits: morebits,
@@ -1385,10 +1396,7 @@ impl SpawnstaticFte2  {
             transparency,
         };
 
-        let v = ServerMessage::SpawnstaticFte2(SpawnstaticFte2{
-            from,
-            entity: p,
-        });
+        let v = ServerMessage::SpawnstaticFte2(SpawnstaticFte2 { from, entity: p });
         trace_stop!(message, v);
         Ok(v)
     }
@@ -1397,11 +1405,10 @@ impl SpawnstaticFte2  {
 #[derive(Debug, PartialEq, PartialOrd, Serialize, Clone)]
 pub struct Deltapacketentities {
     pub from: u8,
-    pub entities: Vec<Packetentity>
-
+    pub entities: Vec<Packetentity>,
 }
 
-impl Deltapacketentities  {
+impl Deltapacketentities {
     pub fn read(message: &mut Message) -> Result<ServerMessage, MessageError> {
         trace_start!(message, false);
         let mut entities = Vec::new();
@@ -1411,7 +1418,7 @@ impl Deltapacketentities  {
             trace_annotate!(message, "bits");
             let mut bits = message.read_u16(false)?;
             if bits == 0 {
-                break
+                break;
             }
             let baseline_index = bits & 511;
             bits &= !511;
@@ -1517,7 +1524,7 @@ impl Deltapacketentities  {
                 angle = Some(angle_internal);
             }
 
-            let p = Packetentity{
+            let p = Packetentity {
                 entity_index: baseline_index,
                 bits,
                 remove,
@@ -1532,10 +1539,7 @@ impl Deltapacketentities  {
             };
             entities.push(p);
         }
-        let v = ServerMessage::Deltapacketentities(Deltapacketentities{
-            from,
-            entities
-        });
+        let v = ServerMessage::Deltapacketentities(Deltapacketentities { from, entities });
         trace_stop!(message, v);
         Ok(v)
     }
@@ -1561,7 +1565,7 @@ pub struct Sound {
     pub index: u8,
     pub volume: Option<u8>,
     pub attenuation: Option<u8>,
-    pub origin: CoordinateVector
+    pub origin: CoordinateVector,
 }
 
 impl Sound {
@@ -1571,12 +1575,14 @@ impl Sound {
         let channel = message.read_u16(false)?;
         let mut volume = None;
         let mut attenuation = None;
-        let mut origin = CoordinateVector{..Default::default()};
+        let mut origin = CoordinateVector {
+            ..Default::default()
+        };
 
         if channel & 1 << 15 == 1 << 15 {
             trace_annotate!(message, "volume");
             let b = message.read_u8(false)?;
-            volume  = Some(b);
+            volume = Some(b);
         }
 
         if channel & 1 << 14 == 1 << 14 {
@@ -1585,7 +1591,7 @@ impl Sound {
             attenuation = Some(b);
         }
 
-        let entity  = (channel >> 3) & 1023;
+        let entity = (channel >> 3) & 1023;
 
         trace_annotate!(message, "index");
         let index = message.read_u8(false)?;
@@ -1597,13 +1603,13 @@ impl Sound {
         trace_annotate!(message, "origin.x");
         origin.z = message.read_coordinate(false)?;
 
-        let r = ServerMessage::Sound(Sound{
+        let r = ServerMessage::Sound(Sound {
             channel,
             entity,
             index,
             volume,
             attenuation,
-            origin
+            origin,
         });
         trace_stop!(message, r);
         Ok(r)
@@ -1614,13 +1620,13 @@ impl Sound {
 pub struct Damage {
     pub armor: u8,
     pub blood: u8,
-    pub origin: CoordinateVector
+    pub origin: CoordinateVector,
 }
 
 #[derive(Debug, PartialEq, PartialOrd, ParseMessage, Serialize, Clone)]
 pub struct Setangle {
     pub index: u8,
-    pub angle:AngleVector 
+    pub angle: AngleVector,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, ParseMessage, Serialize, Clone)]
@@ -1629,12 +1635,10 @@ pub struct Setview {
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, ParseMessage, Serialize, Clone)]
-pub struct Smallkick {
-}
+pub struct Smallkick {}
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, ParseMessage, Serialize, Clone)]
-pub struct Bigkick {
-}
+pub struct Bigkick {}
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, ParseMessage, Serialize, Clone)]
 pub struct Muzzleflash {
@@ -1653,8 +1657,7 @@ pub struct Intermission {
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, ParseMessage, Serialize, Clone)]
-pub struct Disconnect {
-}
+pub struct Disconnect {}
 
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, TryFromPrimitive, Display, Serialize, Clone)]
 #[repr(u8)]
@@ -1672,7 +1675,7 @@ pub enum TempEntityType {
     LavaSplash,
     Teleport,
     Blood,
-    LightningBlood
+    LightningBlood,
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Serialize, Clone)]
@@ -1681,7 +1684,7 @@ pub struct Tempentity {
     pub origin: CoordinateVector,
     pub start: CoordinateVector,
     pub entity: u16,
-    pub count: i8
+    pub count: i8,
 }
 
 impl Tempentity {
@@ -1698,29 +1701,33 @@ impl Tempentity {
         }
 
         let mut entity = 0_u16;
-        let mut start =  CoordinateVector{..Default::default()};
+        let mut start = CoordinateVector {
+            ..Default::default()
+        };
         if r#type == TempEntityType::Lightning1
-            || r#type == TempEntityType::Lightning2 
-                || r#type == TempEntityType::Lightning3
-                {
-                    trace_annotate!(message, "entity");
-                    entity = message.read_u16(false)?;
-                    trace_annotate!(message, "start.x");
-                    start.x = message.read_coordinate(false)?;
-                    trace_annotate!(message, "start.y");
-                    start.y = message.read_coordinate(false)?;
-                    trace_annotate!(message, "start.z");
-                    start.z = message.read_coordinate(false)?;
-                }
+            || r#type == TempEntityType::Lightning2
+            || r#type == TempEntityType::Lightning3
+        {
+            trace_annotate!(message, "entity");
+            entity = message.read_u16(false)?;
+            trace_annotate!(message, "start.x");
+            start.x = message.read_coordinate(false)?;
+            trace_annotate!(message, "start.y");
+            start.y = message.read_coordinate(false)?;
+            trace_annotate!(message, "start.z");
+            start.z = message.read_coordinate(false)?;
+        }
 
-        let mut origin =  CoordinateVector{..Default::default()};
+        let mut origin = CoordinateVector {
+            ..Default::default()
+        };
         trace_annotate!(message, "origin.x");
         origin.x = message.read_coordinate(false)?;
         trace_annotate!(message, "origin.y");
         origin.y = message.read_coordinate(false)?;
         trace_annotate!(message, "origin.z");
         origin.z = message.read_coordinate(false)?;
-        let r = ServerMessage::Tempentity(Tempentity{
+        let r = ServerMessage::Tempentity(Tempentity {
             r#type,
             origin,
             start,
@@ -1738,7 +1745,7 @@ pub enum ClientServer {
     Bad = 0,
     Nop = 1,
     DoubleMove = 2,
-    Move = 3, // [[usercmd_t]
+    Move = 3,          // [[usercmd_t]
     StringCommand = 4, // [string] message
     Delta = 5,
     TMove = 6,
@@ -1748,65 +1755,65 @@ pub enum ClientServer {
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, TryFromPrimitive, Display, Serialize)]
 #[repr(u8)]
 pub enum ServerClient {
-    Bad                = 0,
-    Nop                 = 1,
-    Disconnect          = 2,
-    Updatestat          = 3,  // [byte] [byte]
-    NQVersion          = 4,  // [long] server version
-    Setview             = 5,  // [short] entity number
-    Sound               = 6,  // <see code>
-    NQTime             = 7,  // [float] server time
-	Print               = 8,  // [byte] id [string] null terminated string
-	Stufftext           = 9,  // [string] stuffed into client's console buffer
-	Setangle            = 10, // [angle3] set the view angle to this absolute value
-	Serverdata          = 11, // [long] protocol ...
-	Lightstyle          = 12, // [byte] [string]
-	NQUpdatename       = 13, // [byte] [string]
-	Updatefrags         = 14, // [byte] [short]
-	NQClientdata       = 15, // <shortbits + data>
-	Stopsound           = 16, // <see code>
-	NQUpdatecolors     = 17, // [byte] [byte] [byte]
-	NQParticle         = 18, // [vec3] <variable>
-	Damage              = 19,
-	Spawnstatic         = 20,
-	SpawnstaticFte2   = 21,
-	Spawnbaseline       = 22,
-	Tempentity         = 23, // variable
-	Setpause            = 24, // [byte] on / off
-	NQSignonnum        = 25, // [byte]  used for the signon sequence
-	Centerprint         = 26, // [string] to put in center of the screen
-	Killedmonster       = 27,
-	Foundsecret         = 28,
-	Spawnstaticsound    = 29, // [coord3] [byte] samp [byte] vol [byte] aten
-	Intermission        = 30, // [vec3_t] origin [vec3_t] angle
-	Finale              = 31, // [string] text
-	Cdtrack             = 32, // [byte] track
-	Sellscreen          = 33,
-	//NQCutscene         = 34, // same as svc_smallkick
-	Smallkick           = 34, // set client punchangle to 2
-	Bigkick             = 35, // set client punchangle to 4
-	Updateping          = 36, // [byte] [short]
-	Updateentertime     = 37, // [byte] [float]
-	Updatestatlong      = 38, // [byte] [long]
-	Muzzleflash         = 39, // [short] entity
-	Updateuserinfo      = 40, // [byte] slot [long] uid [string] userinfo
-	Download            = 41, // [short] size [size bytes]
-	Playerinfo          = 42, // variable
-	Nails               = 43, // [byte] num [48 bits] xyzpy 12 12 12 4 8
-	Chokecount          = 44, // [byte] packets choked
-	Modellist           = 45, // [strings]
-	Soundlist           = 46, // [strings]
-	Packetentities      = 47, // [...]
-	Deltapacketentities = 48, // [...]
-	Maxspeed            = 49, // maxspeed change, for prediction
-	Entgravity          = 50, // gravity change, for prediction
-	Setinfo             = 51, // setinfo on a client
-	Serverinfo          = 52, // serverinfo
-	Updatepl            = 53, // [byte] [byte]
-	Nails2              = 54,
-	FteModellistshort  = 60,
-	FteSpawnbaseline2  = 66,
-	Qizmovoice          = 83,
+    Bad = 0,
+    Nop = 1,
+    Disconnect = 2,
+    Updatestat = 3,      // [byte] [byte]
+    NQVersion = 4,       // [long] server version
+    Setview = 5,         // [short] entity number
+    Sound = 6,           // <see code>
+    NQTime = 7,          // [float] server time
+    Print = 8,           // [byte] id [string] null terminated string
+    Stufftext = 9,       // [string] stuffed into client's console buffer
+    Setangle = 10,       // [angle3] set the view angle to this absolute value
+    Serverdata = 11,     // [long] protocol ...
+    Lightstyle = 12,     // [byte] [string]
+    NQUpdatename = 13,   // [byte] [string]
+    Updatefrags = 14,    // [byte] [short]
+    NQClientdata = 15,   // <shortbits + data>
+    Stopsound = 16,      // <see code>
+    NQUpdatecolors = 17, // [byte] [byte] [byte]
+    NQParticle = 18,     // [vec3] <variable>
+    Damage = 19,
+    Spawnstatic = 20,
+    SpawnstaticFte2 = 21,
+    Spawnbaseline = 22,
+    Tempentity = 23,  // variable
+    Setpause = 24,    // [byte] on / off
+    NQSignonnum = 25, // [byte]  used for the signon sequence
+    Centerprint = 26, // [string] to put in center of the screen
+    Killedmonster = 27,
+    Foundsecret = 28,
+    Spawnstaticsound = 29, // [coord3] [byte] samp [byte] vol [byte] aten
+    Intermission = 30,     // [vec3_t] origin [vec3_t] angle
+    Finale = 31,           // [string] text
+    Cdtrack = 32,          // [byte] track
+    Sellscreen = 33,
+    //NQCutscene         = 34, // same as svc_smallkick
+    Smallkick = 34,           // set client punchangle to 2
+    Bigkick = 35,             // set client punchangle to 4
+    Updateping = 36,          // [byte] [short]
+    Updateentertime = 37,     // [byte] [float]
+    Updatestatlong = 38,      // [byte] [long]
+    Muzzleflash = 39,         // [short] entity
+    Updateuserinfo = 40,      // [byte] slot [long] uid [string] userinfo
+    Download = 41,            // [short] size [size bytes]
+    Playerinfo = 42,          // variable
+    Nails = 43,               // [byte] num [48 bits] xyzpy 12 12 12 4 8
+    Chokecount = 44,          // [byte] packets choked
+    Modellist = 45,           // [strings]
+    Soundlist = 46,           // [strings]
+    Packetentities = 47,      // [...]
+    Deltapacketentities = 48, // [...]
+    Maxspeed = 49,            // maxspeed change, for prediction
+    Entgravity = 50,          // gravity change, for prediction
+    Setinfo = 51,             // setinfo on a client
+    Serverinfo = 52,          // serverinfo
+    Updatepl = 53,            // [byte] [byte]
+    Nails2 = 54,
+    FteModellistshort = 60,
+    FteSpawnbaseline2 = 66,
+    Qizmovoice = 83,
 }
 
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, TryFromPrimitive, Display, Serialize)]
@@ -1834,7 +1841,7 @@ pub enum Packet {
     Error,
     ConnectionLessServerChallenge(ConnectionLessServerChallenge),
     ConnectionLessServerConnection,
-    Connected(Connected)
+    Connected(Connected),
 }
 
 macro_rules! initialize_message_type {
@@ -1866,6 +1873,42 @@ macro_rules! initialize_message_type {
     }
 }
 
-initialize_message_type!(Serverdata, Soundlist, Modellist,Cdtrack, Stufftext, Spawnstatic,Spawnbaseline, Spawnstaticsound, Updatefrags, Updateping, Updatepl, Updateentertime, Updateuserinfo, Playerinfo, Updatestatlong, Updatestat, Lightstyle, Serverinfo, Centerprint, Packetentities, Deltapacketentities, Tempentity, Setinfo, Print, Sound, Damage, Setangle, Smallkick, Bigkick, Muzzleflash, Chokecount, Intermission, Disconnect, Setview, SpawnstaticFte2, Bad, FteSpawnbaseline2);
-
-
+initialize_message_type!(
+    Serverdata,
+    Soundlist,
+    Modellist,
+    Cdtrack,
+    Stufftext,
+    Spawnstatic,
+    Spawnbaseline,
+    Spawnstaticsound,
+    Updatefrags,
+    Updateping,
+    Updatepl,
+    Updateentertime,
+    Updateuserinfo,
+    Playerinfo,
+    Updatestatlong,
+    Updatestat,
+    Lightstyle,
+    Serverinfo,
+    Centerprint,
+    Packetentities,
+    Deltapacketentities,
+    Tempentity,
+    Setinfo,
+    Print,
+    Sound,
+    Damage,
+    Setangle,
+    Smallkick,
+    Bigkick,
+    Muzzleflash,
+    Chokecount,
+    Intermission,
+    Disconnect,
+    Setview,
+    SpawnstaticFte2,
+    Bad,
+    FteSpawnbaseline2
+);

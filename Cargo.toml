@@ -14,7 +14,7 @@ A collection of quakeworld related libraries.
 [lib]
 
 [features]
-default = ["mvd", "utils", "protocol", "state", "network", "trace", "connection", "crc", "pak" ]
+default = ["mvd", "utils", "protocol", "state", "network", "trace", "connection", "crc", "pak", "mdl", "lmp", "bsp", "trace" ]
 connection = ["protocol", "state", "network", "crc", "ascii_strings"]
 state = ["protocol", "utils"]
 mvd = ["utils", "protocol"]
@@ -25,6 +25,9 @@ network = []
 trace = []
 crc = []
 pak = []
+mdl = []
+lmp = []
+bsp = []
 
 [dependencies]
 protocol-macros = { version="0.0.2", path = "./protocol-macros", package="quakeworld-protocol-macros", optional=true }
@@ -42,3 +45,4 @@ lazy_static = "1.4.0"
 termcolor = "1.1.3"
 quote = "1.0.21"
 unstringify = "0.1.4"
+png = "0.17.11"
