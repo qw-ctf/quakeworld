@@ -88,9 +88,21 @@ pub fn data_type_read_derive(input: TokenStream) -> TokenStream {
                 .map(|f| {
                     let ident = &f.ident;
                     let ty = &f.ty;
-                    quote! {
-                    #ident : <#ty as DataTypeRead>::read(datareader)?,
-                    }
+
+                    let qi = quote! {#ident};
+                    let qt = quote! {#ty};
+                    let vi = format!("{}", qt);
+                    let v = format_ident!("{}_{}", qi.to_string(), qt.to_string());
+
+                    (
+                        quote! {
+                        trace_annotate!(datareader, #vi);
+                        let #v = <#ty as DataTypeRead>::read(datareader)?;
+                        },
+                        quote! {
+                        #ident : #v,
+                        },
+                    )
                 })
                 .collect::<Vec<_>>()
         } else {
@@ -104,13 +116,18 @@ pub fn data_type_read_derive(input: TokenStream) -> TokenStream {
     let generics = &ast.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
+    let field_creation: Vec<_> = fields.iter().map(|(a, _)| a).collect();
+    let field_assignment: Vec<_> = fields.iter().map(|(_, b)| b).collect();
+
     // Generate the implementation
     let gen = quote! {
         impl #impl_generics DataTypeRead for #struct_name #ty_generics #where_clause {
             fn read(datareader: &mut DataTypeReader) -> Result<Self, DataTypeReaderError> {
                 trace_start!(datareader, stringify!( #struct_name));
+                #(#field_creation)*
+
                 let s = Self {
-                    #(#fields)*
+                    #(#field_assignment)*
                 };
                 trace_stop!(datareader, s, #struct_name);
                 Ok(s)

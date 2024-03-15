@@ -7,7 +7,9 @@ use serde::Serialize;
 
 use protocol_macros::DataTypeBoundCheckDerive;
 
-use crate::trace::{trace_start, trace_stop};
+use crate::datatypes::common::DirectoryEntry;
+use crate::datatypes::reader::PakFileName;
+use crate::trace::{trace_annotate, trace_start, trace_stop};
 /// PAK related structs
 /// PAK Header
 type Version = u32;
@@ -17,12 +19,12 @@ pub struct Header {
     pub version: Version,
     /// List of files
     #[check_bounds]
-    pub directory_offset: super::common::DirectoryEntry,
+    pub directory_offset: DirectoryEntry,
 }
 
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead, DataTypeBoundCheckDerive)]
 pub struct File {
-    pub name: super::reader::PakFileName,
+    pub name: PakFileName,
     pub offset: u32,
     pub size: u32,
 }

@@ -1,9 +1,9 @@
 //! library for doing quakeworld things
 #[macro_use]
 extern crate lazy_static;
-extern crate simple_error;
 extern crate paste;
 extern crate quote;
+extern crate simple_error;
 extern crate unstringify;
 
 pub mod datatypes;
@@ -11,16 +11,16 @@ pub mod datatypes;
 #[cfg(feature = "trace")]
 pub mod trace;
 
-#[cfg(feature = "utils")]
-pub mod utils;
-#[cfg(feature = "protocol")]
-pub mod protocol;
 #[cfg(feature = "mvd")]
 pub mod mvd;
-#[cfg(feature = "state")]
-pub mod state;
 #[cfg(feature = "network")]
 pub mod network;
+#[cfg(feature = "protocol")]
+pub mod protocol;
+#[cfg(feature = "state")]
+pub mod state;
+#[cfg(feature = "utils")]
+pub mod utils;
 
 #[cfg(feature = "crc")]
 pub mod crc;
@@ -52,8 +52,18 @@ mod tests {
     use crate::protocol::types::ServerClient;
     #[test]
     fn message_parsing() {
-        let b: Vec<u8> = vec![8, 2, 0x68, 0x65, 0x6c, 0x6c, 0x6f,0x0];
-        let mut message = Message::new(Box::new(b.clone()), 0, b.len(), false, MessageFlags {..Default::default()}, None, MessageType::Connection);
+        let b: Vec<u8> = vec![8, 2, 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x0];
+        let mut message = Message::new(
+            Box::new(b.clone()),
+            0,
+            b.len(),
+            false,
+            MessageFlags {
+                ..Default::default()
+            },
+            None,
+            MessageType::Connection,
+        );
         message.trace.enabled = true;
         let msg_cmd = match message.read_u8(false) {
             Ok(cmd) => cmd,
@@ -61,19 +71,21 @@ mod tests {
         };
         let cmd = match ServerClient::try_from(msg_cmd) {
             Ok(cmd) => cmd,
-            Err(_) => panic!("failed reading print cmd"), 
+            Err(_) => panic!("failed reading print cmd"),
         };
 
         let ret = match cmd.read_message(&mut message) {
             Ok(cmd) => cmd,
-            Err(_) => panic!("failed reading print"), 
+            Err(_) => panic!("failed reading print"),
         };
         match ret {
             crate::protocol::types::ServerMessage::Print(p) => {
                 assert_eq!(p.from, 2);
                 assert_eq!(p.message.string, "hello");
-            },
-            _ => { panic!("its not print!");},
+            }
+            _ => {
+                panic!("its not print!");
+            }
         }
     }
 }

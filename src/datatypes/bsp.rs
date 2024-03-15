@@ -7,10 +7,10 @@ use serde::Serialize;
 use crate::datatypes::reader::{
     DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeReaderError,
 };
-use crate::trace::{trace_start, trace_stop};
+use crate::trace::{trace_annotate, trace_start, trace_stop};
 use protocol_macros::DataTypeBoundCheckDerive;
 
-use super::common::DirectoryEntry;
+use crate::datatypes::common::DirectoryEntry;
 
 /// BSP related structs
 /// BSP Header

@@ -7,59 +7,75 @@ pub enum TraceValue {
     None,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct TraceEntry {
-    pub annotation: String,
+    pub field_type: String,
+    pub field_name: String,
     pub index: u64,
     pub size: u64,
-    pub value: Option<Box<dyn Any>>,
+    //pub value: Option<Box<dyn Any>>,
     pub traces: Vec<TraceEntry>,
     stack: Vec<TraceEntry>,
 }
 
 #[derive(Debug, Default)]
 pub struct Trace {
-    pub traces: Vec<TraceEntry>,
-    stack: Vec<TraceEntry>,
+    pub trace: TraceEntry,
+    annotation_prepend: Option<String>,
 }
 
 impl Trace {
     pub fn new() -> Self {
         Trace {
-            traces: vec![],
-            stack: vec![],
+            trace: TraceEntry {
+                ..Default::default()
+            },
+            annotation_prepend: None,
         }
     }
-    pub fn start(&mut self, index: u64, annotation: impl Into<String>) {
-        let annotation = annotation.into();
+    pub fn start(
+        &mut self,
+        index: u64,
+        field_type: impl Into<String>,
+        field_name: impl Into<String>,
+    ) {
+        let field_type = field_type.into();
+        let mut field_name = field_name.into();
+        if let Some(s) = &self.annotation_prepend {
+            field_name = s.to_string();
+            self.annotation_prepend = None;
+        }
+
         let ts = TraceEntry {
-            annotation,
+            field_type,
+            field_name,
             index,
             size: 0,
             traces: vec![],
             stack: vec![],
-            value: None,
+            //value: None,
         };
-        self.stack.push(ts);
+        self.trace.stack.push(ts);
     }
 
-    pub fn annotate(&mut self, annptation_prepend: impl Into<String>) {
-        // pop the most recent trace
+    pub fn annotate(&mut self, annotation_prepend: impl Into<String>) {
+        let s = annotation_prepend.into();
+        self.annotation_prepend = Some(s);
     }
 
-    pub fn stop(&mut self, size: u64, value: Option<Box<dyn Any>>) {
+    pub fn stop(&mut self, size: u64, _value: Option<Box<dyn Any>>) {
         // pop the most recent trace
-        if let Some(mut p) = self.stack.pop() {
-            p.value = value;
+        if let Some(mut p) = self.trace.stack.pop() {
+            //p.value = value;
             p.size = size;
             // get the last trace on the stack
-            if let Some(l) = self.stack.last_mut() {
+            if let Some(l) = self.trace.stack.last_mut() {
                 l.size += p.size;
                 // put that trace on the last element in the stack if it exists
                 l.traces.push(p);
             } else {
                 // if not the trace is finished
-                self.traces.push(p);
+                self.trace.traces.push(p);
             }
         } else {
             panic!("ok?");
@@ -83,14 +99,24 @@ macro_rules! trace_start {}
 
 #[cfg(feature = "trace")]
 macro_rules! trace_start {
+    ( $dr:ident, $name:expr, $field_name:expr) => {
+        if let Some(trace) = &mut $dr.trace {
+            trace.start($dr.cursor.position(), $name, $field_name);
+        }
+    };
+    ( $dr:ident, $name:expr, $field_name:expr) => {
+        if let Some(trace) = $dr.trace {
+            trace.start($dr.cursor.position(), $name, $field_name);
+        }
+    };
     ( $dr:ident, $name:expr) => {
         if let Some(trace) = &mut $dr.trace {
-            trace.start($dr.cursor.position(), $name);
+            trace.start($dr.cursor.position(), $name, "");
         }
     };
     ( $dr:ident, $name:expr) => {
         if let Some(trace) = $dr.trace {
-            trace.start($dr.cursor.position(), $name);
+            trace.start($dr.cursor.position(), $name, "");
         }
     };
 }
@@ -127,14 +153,15 @@ macro_rules! trace_annotate {}
 
 #[cfg(feature = "trace")]
 macro_rules! trace_annotate {
-    ( $dr:ident, $name:expr) => {
+    ($dr:ident, $name:expr) => {
         if let Some(trace) = &mut $dr.trace {
             trace.annotate($name);
         }
     };
-    ( $dr:ident, $name:expr) => {
+    ($dr:ident, $name:expr) => {
         if let Some(trace) = $dr.trace {
             trace.annotate($name);
         }
     };
 }
+pub(crate) use trace_annotate;

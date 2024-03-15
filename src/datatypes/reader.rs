@@ -126,7 +126,7 @@ macro_rules! datatypereader_generate_sized_dispatch_general {
         const TYPE_SIZE:usize = std::mem::size_of::<$ty>();
         let current_position: u64 = datareader.cursor.position();
         #[cfg(feature = "trace")]
-        trace_start!(datareader, stringify!($ty));
+        trace_start!(datareader, stringify!($ty), stringify!($typename));
         let len = datareader.cursor.get_ref().len() as u64;
         if (current_position + TYPE_SIZE as u64 * $size) > len {
         return Err(DataTypeReaderError::ReadSizeError(current_position, len, TYPE_SIZE as u64));
