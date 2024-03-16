@@ -91,7 +91,7 @@ pub fn data_type_read_derive(input: TokenStream) -> TokenStream {
 
                     let qi = quote! {#ident};
                     let qt = quote! {#ty};
-                    let vi = format!("{}", qt);
+                    let vi = format!("{}", qi);
                     let v = format_ident!("{}_{}", qi.to_string(), qt.to_string());
 
                     (

@@ -12,7 +12,7 @@ pub struct TraceEntry {
     pub field_type: String,
     pub field_name: String,
     pub index: u64,
-    pub size: u64,
+    pub index_stop: u64,
     //pub value: Option<Box<dyn Any>>,
     pub traces: Vec<TraceEntry>,
     stack: Vec<TraceEntry>,
@@ -50,7 +50,7 @@ impl Trace {
             field_type,
             field_name,
             index,
-            size: 0,
+            index_stop: index,
             traces: vec![],
             stack: vec![],
             //value: None,
@@ -64,13 +64,17 @@ impl Trace {
     }
 
     pub fn stop(&mut self, size: u64, _value: Option<Box<dyn Any>>) {
+        let mut size = size;
+        if size > 0 {
+            size = size - 1;
+        }
         // pop the most recent trace
         if let Some(mut p) = self.trace.stack.pop() {
             //p.value = value;
-            p.size = size;
+            p.index_stop = size;
             // get the last trace on the stack
             if let Some(l) = self.trace.stack.last_mut() {
-                l.size += p.size;
+                l.index_stop = p.index_stop;
                 // put that trace on the last element in the stack if it exists
                 l.traces.push(p);
             } else {
