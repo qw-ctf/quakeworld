@@ -39,6 +39,14 @@ impl<'a> DataTypeReader<'a> {
             trace,
         }
     }
+    pub fn read_exact(&mut self, buf: &mut Vec<u8>) -> Result<(), DataTypeReaderError> {
+        let n = buf.len();
+        trace_start!(self, format!("Vec<u8>[{}", n));
+        for i in 0..n {
+            buf[i] = <u8 as DataTypeRead>::read(self)?;
+        }
+        Ok(())
+    }
 }
 
 pub trait DataTypeRead: Sized {
@@ -85,15 +93,10 @@ macro_rules! datatypereader_generate_base_type {
 }
 
 macro_rules! datatypereader_generate_sized {
-    // Base case: empty input
-    () => {};
-
-    // Recursive case: process the first tuple and continue with the rest
-    (($ty:tt, $size:expr, $default: expr, $typename: expr) $($rest:tt)*) => {
-        // Dispatch to a specific macro for u8 types
+    ($(($ty:tt, $size:expr, $default: expr, $typename: expr)),*) => {
+        $(
         datatypereader_generate_sized_dispatch!($ty, $size, $default, $typename);
-        // Recur to process the rest of the tuples
-        datatypereader_generate_sized!($($rest)*);
+        )*
     };
 }
 
@@ -157,4 +160,4 @@ macro_rules! datatypereader_generate_sized_dispatch_general {
 // generate read function for base types
 datatypereader_generate_base_type!(u8, u16, u32, i8, i16, i32, f32);
 // generate read functions for sized types
-datatypereader_generate_sized!((u8, 56, 0, PakFileName));
+datatypereader_generate_sized!((u8, 56, 0, PakFileName), (u8, 16, 0, MdlFrameName));

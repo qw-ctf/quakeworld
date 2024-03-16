@@ -22,7 +22,7 @@ pub trait AsciiString {
 }
 
 /// A vector or position
-#[derive(Serialize, Clone, Debug, Copy, DataTypeRead)]
+#[derive(Serialize, Clone, Debug, Copy, DataTypeRead, Default)]
 pub struct Vector3<T: DataTypeRead + 'static>
 where
     T: Clone,
@@ -107,4 +107,23 @@ impl<T: DataTypeBoundCheck> DataTypeBoundCheck for Vec<T> {
         }
         Ok(())
     }
+}
+
+#[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
+pub struct TextureCoordinates {
+    pub onseam: u32,
+    pub s: u32,
+    pub t: u32,
+}
+
+#[derive(Serialize, Clone, Debug, Copy, DataTypeRead)]
+pub struct Triangle {
+    pub faces_front: u32,
+    pub vertex: Vector3<u32>,
+}
+
+#[derive(Serialize, Clone, Debug, Copy, DataTypeRead)]
+pub struct Vertex {
+    pub v: Vector3<u8>,
+    pub normal_index: u8,
 }

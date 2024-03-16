@@ -92,15 +92,20 @@ pub fn data_type_read_derive(input: TokenStream) -> TokenStream {
                     let qi = quote! {#ident};
                     let qt = quote! {#ty};
                     let vi = format!("{}", qi);
-                    let v = format_ident!("{}_{}", qi.to_string(), qt.to_string());
+                    let mut v = format!("{}_{}", qi.to_string(), qt.to_string());
+                    v = v.replace("<", "_");
+                    v = v.replace(">", "_");
+                    v = v.replace(" ", "_");
+
+                    let id = format_ident!("{}", v);
 
                     (
                         quote! {
                         trace_annotate!(datareader, #vi);
-                        let #v = <#ty as DataTypeRead>::read(datareader)?;
+                        let #id = <#ty as DataTypeRead>::read(datareader)?;
                         },
                         quote! {
-                        #ident : #v,
+                        #ident : #id,
                         },
                     )
                 })

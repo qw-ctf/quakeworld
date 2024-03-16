@@ -16,5 +16,6 @@ pub trait Parse<T, S> {
 }
 pub mod bsp;
 pub mod common;
+pub mod mdl;
 pub mod pak;
 pub mod reader;
