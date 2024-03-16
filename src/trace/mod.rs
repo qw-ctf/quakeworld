@@ -1,24 +1,29 @@
+use paste::paste;
+use quote::quote;
 use serde::Serialize;
-use std::any::Any;
+use strum_macros::Display;
 
-#[derive(Serialize, Clone, Debug, Default)]
+use crate::datatypes::common::DataType;
+
+#[derive(Serialize, Clone, Debug, Default, Display)]
 pub enum TraceValue {
     #[default]
     None,
+    DateType(DataType),
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct TraceEntry {
     pub field_type: String,
     pub field_name: String,
     pub index: u64,
     pub index_stop: u64,
-    //pub value: Option<Box<dyn Any>>,
+    pub value: TraceValue,
     pub traces: Vec<TraceEntry>,
     stack: Vec<TraceEntry>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize)]
 pub struct Trace {
     pub trace: TraceEntry,
     annotation_prepend: Option<String>,
@@ -53,7 +58,7 @@ impl Trace {
             index_stop: index,
             traces: vec![],
             stack: vec![],
-            //value: None,
+            value: TraceValue::None,
         };
         self.trace.stack.push(ts);
     }
@@ -63,15 +68,14 @@ impl Trace {
         self.annotation_prepend = Some(s);
     }
 
-    pub fn stop(&mut self, size: u64, _value: Option<Box<dyn Any>>) {
+    pub fn stop(&mut self, size: u64, value: DataType) {
         let mut size = size;
-        if size > 0 {
-            size = size - 1;
-        }
+        size = size.saturating_sub(1);
         // pop the most recent trace
         if let Some(mut p) = self.trace.stack.pop() {
             //p.value = value;
             p.index_stop = size;
+            p.value = TraceValue::DateType(value);
             // get the last trace on the stack
             if let Some(l) = self.trace.stack.last_mut() {
                 l.index_stop = p.index_stop;
@@ -133,16 +137,17 @@ macro_rules! trace_stop {}
 macro_rules! trace_stop {
     ( $dr:ident, $value:expr, $valueType:ident) => {
         paste! {
-
         if let Some(trace) = &mut $dr.trace {
-            trace.stop($dr.cursor.position(), Some(Box::new($value.clone())));
+        trace.stop($dr.cursor.position(), $value.to_datatype());
         }
         }
     };
-    ($self:expr, $value:expr) => {
-        // if $self.trace.enabled && !$self.trace.locked {
-        //     $self.read_trace_stop($value.to_tracevalue());
-        // }
+    ($dr:expr, $value:expr) => {
+        paste! {
+        if let Some(trace) = &mut $dr.trace {
+        trace.stop($dr.cursor.position(), $value);
+        }
+        }
     };
     ($self:expr) => {
         // if $self.trace.enabled && !$self.trace.locked {

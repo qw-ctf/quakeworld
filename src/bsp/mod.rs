@@ -28,7 +28,7 @@ impl From<DataTypeReaderError> for BspError {
 
 #[derive(Serialize, Clone, Debug)]
 pub struct Bsp {
-    header: bsp::BspHeader,
+    header: bsp::Header,
 }
 
 impl Bsp {
@@ -41,7 +41,7 @@ impl Bsp {
             #[cfg(feature = "trace")]
             trace,
         );
-        let header = <bsp::BspHeader as DataTypeRead>::read(&mut datatypereader)?;
+        let header = <bsp::Header as DataTypeRead>::read(&mut datatypereader)?;
         header.check_bounds(&mut datatypereader)?;
 
         Ok(Bsp { header })

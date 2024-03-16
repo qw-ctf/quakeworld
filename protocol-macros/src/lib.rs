@@ -1,5 +1,6 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
+use std::collections::HashMap;
 use syn::spanned::Spanned;
 use syn::{parse_macro_input, AngleBracketedGenericArguments, Attribute, DeriveInput, Meta, Type};
 use syn::{Data, DataStruct, Fields};
@@ -71,7 +72,7 @@ fn impl_parsemessage_macro(ast: &syn::DeriveInput) -> TokenStream {
     gen.into()
 }
 
-#[proc_macro_derive(DataTypeRead)]
+#[proc_macro_derive(DataTypeRead, attributes(datatyperead))]
 pub fn data_type_read_derive(input: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree
     let ast = parse_macro_input!(input as DeriveInput);
@@ -124,6 +125,23 @@ pub fn data_type_read_derive(input: TokenStream) -> TokenStream {
     let field_creation: Vec<_> = fields.iter().map(|(a, _)| a).collect();
     let field_assignment: Vec<_> = fields.iter().map(|(_, b)| b).collect();
 
+    let (_, tag_value) = check_tag_value(&ast.attrs, "datatyperead");
+    let datatype = match tag_value.get("prefix") {
+        Some(p) => {
+            let i = format_ident!(
+                "{}{}",
+                p.to_uppercase(),
+                struct_name.to_string().to_uppercase()
+            );
+            quote! {DataType::#i(self)}
+        }
+        None => {
+            let i = format_ident!("{}", struct_name.to_string().to_uppercase());
+            quote! {DataType::#i(self)}
+        }
+    };
+    println!("{}", datatype);
+
     // Generate the implementation
     let gen = quote! {
         impl #impl_generics DataTypeRead for #struct_name #ty_generics #where_clause {
@@ -136,6 +154,12 @@ pub fn data_type_read_derive(input: TokenStream) -> TokenStream {
                 };
                 trace_stop!(datareader, s, #struct_name);
                 Ok(s)
+            }
+            fn to_datatype(&self) -> DataType {
+                paste! {
+                DataType::None
+                //DataType::[< #struct_name:upper >](self)
+                }
             }
         }
     };
@@ -188,6 +212,31 @@ pub fn data_type_bound_check_derive(input: TokenStream) -> TokenStream {
 
     // Return the generated implementation as a TokenStream
     gen.into()
+}
+
+fn check_tag_value(attrs: &[Attribute], tag: &str) -> (bool, HashMap<String, String>) {
+    let mut s: HashMap<String, String> = HashMap::new();
+    for attr in attrs {
+        if let Ok(meta) = attr.parse_meta() {
+            if let syn::Meta::List(list) = meta {
+                if list.path.is_ident(tag) {
+                    // The specified attribute is present, extract its value
+                    for nested_meta in list.nested {
+                        if let syn::NestedMeta::Meta(syn::Meta::NameValue(name_value)) = nested_meta
+                        {
+                            if let Some(name) = name_value.path.get_ident() {
+                                if let syn::Lit::Str(value) = name_value.lit {
+                                    s.insert(name.to_string(), value.value());
+                                }
+                            }
+                        }
+                        return (true, s);
+                    }
+                }
+            }
+        }
+    }
+    (false, s)
 }
 
 fn check_tag(attrs: &[Attribute], tag: &str) -> bool {

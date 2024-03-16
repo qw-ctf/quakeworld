@@ -1,15 +1,16 @@
-use crate::datatypes::reader::DataTypeReader;
-use crate::trace::trace_start;
+use crate::datatypes::common::Vertex;
+use crate::mdl::mdl::Frame;
 #[cfg(feature = "trace")]
 use crate::trace::Trace;
+use crate::trace::{trace_annotate, trace_start, trace_stop};
+use paste::paste;
+use quote::quote;
 
-use crate::datatypes::common::{BoundingBox, TextureCoordinates, Triangle, Vector3, Vertex};
+use crate::datatypes::common::{DataType, TextureCoordinate, Triangle};
 use crate::datatypes::mdl;
 use crate::datatypes::reader;
 use crate::datatypes::reader::DataTypeReaderError;
 
-use byteorder::{LittleEndian, ReadBytesExt};
-use protocol_macros::DataTypeRead;
 use serde::Serialize;
 use thiserror::Error;
 
@@ -94,6 +95,10 @@ pub struct Skin {
 #[derive(Serialize, Debug, Default, Clone)]
 pub struct Mdl {
     pub header: mdl::Header,
+    pub skin: Vec<u8>,
+    pub texture_coordinate: Vec<TextureCoordinate>,
+    pub triangle: Vec<Triangle>,
+    pub frame: Vec<Frame>,
     // pub header_magic: u32,
     // pub version: u32,
     // pub scale: Vector,
@@ -168,25 +173,31 @@ impl Mdl {
         // model.flags = cursor.read_u32::<LittleEndian>()?;
         // model.size = cursor.read_f32::<LittleEndian>()?;
         // model.skin_type = cursor.read_u32::<LittleEndian>()?;
+        let mut skin: Vec<u8> = vec![];
         if header.skin_type == 1 {
+            println!("we here?");
             trace_start!(datatypereader, "skin_count");
             let skin_count = <u32 as reader::DataTypeRead>::read(&mut datatypereader)?;
+            trace_stop!(datatypereader, DataType::U32(skin_count));
             //let skin_count = cursor.read_u32::<LittleEndian>()?;
             _ = skin_count;
-            panic!("implement me!");
         } else if header.skin_type == 0 {
             let mut buf: Vec<u8> = vec![0; (header.skin_width * header.skin_height) as usize];
-
+            trace_annotate!(datatypereader, "skin_data");
             datatypereader.read_exact(&mut buf)?;
+            skin = buf;
+
             // model.skins.push(Skin {
             //     time: 0.0,
             //     data: buf,
             // });
         }
 
-        for _ in 0..header.vertex_count {
-            let _ = <TextureCoordinates as reader::DataTypeRead>::read(&mut datatypereader)?;
-        }
+        let mut texture_coordinate: Vec<TextureCoordinate> =
+            Vec::with_capacity(header.vertex_count as usize);
+
+        trace_annotate!(datatypereader, "TextureCoordinate");
+        datatypereader.read_exact_generic(&mut texture_coordinate)?;
         // for _ in 0..model.verxtex_count {
         //     model
         //         .texture_coordinates
@@ -194,17 +205,18 @@ impl Mdl {
         // }
         //
 
-        for _ in 0..header.triangle_count {
-            let _ = <Triangle as reader::DataTypeRead>::read(&mut datatypereader)?;
-        }
+        let mut triangle: Vec<Triangle> = Vec::with_capacity(header.triangle_count as usize);
+        trace_annotate!(datatypereader, "Triangle");
+        datatypereader.read_exact_generic(&mut triangle)?;
         // for _ in 0..model.triangle_count {
         //     model.triangles.push(Triangle::read(&mut cursor)?);
         // }
         //
         //
-        for _ in 0..header.frame_count {
-            let _ = <mdl::Frame as reader::DataTypeRead>::read(&mut datatypereader)?;
-        }
+        let mut frame: Vec<mdl::Frame> = Vec::with_capacity(header.frame_count as usize);
+
+        trace_annotate!(datatypereader, "Frame");
+        datatypereader.read_exact_generic(&mut frame)?;
         // for _ in 0..model.frame_count {
         //     model
         //         .frames
@@ -213,6 +225,12 @@ impl Mdl {
         //
         // Ok(model)
         //
-        Ok(Mdl { header })
+        Ok(Mdl {
+            header,
+            skin,
+            texture_coordinate,
+            triangle,
+            frame,
+        })
     }
 }

@@ -1,13 +1,14 @@
 use paste::paste;
+use quote::quote;
 use serde::Serialize;
 
 use std::io::{Cursor, Read};
 use thiserror::Error;
 
+use crate::datatypes::common::AsciiString;
+use crate::datatypes::common::DataType;
 #[cfg(feature = "trace")]
 use crate::trace::{trace_start, trace_stop, Trace};
-
-use super::common::AsciiString;
 
 #[derive(Error, Debug)]
 pub enum DataTypeReaderError {
@@ -41,22 +42,78 @@ impl<'a> DataTypeReader<'a> {
     }
     pub fn read_exact(&mut self, buf: &mut Vec<u8>) -> Result<(), DataTypeReaderError> {
         let n = buf.len();
-        trace_start!(self, format!("Vec<u8>[{}", n));
+        trace_start!(self, format!("Vec<u8>[{}]", n));
         for i in 0..n {
             buf[i] = <u8 as DataTypeRead>::read(self)?;
         }
+        trace_stop!(self, DataType::GENERICVECTOR(n));
+        Ok(())
+    }
+}
+
+impl<'a> DataTypeReader<'a> {
+    pub fn read_exact_generic<T: DataTypeRead>(
+        &mut self,
+        buf: &mut Vec<T>,
+    ) -> Result<(), DataTypeReaderError> {
+        let n = buf.capacity();
+        trace_start!(self, format!("Vec<generic>[{}]", n));
+        for _ in 0..n {
+            buf.push(<T as DataTypeRead>::read(self)?);
+        }
+        let dt = DataType::GENERICVECTOR(n);
+        trace_stop!(self, dt);
         Ok(())
     }
 }
 
 pub trait DataTypeRead: Sized {
     fn read(datatypereader: &mut DataTypeReader) -> Result<Self, DataTypeReaderError>;
+    fn to_datatype(&self) -> DataType {
+        DataType::None
+    }
 }
 
 // Bound checking trait
 pub trait DataTypeBoundCheck {
     fn check_bounds(&self, datatypereader: &mut DataTypeReader) -> Result<(), DataTypeReaderError>;
 }
+// datatypereader_generate_to_datatype
+//     ($($ty:ty), *) => {
+//         $(
+//         paste! {
+//         impl DataTypeRead for $ty {
+//         fn  [< read >] (datareader: &mut DataTypeReader,
+//         ) ->  Result<$ty, DataTypeReaderError> {
+//         const TYPE_SIZE:usize = std::mem::size_of::<$ty>();
+//         let current_position: u64 = datareader.cursor.position();
+//         #[cfg(feature = "trace")]
+//         trace_start!(datareader, stringify!($ty));
+//         let len = datareader.cursor.get_ref().len() as u64;
+//         if (current_position + TYPE_SIZE as u64) > len {
+//         return Err(DataTypeReaderError::ReadSizeError(current_position, len, TYPE_SIZE as u64));
+//         }
+//         let mut a: [u8; TYPE_SIZE] = [0; TYPE_SIZE];
+//         match datareader.cursor.read_exact(&mut a) {
+//         Err(_) => {
+//         return Err(DataTypeReaderError::ReadError)
+//         }
+//         Ok(_) => {},
+//         };
+//
+//         let v;
+//         v = $ty::from_le_bytes(a);
+//         trace_stop!(datareader, v, $ty);
+//         Ok(v)
+//         }
+//         fn to_datatype (&self) -> DataType {
+//             DataType::[< $ty:upper >](self.clone())
+//         }
+//         }
+//         }
+//         )*
+//     }
+// }
 
 macro_rules! datatypereader_generate_base_type {
     ($($ty:ty), *) => {
@@ -85,6 +142,9 @@ macro_rules! datatypereader_generate_base_type {
         v = $ty::from_le_bytes(a);
         trace_stop!(datareader, v, $ty);
         Ok(v)
+        }
+        fn to_datatype (&self) -> DataType {
+            DataType::[< $ty:upper >](self.clone())
         }
         }
         }
@@ -149,8 +209,12 @@ macro_rules! datatypereader_generate_sized_dispatch_general {
 
         ret.push(v);
         }
-        trace_stop!(datareader, ret, $ty);
-        Ok($typename(ret))
+        let ret_cast = $typename(ret);
+        trace_stop!(datareader, ret_cast, $ty);
+        Ok(ret_cast)
+        }
+        fn to_datatype (&self) -> DataType {
+            DataType::[< $typename:upper >](self.clone())
         }
         }
         }
@@ -161,3 +225,5 @@ macro_rules! datatypereader_generate_sized_dispatch_general {
 datatypereader_generate_base_type!(u8, u16, u32, i8, i16, i32, f32);
 // generate read functions for sized types
 datatypereader_generate_sized!((u8, 56, 0, PakFileName), (u8, 16, 0, MdlFrameName));
+// generate to_datatype for all the other stuff
+// datatypereader_generate_to_datatype!(DirectoryEntry);

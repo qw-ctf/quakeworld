@@ -10,12 +10,13 @@ use crate::datatypes::reader::{
 use crate::trace::{trace_annotate, trace_start, trace_stop};
 use protocol_macros::DataTypeBoundCheckDerive;
 
-use crate::datatypes::common::DirectoryEntry;
+use crate::datatypes::common::{DataType, DirectoryEntry};
 
 /// BSP related structs
 /// BSP Header
 #[derive(Serialize, Clone, Debug, Copy, DataTypeRead, DataTypeBoundCheckDerive)]
-pub struct BspHeader {
+#[datatyperead(prefix = "bsp")]
+pub struct Header {
     /// Model version
     pub version: u32,
     /// List of entities

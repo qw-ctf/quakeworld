@@ -1,4 +1,5 @@
 use paste::paste;
+use quote::quote;
 /// Common structs shared between different formats
 use serde::Serialize;
 
@@ -15,6 +16,7 @@ use crate::pak;
 use crate::trace::{trace_annotate, trace_start, trace_stop};
 
 use super::bsp;
+use super::reader::{MdlFrameName, PakFileName};
 
 /// A trait to get an ascii string
 pub trait AsciiString {
@@ -62,8 +64,10 @@ pub enum BoundingBoxValue<T> {
     BoundingBox(T),
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Serialize, Clone, Debug, Default)]
 pub enum DataType {
+    #[default]
+    None,
     U8(u8),
     U16(u16),
     U32(u32),
@@ -71,9 +75,20 @@ pub enum DataType {
     I16(i16),
     I32(i32),
     F32(f32),
-    PAKFILE(pak::Pak),
-    BSPHEADER(bsp::BspHeader),
+    PAK(crate::pak::Pak),
+    PAKHEADER(crate::datatypes::pak::Header),
+    PAKFILE(crate::datatypes::pak::File),
+    BSPHEADER(bsp::Header),
     DIRECTORYENTRY(DirectoryEntry),
+    MDLFRAMENAME(MdlFrameName),
+    PAKFILENAME(PakFileName),
+    GENERICVECTOR(usize),
+}
+
+impl DataType {
+    fn to_datatype(self) -> DataType {
+        self
+    }
 }
 
 /// Directory entry: describes the position and size of a chunk of data inside a BSP File
@@ -110,7 +125,7 @@ impl<T: DataTypeBoundCheck> DataTypeBoundCheck for Vec<T> {
 }
 
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
-pub struct TextureCoordinates {
+pub struct TextureCoordinate {
     pub onseam: u32,
     pub s: u32,
     pub t: u32,

@@ -3,11 +3,12 @@ use crate::datatypes::reader::{
 };
 use paste::paste;
 use protocol_macros::DataTypeRead;
+use quote::quote;
 use serde::Serialize;
 
 use protocol_macros::DataTypeBoundCheckDerive;
 
-use crate::datatypes::common::DirectoryEntry;
+use crate::datatypes::common::{DataType, DirectoryEntry};
 use crate::datatypes::reader::PakFileName;
 use crate::trace::{trace_annotate, trace_start, trace_stop};
 /// PAK related structs
