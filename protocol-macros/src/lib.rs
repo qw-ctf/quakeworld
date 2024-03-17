@@ -87,13 +87,12 @@ pub fn data_type_read_derive(input: TokenStream) -> TokenStream {
                 .iter()
                 .map(|f| {
                     let mut size: usize = 0;
-                    let mut do_size = false;
                     let mut do_size_env = false;
                     let mut size_env: String = "".to_string();
                     // check if we have datatype read attributes
                     // "string" signifies that the field should be cast to a GENERICSTRING
                     let (_, tag_value) = check_tag_value(&f.attrs, "datatyperead");
-                    let is_string = match tag_value.get("string") {
+                    let _ = match tag_value.get("string") {
                         Some(_) => true,
                         None => false,
                     };
@@ -101,8 +100,7 @@ pub fn data_type_read_derive(input: TokenStream) -> TokenStream {
                     //  - if its an Int the vector will be read to the specified size
                     //  - if its a Str vector size will be pulled from the datareader environment
                     let tv = tag_value.get("size");
-                    if let Some(v) = tv {
-                        do_size = true;
+                    let do_size = if let Some(v) = tv {
                         match  v {
                             syn::Lit::Int(value) => {
                                 if let Ok(parsed_value) = value.base10_parse::<usize>() {
@@ -119,21 +117,17 @@ pub fn data_type_read_derive(input: TokenStream) -> TokenStream {
                             },
                             _ =>  size = 0,
                         }
+                        true
                     } else {
-                        do_size = false;
-                    }
+                        false
+                    };
                     let field_identifier = &f.ident;
                     let ty = &f.ty;
 
                     let qi = quote! {#field_identifier};
                     let qt = quote! {#ty};
                     let vi = format!("{}", qi);
-                    let mut v = format!("{}_{}", qi.to_string(), qt.to_string());
-                    v = v.replace("<", "_");
-                    v = v.replace(">", "_");
-                    v = v.replace(" ", "_");
-
-                    let id = format_ident!("{}", v);
+                    let id = format_ident!("{}", format!("{}_{}", qi.to_string(), qt.to_string()).replace(&[ '<', '>', ' ' ][..], "_"));
 
                     let read = if do_size {
                         if do_size_env {
@@ -184,7 +178,7 @@ pub fn data_type_read_derive(input: TokenStream) -> TokenStream {
     let field_assignment: Vec<_> = fields.iter().map(|(_, b)| b).collect();
 
     let (_, tag_value) = check_tag_value(&ast.attrs, "datatyperead");
-    let datatype = match tag_value.get("prefix") {
+    let _datatype = match tag_value.get("prefix") {
         Some(p) => {
             let prefix = if let syn::Lit::Str(p) = p {
                 p.value()
@@ -288,31 +282,6 @@ fn check_tag_value(attrs: &[Attribute], tag: &str) -> (bool, HashMap<String, syn
                         {
                             if let Some(name) = name_value.path.get_ident() {
                                 s.insert(name.to_string(), name_value.lit);
-                            }
-                        }
-                        return (true, s);
-                    }
-                }
-            }
-        }
-    }
-    (false, s)
-}
-
-fn check_tag_value_old(attrs: &[Attribute], tag: &str) -> (bool, HashMap<String, String>) {
-    let mut s: HashMap<String, String> = HashMap::new();
-    for attr in attrs {
-        if let Ok(meta) = attr.parse_meta() {
-            if let syn::Meta::List(list) = meta {
-                if list.path.is_ident(tag) {
-                    // The specified attribute is present, extract its value
-                    for nested_meta in list.nested {
-                        if let syn::NestedMeta::Meta(syn::Meta::NameValue(name_value)) = nested_meta
-                        {
-                            if let Some(name) = name_value.path.get_ident() {
-                                if let syn::Lit::Str(value) = name_value.lit {
-                                    s.insert(name.to_string(), value.value());
-                                }
                             }
                         }
                         return (true, s);

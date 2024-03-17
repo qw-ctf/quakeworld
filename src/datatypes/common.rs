@@ -48,7 +48,7 @@ where
 
 impl AsciiString for Vec<u8> {
     fn ascii_string(&self) -> String {
-        let conv = String::from_utf8_lossy(&self);
+        let conv = String::from_utf8_lossy(self);
         conv.chars().filter(|&c| c != '\0').collect()
     }
 }
@@ -91,8 +91,8 @@ pub enum DataType {
 
 impl DataType {
     #[allow(unused)]
-    fn to_datatype(self) -> DataType {
-        self
+    fn to_datatype(&self) -> DataType {
+        self.clone()
     }
 }
 
