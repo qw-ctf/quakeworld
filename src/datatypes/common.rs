@@ -1,5 +1,4 @@
 use paste::paste;
-use quote::quote;
 /// Common structs shared between different formats
 use serde::Serialize;
 
@@ -11,12 +10,10 @@ use crate::datatypes::reader::{
     DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeReaderError,
 };
 
-use crate::pak;
 #[cfg(feature = "trace")]
 use crate::trace::{trace_annotate, trace_start, trace_stop};
 
 use super::bsp;
-use super::reader::{MdlFrameName, PakFileName};
 
 /// A trait to get an ascii string
 pub trait AsciiString {
@@ -49,8 +46,15 @@ where
     }
 }
 
+impl AsciiString for Vec<u8> {
+    fn ascii_string(&self) -> String {
+        let conv = String::from_utf8_lossy(&self);
+        conv.chars().filter(|&c| c != '\0').collect()
+    }
+}
+
 /// Bounding box
-#[derive(Serialize, Clone, Debug, Copy, DataTypeRead)]
+#[derive(Serialize, Clone, Debug, Copy, DataTypeRead, Default)]
 pub struct BoundingBox<T: DataTypeRead + 'static>
 where
     T: Clone,
@@ -80,8 +84,8 @@ pub enum DataType {
     PAKFILE(crate::datatypes::pak::File),
     BSPHEADER(bsp::Header),
     DIRECTORYENTRY(DirectoryEntry),
-    MDLFRAMENAME(MdlFrameName),
-    PAKFILENAME(PakFileName),
+    //MDLFRAME(mdl::Frame),
+    GENERICSTRING(String),
     GENERICVECTOR(usize),
 }
 
@@ -126,18 +130,18 @@ impl<T: DataTypeBoundCheck> DataTypeBoundCheck for Vec<T> {
 
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
 pub struct TextureCoordinate {
-    pub onseam: u32,
-    pub s: u32,
-    pub t: u32,
+    pub onseam: i32,
+    pub s: i32,
+    pub t: i32,
 }
 
-#[derive(Serialize, Clone, Debug, Copy, DataTypeRead)]
+#[derive(Serialize, Clone, Debug, Copy, DataTypeRead, Default)]
 pub struct Triangle {
     pub faces_front: u32,
-    pub vertex: Vector3<u32>,
+    pub vertex: Vector3<i32>,
 }
 
-#[derive(Serialize, Clone, Debug, Copy, DataTypeRead)]
+#[derive(Serialize, Clone, Debug, Copy, DataTypeRead, Default)]
 pub struct Vertex {
     pub v: Vector3<u8>,
     pub normal_index: u8,

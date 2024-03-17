@@ -3,13 +3,11 @@ use crate::datatypes::reader::{
 };
 use paste::paste;
 use protocol_macros::DataTypeRead;
-use quote::quote;
 use serde::Serialize;
 
 use protocol_macros::DataTypeBoundCheckDerive;
 
 use crate::datatypes::common::{DataType, DirectoryEntry};
-use crate::datatypes::reader::PakFileName;
 use crate::trace::{trace_annotate, trace_start, trace_stop};
 /// PAK related structs
 /// PAK Header
@@ -25,7 +23,8 @@ pub struct Header {
 
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead, DataTypeBoundCheckDerive)]
 pub struct File {
-    pub name: PakFileName,
+    #[datatyperead(size = 56, string)]
+    pub name: Vec<u8>,
     pub offset: u32,
     pub size: u32,
 }

@@ -87,10 +87,46 @@ pub fn data_type_read_derive(input: TokenStream) -> TokenStream {
                 .named
                 .iter()
                 .map(|f| {
-                    let ident = &f.ident;
+                    let mut size: usize = 0;
+                    let mut do_size = false;
+                    let mut do_size_env = false;
+                    let mut size_env: String = "".to_string();
+                    // check if we have datatype read attributes
+                    // "string" signifies that the field should be cast to a GENERICSTRING
+                    let (_, tag_value) = check_tag_value(&f.attrs, "datatyperead");
+                    let is_string = match tag_value.get("string") {
+                        Some(_) => true,
+                        None => false,
+                    };
+                    // "size" has multiple options:
+                    //  - if its an Int the vector will be read to the specified size
+                    //  - if its a Str vector size will be pulled from the datareader environment
+                    let tv = tag_value.get("size");
+                    if let Some(v) = tv {
+                        do_size = true;
+                        match  v {
+                            syn::Lit::Int(value) => {
+                                if let Ok(parsed_value) = value.base10_parse::<usize>() {
+                                    size = parsed_value;
+                                } else {
+                                    panic!(
+                                    "datatypereader attribute size's value couldnt be converted to usize"
+                                );
+                                }
+                            },
+                            syn::Lit::Str(value) => {
+                                do_size_env = true;
+                                size_env = value.value();
+                            },
+                            _ =>  size = 0,
+                        }
+                    } else {
+                        do_size = false;
+                    }
+                    let field_identifier = &f.ident;
                     let ty = &f.ty;
 
-                    let qi = quote! {#ident};
+                    let qi = quote! {#field_identifier};
                     let qt = quote! {#ty};
                     let vi = format!("{}", qi);
                     let mut v = format!("{}_{}", qi.to_string(), qt.to_string());
@@ -100,13 +136,36 @@ pub fn data_type_read_derive(input: TokenStream) -> TokenStream {
 
                     let id = format_ident!("{}", v);
 
-                    (
+                    let read = if do_size {
+                        if do_size_env {
                         quote! {
-                        trace_annotate!(datareader, #vi);
-                        let #id = <#ty as DataTypeRead>::read(datareader)?;
-                        },
+                            trace_annotate!(datareader, #vi);
+                            let size: usize = match datareader.get_env(#size_env) {
+                                Some(value) => {
+                                    value.into()
+                                }
+                                None => {panic!("datareader environtment \"{}\" not set", #size_env);}
+                            };
+                            let mut #id: #ty = Vec::with_capacity(size);
+                            datareader.read_exact_generic(&mut #id)?;
+                        }
+                        } else {
+                            quote! {
+                                trace_annotate!(datareader, #vi);
+                                let mut #id: #ty = Vec::with_capacity(#size);
+                                datareader.read_exact_string(&mut #id)?;
+                            }
+                        }
+                    } else {
                         quote! {
-                        #ident : #id,
+                            trace_annotate!(datareader, #vi);
+                            let #id = <#ty as DataTypeRead>::read(datareader)?;
+                        }
+                    };
+
+                    (read,
+                        quote! {
+                        #field_identifier : #id,
                         },
                     )
                 })
@@ -128,9 +187,14 @@ pub fn data_type_read_derive(input: TokenStream) -> TokenStream {
     let (_, tag_value) = check_tag_value(&ast.attrs, "datatyperead");
     let datatype = match tag_value.get("prefix") {
         Some(p) => {
+            let prefix = if let syn::Lit::Str(p) = p {
+                p.value()
+            } else {
+                panic!("datatypereader attribute prefix's value needs to be a String");
+            };
             let i = format_ident!(
                 "{}{}",
-                p.to_uppercase(),
+                prefix.to_uppercase(),
                 struct_name.to_string().to_uppercase()
             );
             quote! {DataType::#i(self)}
@@ -140,7 +204,6 @@ pub fn data_type_read_derive(input: TokenStream) -> TokenStream {
             quote! {DataType::#i(self)}
         }
     };
-    println!("{}", datatype);
 
     // Generate the implementation
     let gen = quote! {
@@ -214,7 +277,30 @@ pub fn data_type_bound_check_derive(input: TokenStream) -> TokenStream {
     gen.into()
 }
 
-fn check_tag_value(attrs: &[Attribute], tag: &str) -> (bool, HashMap<String, String>) {
+fn check_tag_value(attrs: &[Attribute], tag: &str) -> (bool, HashMap<String, syn::Lit>) {
+    let mut s: HashMap<String, syn::Lit> = HashMap::new();
+    for attr in attrs {
+        if let Ok(meta) = attr.parse_meta() {
+            if let syn::Meta::List(list) = meta {
+                if list.path.is_ident(tag) {
+                    // The specified attribute is present, extract its value
+                    for nested_meta in list.nested {
+                        if let syn::NestedMeta::Meta(syn::Meta::NameValue(name_value)) = nested_meta
+                        {
+                            if let Some(name) = name_value.path.get_ident() {
+                                s.insert(name.to_string(), name_value.lit);
+                            }
+                        }
+                        return (true, s);
+                    }
+                }
+            }
+        }
+    }
+    (false, s)
+}
+
+fn check_tag_value_old(attrs: &[Attribute], tag: &str) -> (bool, HashMap<String, String>) {
     let mut s: HashMap<String, String> = HashMap::new();
     for attr in attrs {
         if let Ok(meta) = attr.parse_meta() {

@@ -15,7 +15,7 @@ fn parse_file(filename: String) -> Result<bool, Box<dyn Error>> {
     let mut trace = Trace::new();
     let mdl = Mdl::parse(data, Some(&mut trace))?;
 
-    println!("{:?}", mdl);
+    //println!("{:?}", mdl);
 
     // let mut file = match File::open("data/palette.lmp") {
     //     Ok(file) => file,

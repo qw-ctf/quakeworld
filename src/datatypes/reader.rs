@@ -1,6 +1,6 @@
 use paste::paste;
-use quote::quote;
 use serde::Serialize;
+use std::collections::HashMap;
 
 use std::io::{Cursor, Read};
 use thiserror::Error;
@@ -9,6 +9,8 @@ use crate::datatypes::common::AsciiString;
 use crate::datatypes::common::DataType;
 #[cfg(feature = "trace")]
 use crate::trace::{trace_start, trace_stop, Trace};
+
+use super::common::Vertex;
 
 #[derive(Error, Debug)]
 pub enum DataTypeReaderError {
@@ -22,6 +24,8 @@ pub enum DataTypeReaderError {
     ReadSizeError(u64, u64, u64),
     #[error("bound error: start({0}) length({1}) is ({2}) beyond ({3})")]
     BoundCheckError(u64, u64, u64, u64),
+    #[error("not implemented for this type")]
+    NotImplemented,
 }
 // DataTypeReader: implements a generic parser for structs
 pub struct DataTypeReader<'a> {
@@ -29,6 +33,7 @@ pub struct DataTypeReader<'a> {
     pub cursor: Cursor<Vec<u8>>,
     #[cfg(feature = "trace")]
     pub trace: Option<&'a mut Trace>,
+    pub env: HashMap<String, DataTypeReaderEnv>,
 }
 
 impl<'a> DataTypeReader<'a> {
@@ -38,16 +43,72 @@ impl<'a> DataTypeReader<'a> {
             cursor: Cursor::new(data),
             #[cfg(feature = "trace")]
             trace,
+            env: HashMap::new(),
         }
     }
     pub fn read_exact(&mut self, buf: &mut Vec<u8>) -> Result<(), DataTypeReaderError> {
-        let n = buf.len();
+        let n = buf.capacity();
         trace_start!(self, format!("Vec<u8>[{}]", n));
-        for i in 0..n {
-            buf[i] = <u8 as DataTypeRead>::read(self)?;
+        for _ in 0..n {
+            buf.push(<u8 as DataTypeRead>::read(self)?);
         }
         trace_stop!(self, DataType::GENERICVECTOR(n));
         Ok(())
+    }
+
+    pub fn read_exact_string(&mut self, buf: &mut Vec<u8>) -> Result<(), DataTypeReaderError> {
+        let n = buf.capacity();
+        trace_start!(self, format!("Vec<u8>[{}]", n));
+        for _ in 0..n {
+            buf.push(<u8 as DataTypeRead>::read(self)?);
+        }
+        trace_stop!(self, DataType::GENERICSTRING(buf.ascii_string()));
+        Ok(())
+    }
+    pub fn set_env<T: IntoDataTypeReaderEnv>(&mut self, name: impl Into<String>, value: T) {
+        self.env.insert(name.into(), value.into());
+    }
+    pub fn get_env(&mut self, name: impl Into<String>) -> Option<DataTypeReaderEnv> {
+        self.env.get(&name.into()).cloned()
+        // match self.env.get(&name.into()) {
+        //     Some(v) => {
+        //     }
+        //     None => None,
+        // };
+    }
+}
+
+#[derive(Serialize, Clone, Debug, Default)]
+pub enum DataTypeReaderEnv {
+    #[default]
+    None,
+    Int(i64),
+    String(String),
+}
+
+impl From<DataTypeReaderEnv> for usize {
+    fn from(value: DataTypeReaderEnv) -> usize {
+        match value {
+            DataTypeReaderEnv::None => panic!("hits cant be happening"),
+            DataTypeReaderEnv::Int(i) => i as usize,
+            DataTypeReaderEnv::String(_) => panic!("hits cant be happening"),
+        }
+    }
+}
+
+pub trait IntoDataTypeReaderEnv {
+    fn into(self) -> DataTypeReaderEnv;
+}
+
+impl IntoDataTypeReaderEnv for String {
+    fn into(self) -> DataTypeReaderEnv {
+        DataTypeReaderEnv::String(self.clone())
+    }
+}
+
+impl IntoDataTypeReaderEnv for i64 {
+    fn into(self) -> DataTypeReaderEnv {
+        DataTypeReaderEnv::Int(self)
     }
 }
 
@@ -68,11 +129,16 @@ impl<'a> DataTypeReader<'a> {
 }
 
 pub trait DataTypeRead: Sized {
-    fn read(datatypereader: &mut DataTypeReader) -> Result<Self, DataTypeReaderError>;
+    fn read(datatypereader: &mut DataTypeReader) -> Result<Self, DataTypeReaderError> {
+        panic!("where do i happen?");
+        Err(DataTypeReaderError::NotImplemented)
+    }
     fn to_datatype(&self) -> DataType {
         DataType::None
     }
 }
+
+impl DataTypeRead for Vec<Vertex> {}
 
 // Bound checking trait
 pub trait DataTypeBoundCheck {
@@ -224,6 +290,6 @@ macro_rules! datatypereader_generate_sized_dispatch_general {
 // generate read function for base types
 datatypereader_generate_base_type!(u8, u16, u32, i8, i16, i32, f32);
 // generate read functions for sized types
-datatypereader_generate_sized!((u8, 56, 0, PakFileName), (u8, 16, 0, MdlFrameName));
+//datatypereader_generate_sized!((u8, 56, 0, PakFileName), (u8, 16, 0, MdlFrameName));
 // generate to_datatype for all the other stuff
 // datatypereader_generate_to_datatype!(DirectoryEntry);
