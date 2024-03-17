@@ -89,6 +89,7 @@ impl Trace {
     }
 }
 
+#[allow(unused)]
 macro_rules! function {
     () => {{
         fn f() {}
@@ -99,6 +100,8 @@ macro_rules! function {
         &name[..name.len() - 3]
     }};
 }
+#[allow(unused)]
+pub(crate) use function;
 
 #[cfg(not(feature = "trace"))]
 macro_rules! trace_start {}

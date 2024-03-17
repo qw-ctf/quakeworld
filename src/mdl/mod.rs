@@ -1,10 +1,9 @@
 //use crate::mdl::mdl::Frame;
 #[cfg(feature = "trace")]
 use crate::trace::Trace;
-use crate::trace::{trace_annotate, trace_start, trace_stop};
-use paste::paste;
+use crate::trace::{trace_annotate};
 
-use crate::datatypes::common::{DataType, TextureCoordinate, Triangle};
+use crate::datatypes::common::{TextureCoordinate, Triangle};
 use crate::datatypes::mdl;
 use crate::datatypes::reader;
 use crate::datatypes::reader::DataTypeReaderError;

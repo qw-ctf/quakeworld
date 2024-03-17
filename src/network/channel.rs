@@ -1,9 +1,9 @@
-
 use serde::Serialize;
 
 #[derive(Default, PartialEq, Eq, Serialize)]
 pub enum ReliableState {
-    #[default] None,
+    #[default]
+    None,
     Send,
     Ack,
     Recieved,
@@ -30,7 +30,7 @@ impl Channel {
         true
     }
 
-    pub fn reliable(&mut self) -> (u32,u32) {
+    pub fn reliable(&mut self) -> (u32, u32) {
         self.outgoing.sequence += 1;
         self.outgoing.last_reliable = self.outgoing.sequence;
         self.outgoing.reliable_state = ReliableState::Send;
@@ -39,35 +39,41 @@ impl Channel {
             ack_rel = 1;
             self.acknowledged.reliable_state = ReliableState::Send;
         }
-        (self.outgoing.sequence | (1 << 31), self.acknowledged.sequence | (ack_rel << 31)) 
+        (
+            self.outgoing.sequence | (1 << 31),
+            self.acknowledged.sequence | (ack_rel << 31),
+        )
     }
 
-    pub fn unreliable(&mut self) -> (u32,u32) {
+    pub fn unreliable(&mut self) -> (u32, u32) {
         self.outgoing.sequence += 1;
         let mut ack_rel = 0;
         if self.acknowledged.reliable_state == ReliableState::Recieved {
             ack_rel = 1;
             self.acknowledged.reliable_state = ReliableState::Send;
         }
-        (self.outgoing.sequence , self.acknowledged.sequence | (ack_rel << 31))
+        (
+            self.outgoing.sequence,
+            self.acknowledged.sequence | (ack_rel << 31),
+        )
     }
 
     pub fn recieved(&mut self, sequence_in: u32, acknowledged_in: u32) -> bool {
         let sequence_reliable = sequence_in & (1 << 31) != 0;
-        let sequence =  sequence_in  & !(1 << 31);
+        let sequence = sequence_in & !(1 << 31);
         if sequence_reliable {
             self.acknowledged.reliable_state = ReliableState::Recieved;
         }
         self.acknowledged.sequence = sequence;
 
         let acknowledged_reliable = acknowledged_in & (1 << 31) != 0;
-        let acknowledged_sequence =  acknowledged_in & !(1 << 31);
+        let acknowledged_sequence = acknowledged_in & !(1 << 31);
         if acknowledged_reliable {
-            self.outgoing.last_reliable != acknowledged_sequence;
+            // @FIX: i have no idea why this comparison is here
+            let _ = self.outgoing.last_reliable != acknowledged_sequence;
             self.outgoing.last_reliable = 0;
             self.outgoing.reliable_state = ReliableState::Ack;
         }
         sequence_reliable
     }
 }
-

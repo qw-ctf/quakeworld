@@ -129,8 +129,8 @@ impl<'a> DataTypeReader<'a> {
 }
 
 pub trait DataTypeRead: Sized {
-    fn read(datatypereader: &mut DataTypeReader) -> Result<Self, DataTypeReaderError> {
-        panic!("where do i happen?");
+    fn read(_datatypereader: &mut DataTypeReader) -> Result<Self, DataTypeReaderError> {
+        // @TODO: not sure if we should panic here
         Err(DataTypeReaderError::NotImplemented)
     }
     fn to_datatype(&self) -> DataType {
@@ -218,6 +218,7 @@ macro_rules! datatypereader_generate_base_type {
     }
 }
 
+#[allow(unused)]
 macro_rules! datatypereader_generate_sized {
     ($(($ty:tt, $size:expr, $default: expr, $typename: expr)),*) => {
         $(
@@ -226,6 +227,7 @@ macro_rules! datatypereader_generate_sized {
     };
 }
 
+#[allow(unused)]
 macro_rules! datatypereader_generate_sized_dispatch {
     (u8, $size: expr, $default: expr, $typename: expr) => {
         paste! {
@@ -244,6 +246,7 @@ macro_rules! datatypereader_generate_sized_dispatch {
     };
 }
 
+#[allow(unused)]
 macro_rules! datatypereader_generate_sized_dispatch_general {
     ($ty:ty, $size: expr, $default: expr, $typename: expr) => {
         paste! {

@@ -1,8 +1,7 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use std::collections::HashMap;
-use syn::spanned::Spanned;
-use syn::{parse_macro_input, AngleBracketedGenericArguments, Attribute, DeriveInput, Meta, Type};
+use syn::{parse_macro_input, Attribute, DeriveInput, Meta};
 use syn::{Data, DataStruct, Fields};
 
 #[proc_macro_derive(ParseMessage)]

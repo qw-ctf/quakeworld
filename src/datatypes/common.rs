@@ -90,6 +90,7 @@ pub enum DataType {
 }
 
 impl DataType {
+    #[allow(unused)]
     fn to_datatype(self) -> DataType {
         self
     }
