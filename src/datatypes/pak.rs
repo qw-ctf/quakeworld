@@ -13,6 +13,7 @@ use crate::trace::{trace_annotate, trace_start, trace_stop};
 /// PAK Header
 type Version = u32;
 #[derive(Serialize, Clone, Debug, Copy, DataTypeRead, DataTypeBoundCheckDerive)]
+#[datatyperead(prefix = "pak")]
 pub struct Header {
     /// Pak version
     pub version: Version,
@@ -22,6 +23,7 @@ pub struct Header {
 }
 
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead, DataTypeBoundCheckDerive)]
+#[datatyperead(prefix = "pak")]
 pub struct File {
     #[datatyperead(size = 56, string)]
     pub name: Vec<u8>,

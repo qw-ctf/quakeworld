@@ -30,6 +30,7 @@ pub struct Header {
 }
 
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
+#[datatyperead(prefix = "mdl")]
 pub struct Frame {
     pub frame_type: u32,
     pub bounding_box: BoundingBox<Vertex>,
@@ -40,6 +41,7 @@ pub struct Frame {
 }
 
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
+#[datatyperead(prefix = "mdl")]
 pub struct Skin {
     pub time: f32,
     #[datatyperead(size = "skin_size")]

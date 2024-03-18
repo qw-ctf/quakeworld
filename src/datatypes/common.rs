@@ -14,6 +14,7 @@ use crate::datatypes::reader::{
 use crate::trace::{trace_annotate, trace_start, trace_stop};
 
 use super::bsp;
+use super::mdl;
 
 /// A trait to get an ascii string
 pub trait AsciiString {
@@ -45,6 +46,11 @@ where
         }
     }
 }
+// impl <T> DataTypeRead for Vector3<T> {
+//     fn to_datatype(&self) -> DataType {
+//         DataType::VECTOR3
+//     }
+// }
 
 impl AsciiString for Vec<u8> {
     fn ascii_string(&self) -> String {
@@ -54,13 +60,18 @@ impl AsciiString for Vec<u8> {
 }
 
 /// Bounding box
-#[derive(Serialize, Clone, Debug, Copy, DataTypeRead, Default)]
+#[derive(Serialize, Clone, Debug, Copy,  Default, DataTypeRead)]
+#[datatyperead(types("Vertex", "u8"))]
 pub struct BoundingBox<T: DataTypeRead + 'static>
 where
     T: Clone,
 {
     pub min: T,
     pub max: T,
+}
+
+impl DataTypeRead for BoundingBox<Vertex> {
+
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -84,9 +95,16 @@ pub enum DataType {
     PAKFILE(crate::datatypes::pak::File),
     BSPHEADER(bsp::Header),
     DIRECTORYENTRY(DirectoryEntry),
-    //MDLFRAME(mdl::Frame),
+    MDLSKIN(mdl::Skin),
+    MDLFRAME(mdl::Frame),
+    MDLHEADER(mdl::Header),
     GENERICSTRING(String),
     GENERICVECTOR(usize),
+    TRIANGLE(Triangle),
+    TEXTURECOORDINATE(TextureCoordinate),
+    VERTEX(Vertex),
+    VECTOR3GENERIC,
+    BOUNDINGBOXGENERIC,
 }
 
 impl DataType {
@@ -95,6 +113,7 @@ impl DataType {
         self.clone()
     }
 }
+
 
 /// Directory entry: describes the position and size of a chunk of data inside a BSP File
 #[derive(Serialize, Clone, Debug, Copy, DataTypeRead)]

@@ -295,4 +295,4 @@ datatypereader_generate_base_type!(u8, u16, u32, i8, i16, i32, f32);
 // generate read functions for sized types
 //datatypereader_generate_sized!((u8, 56, 0, PakFileName), (u8, 16, 0, MdlFrameName));
 // generate to_datatype for all the other stuff
-// datatypereader_generate_to_datatype!(DirectoryEntry);
+//datatypereader_generate_generic_type!((BoundingBox,Vertex));
