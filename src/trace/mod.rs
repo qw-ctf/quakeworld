@@ -1,13 +1,26 @@
 use serde::Serialize;
 use strum_macros::Display;
 
-use crate::datatypes::common::DataType;
+use crate::{datatypes::common::DataType, protocol::types::ServerMessage};
 
 #[derive(Serialize, Clone, Debug, Default, Display)]
 pub enum TraceValue {
     #[default]
     None,
-    DateType(DataType),
+    DataType(DataType),
+    MessageType(ServerMessage),
+}
+
+pub trait Tracing {
+    fn start(
+        &mut self,
+        index: u64,
+        field_type: impl Into<String>,
+        field_name: impl Into<String>,
+        readahead: bool,
+    );
+    fn annotate(&mut self, annotation_prepend: impl Into<String>);
+    fn stop(&mut self, size: u64, value: DataType);
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -73,7 +86,7 @@ impl Trace {
         if let Some(mut p) = self.trace.stack.pop() {
             //p.value = value;
             p.index_stop = size;
-            p.value = TraceValue::DateType(value);
+            p.value = TraceValue::DataType(value);
             // get the last trace on the stack
             if let Some(l) = self.trace.stack.last_mut() {
                 l.index_stop = p.index_stop;
@@ -110,22 +123,26 @@ macro_rules! trace_start {}
 macro_rules! trace_start {
     ( $dr:ident, $name:expr, $field_name:expr) => {
         if let Some(trace) = &mut $dr.trace {
-            trace.start($dr.cursor.position(), $name, $field_name);
+            let p = $dr.position();
+            trace.start(p, $name, $field_name);
         }
     };
     ( $dr:ident, $name:expr, $field_name:expr) => {
         if let Some(trace) = $dr.trace {
-            trace.start($dr.cursor.position(), $name, $field_name);
+            let p = $dr.position();
+            trace.start(p, $name, $field_name);
         }
     };
     ( $dr:ident, $name:expr) => {
+        let p = $dr.position();
         if let Some(trace) = &mut $dr.trace {
-            trace.start($dr.cursor.position(), $name, "");
+            trace.start(p, $name, "");
         }
     };
     ( $dr:ident, $name:expr) => {
         if let Some(trace) = $dr.trace {
-            trace.start($dr.cursor.position(), $name, "");
+            let p = $dr.position();
+            trace.start(p, $name, "");
         }
     };
 }
@@ -138,16 +155,18 @@ macro_rules! trace_stop {}
 macro_rules! trace_stop {
     ( $dr:ident, $value:expr, $valueType:ident) => {
         paste! {
-        if let Some(trace) = &mut $dr.trace {
-        trace.stop($dr.cursor.position(), $value.to_datatype());
-        }
+            let p = $dr.position();
+            if let Some(trace) = &mut $dr.trace {
+                trace.stop(p, $value.to_datatype());
+            }
         }
     };
     ($dr:expr, $value:expr) => {
         paste! {
-        if let Some(trace) = &mut $dr.trace {
-        trace.stop($dr.cursor.position(), $value);
-        }
+            let p = $dr.position();
+            if let Some(trace) = &mut $dr.trace {
+                trace.stop(p, $value);
+            }
         }
     };
     ($self:expr) => {

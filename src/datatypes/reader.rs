@@ -70,11 +70,9 @@ impl<'a> DataTypeReader<'a> {
     }
     pub fn get_env(&mut self, name: impl Into<String>) -> Option<DataTypeReaderEnv> {
         self.env.get(&name.into()).cloned()
-        // match self.env.get(&name.into()) {
-        //     Some(v) => {
-        //     }
-        //     None => None,
-        // };
+    }
+    pub fn position(&self) -> u64 {
+        self.cursor.position()
     }
 }
 
