@@ -1,14 +1,14 @@
 use serde::Serialize;
 use strum_macros::Display;
 
-use crate::{datatypes::common::DataType, protocol::types::ServerMessage};
+use crate::datatypes::common::DataType;
 
 #[derive(Serialize, Clone, Debug, Default, Display)]
 pub enum TraceValue {
     #[default]
     None,
     DataType(DataType),
-    MessageType(ServerMessage),
+    MessageType(crate::protocol::message::trace::TraceValue),
 }
 
 pub trait Tracing {
@@ -31,13 +31,53 @@ pub struct TraceEntry {
     pub index_stop: u64,
     pub value: TraceValue,
     pub traces: Vec<TraceEntry>,
-    stack: Vec<TraceEntry>,
+    pub stack: Vec<TraceEntry>,
 }
 
 #[derive(Debug, Default, Serialize)]
 pub struct Trace {
     pub trace: TraceEntry,
     annotation_prepend: Option<String>,
+}
+
+pub trait TraceBase {
+    fn get_trace(self) -> Vec<TraceEntry>;
+}
+
+impl TraceBase for Trace {
+    fn get_trace(self) -> Vec<TraceEntry> {
+        return vec![self.trace];
+    }
+}
+
+pub trait TraceEvent {
+    fn get_entries(self) -> Vec<TraceEntry>;
+    fn get_fieldname(self) -> String;
+    fn get_fieldtype(self) -> String;
+    fn get_index_start(self) -> u64;
+    fn get_index_stop(self) -> u64;
+    fn get_value(self) -> TraceValue;
+}
+
+impl TraceEvent for TraceEntry {
+    fn get_entries(self) -> Vec<TraceEntry> {
+        return self.traces;
+    }
+    fn get_fieldname(self) -> String {
+        return self.field_name;
+    }
+    fn get_fieldtype(self) -> String {
+        return self.field_type;
+    }
+    fn get_index_start(self) -> u64 {
+        return self.index;
+    }
+    fn get_index_stop(self) -> u64 {
+        return self.index_stop;
+    }
+    fn get_value(self) -> TraceValue {
+        return self.value;
+    }
 }
 
 impl Trace {

@@ -1,12 +1,14 @@
 use crate::protocol::message::DeltaUserCommand;
 use crate::protocol::message::StringByte;
 use crate::protocol::message::StringVector;
+use crate::trace;
 use paste::paste;
 use serde::Serialize;
 use strum_macros::Display;
 
 use crate::mvd::*;
 use crate::protocol::message::{Message, Packet, ServerMessage};
+use crate::trace::{TraceBase, TraceEntry, TraceEvent};
 
 #[cfg(feature = "trace")]
 #[derive(Serialize, Clone, Debug, Default)]
@@ -49,6 +51,39 @@ pub struct MessageTrace {
     pub read: Vec<ReadTrace>,
     pub enabled: bool,
     pub locked: bool,
+}
+
+impl TraceBase for MessageTrace {
+    fn get_trace(self) -> Vec<TraceEntry> {
+        return vec![];
+    }
+}
+
+impl From<ReadTrace> for TraceEntry {
+    fn from(a: ReadTrace) -> Self {
+        let field_name = a.annotation.unwrap_or("".to_owned());
+        let traces: Vec<TraceEntry> = a.read.into_iter().map(ReadTrace::from).collect();
+        TraceEntry {
+            field_type: a.function,
+            field_name,
+            index: a.start as u64,
+            index_stop: a.stop as u64,
+            value: trace::TraceValue::MessageType(a.value),
+            traces,
+            stack: vec![],
+        }
+    }
+}
+
+impl FromIterator<ReadTrace> for Vec<TraceEntry> {
+    fn from_iter<T: IntoIterator<Item = ReadTrace>>(iter: T) -> Self {
+        let iterator = iter.into_iter();
+        let mut vec = Vec::new();
+        for item in iterator {
+            vec.push(TraceEntry::from(item));
+        }
+        vec
+    }
 }
 
 impl MessageTrace {
