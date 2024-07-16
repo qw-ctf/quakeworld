@@ -102,6 +102,7 @@ pub enum DataType {
     TRIANGLE(Triangle),
     TEXTURECOORDINATE(TextureCoordinate),
     VERTEX(Vertex),
+    QTV(crate::qtv::QtvType),
     VECTOR3GENERIC,
     BOUNDINGBOXGENERIC,
 }

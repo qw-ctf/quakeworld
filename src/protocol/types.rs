@@ -644,9 +644,12 @@ pub struct PlayerinfoConnection {
 }
 
 fn playerinfo_read_demo(message: &mut Message) -> Result<ServerMessage, MessageError> {
+    trace_annotate!(message, "player number");
     let player_number = message.read_u8(false)?;
+    trace_annotate!(message, "flags");
     let u = message.read_u16(false)?;
     let flags = DfTypes::from_bits_truncate(u);
+    trace_annotate!(message, "frame");
     let frame = message.read_u8(false)?;
     let mut origin = None;
     let mut origin_read = false;
@@ -663,9 +666,18 @@ fn playerinfo_read_demo(message: &mut Message) -> Result<ServerMessage, MessageE
             }
             let f = message.read_coordinate(false)?;
             match i {
-                0 => origin_vec.x = Some(f),
-                1 => origin_vec.y = Some(f),
-                2 => origin_vec.z = Some(f),
+                0 => {
+                    trace_annotate!(message, "origin x");
+                    origin_vec.x = Some(f);
+                }
+                1 => {
+                    trace_annotate!(message, "origin y");
+                    origin_vec.y = Some(f);
+                }
+                2 => {
+                    trace_annotate!(message, "origin z");
+                    origin_vec.z = Some(f);
+                }
                 _ => return Err(MessageError::StringError("this is weird".to_string())),
             }
         }
@@ -686,11 +698,22 @@ fn playerinfo_read_demo(message: &mut Message) -> Result<ServerMessage, MessageE
             if !angle_read {
                 angle_read = true;
             }
-            let f = message.read_angle16(false)?;
             match i {
-                0 => angle_vec.x = Some(f),
-                1 => angle_vec.y = Some(f),
-                2 => angle_vec.z = Some(f),
+                0 => {
+                    trace_annotate!(message, "angle x");
+                    let f = message.read_angle16(false)?;
+                    angle_vec.x = Some(f);
+                }
+                1 => {
+                    trace_annotate!(message, "angle y");
+                    let f = message.read_angle16(false)?;
+                    angle_vec.y = Some(f);
+                }
+                2 => {
+                    trace_annotate!(message, "angle z");
+                    let f = message.read_angle16(false)?;
+                    angle_vec.z = Some(f);
+                }
                 _ => return Err(MessageError::StringError("this is weird".to_string())),
             }
         }
@@ -701,24 +724,28 @@ fn playerinfo_read_demo(message: &mut Message) -> Result<ServerMessage, MessageE
 
     let mut model = None;
     if flags.contains(DfTypes::MODEL) {
+        trace_annotate!(message, "model");
         let i = message.read_u8(false)?;
         model = Some(i);
     }
 
     let mut skinnum = None;
     if flags.contains(DfTypes::SKINNUM) {
+        trace_annotate!(message, "skinnum");
         let i = message.read_u8(false)?;
         skinnum = Some(i);
     }
 
     let mut effects = None;
     if flags.contains(DfTypes::EFFECTS) {
+        trace_annotate!(message, "effects");
         let i = message.read_u8(false)?;
         effects = Some(i);
     }
 
     let mut weaponframe = None;
     if flags.contains(DfTypes::WEAPONFRAME) {
+        trace_annotate!(message, "weaponframe");
         let i = message.read_u8(false)?;
         weaponframe = Some(i);
     }
@@ -911,9 +938,7 @@ impl Packetentities {
     pub fn read(message: &mut Message) -> Result<ServerMessage, MessageError> {
         trace_start!(message, false);
         let mut entities = Vec::new();
-        let mut i = 0;
         loop {
-            i += 1;
             trace_annotate!(message, "bits");
             let mut bits = message.read_u16(false)?;
             if bits == 0 {
@@ -1034,10 +1059,6 @@ impl Packetentities {
                 ..Default::default()
             };
             entities.push(p);
-            // TODO: wha?
-            if i == 65 {
-                panic!();
-            }
         }
         let r = ServerMessage::Packetentities(Packetentities { entities });
         trace_stop!(message, r);

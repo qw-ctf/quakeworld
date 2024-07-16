@@ -14,7 +14,7 @@ A collection of quakeworld related libraries.
 [lib]
 
 [features]
-default = ["mvd", "utils", "protocol", "state", "network", "trace", "connection", "crc", "pak", "mdl", "lmp", "bsp", "trace" ]
+default = ["mvd", "utils", "protocol", "state", "network", "trace", "connection", "crc", "pak", "mdl", "lmp", "bsp", "trace" , "qtv"]
 connection = ["protocol", "state", "network", "crc", "ascii_strings"]
 state = ["protocol", "utils"]
 mvd = ["utils", "protocol"]
@@ -28,6 +28,7 @@ pak = []
 mdl = []
 lmp = []
 bsp = []
+qtv = []
 example-ratatui = [ "ratatui", "crossterm", "color-eyre", "anyhow", "palette" ]
 
 [dependencies]
@@ -55,6 +56,6 @@ palette = { version = "0.7.5", optional = true }
 # ratatui = { optional = true, features = ["crossterm"] }
 # crossterm = { optional = true }
 
-[[example]]
-name = "traceviewer"
-required-features = [ "example-ratatui" ]
+# [[example]]
+# name = "traceviewer"
+# required-features = [ "example-ratatui" ]

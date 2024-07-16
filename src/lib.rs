@@ -37,6 +37,9 @@ pub mod lmp;
 #[cfg(feature = "bsp")]
 pub mod bsp;
 
+#[cfg(feature = "qtv")]
+pub mod qtv;
+
 #[cfg(test)]
 mod tests {
     // use crate::utils::ascii_converter::AsciiConverter;

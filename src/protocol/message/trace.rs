@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::protocol::message::DeltaUserCommand;
 use crate::protocol::message::StringByte;
 use crate::protocol::message::StringVector;
@@ -21,6 +23,7 @@ pub struct ReadTrace {
     pub annotation: Option<String>,
     pub read: Vec<ReadTrace>,
     pub value: TraceValue,
+    pub info: HashMap<String, String>,
 }
 
 /*
@@ -55,7 +58,8 @@ pub struct MessageTrace {
 
 impl TraceBase for MessageTrace {
     fn get_trace(self) -> Vec<TraceEntry> {
-        return vec![];
+        let traces: Vec<TraceEntry> = self.read.into_iter().map(ReadTrace::from).collect();
+        return traces;
     }
 }
 
@@ -63,14 +67,16 @@ impl From<ReadTrace> for TraceEntry {
     fn from(a: ReadTrace) -> Self {
         let field_name = a.annotation.unwrap_or("".to_owned());
         let traces: Vec<TraceEntry> = a.read.into_iter().map(ReadTrace::from).collect();
+        let index_stop = if a.stop > 0 { (a.stop - 1) as u64 } else { 0 };
         TraceEntry {
             field_type: a.function,
             field_name,
             index: a.start as u64,
-            index_stop: a.stop as u64,
-            value: trace::TraceValue::MessageType(a.value),
+            index_stop,
+            value: trace::TraceValue::Message(a.value),
             traces,
             stack: vec![],
+            info: a.info,
         }
     }
 }
@@ -98,13 +104,18 @@ pub(crate) trait ToTraceValue {
     fn to_tracevalue(&self) -> TraceValue;
 }
 
+pub trait PrintType {
+    fn print_type(&self) -> String;
+}
+
 impl Message {
     #[cfg(feature = "trace")]
-    pub fn read_trace_annotate(&mut self, annotation: &str) {
+    pub fn read_trace_annotate(&mut self, annotation: impl Into<String>) {
+        let annotation = annotation.into();
         if !self.trace.enabled {
             return;
         }
-        self.trace.annotation = Some(annotation.to_string());
+        self.trace.annotation = Some(annotation);
     }
 
     #[cfg(feature = "trace")]
@@ -127,6 +138,7 @@ impl Message {
             value: TraceValue::None,
             annotation,
             aborted: false,
+            info: HashMap::new(),
         };
         self.trace.stack.push(res)
     }
@@ -150,13 +162,17 @@ impl Message {
     }
 
     #[cfg(feature = "trace")]
-    pub fn read_trace_stop(&mut self, value: TraceValue) {
+    pub fn read_trace_stop(&mut self, value: TraceValue, function: impl Into<String>) {
+        let function = function.into();
         if !self.trace.enabled {
             return;
         }
         if let Some(mut trace) = self.trace.stack.pop() {
             trace.value = value;
             trace.stop = self.position;
+            if trace.function != function {
+                panic!("{} != {}", trace.function, function);
+            }
 
             let len = self.trace.stack.len();
             if len > 0 {
@@ -164,6 +180,15 @@ impl Message {
             } else {
                 self.trace.read.push(trace);
             }
+        }
+    }
+
+    #[cfg(feature = "trace")]
+    pub fn read_trace_add_info(&mut self, name: impl Into<String>, value: impl Into<String>) {
+        let name = name.into();
+        let value = value.into();
+        if let Some(t) = self.trace.read.last_mut() {
+            t.info.insert(name, value);
         }
     }
 }
@@ -194,18 +219,18 @@ macro_rules! trace_stop {
     ($self:expr, $value:expr, $valueType:ident) => {
         paste! {
         if $self.trace.enabled && !$self.trace.locked {
-            $self.read_trace_stop(TraceValue::[< $valueType:upper >]($value));
+            $self.read_trace_stop(TraceValue::[< $valueType:upper >]($value), function!());
         }
         }
     };
     ($self:expr, $value:expr) => {
         if $self.trace.enabled && !$self.trace.locked {
-            $self.read_trace_stop($value.to_tracevalue());
+            $self.read_trace_stop($value.to_tracevalue(), function!());
         }
     };
     ($self:expr) => {
         if $self.trace.enabled && !$self.trace.locked {
-            $self.read_trace_stop(TraceValue::None);
+            $self.read_trace_stop(TraceValue::None, function!());
         }
     };
 }
@@ -230,13 +255,26 @@ macro_rules! trace_annotate {}
 
 #[cfg(feature = "trace")]
 macro_rules! trace_annotate {
-    ($self:expr, $value:literal) => {
+    ($self:expr, $value:expr) => {
         if $self.trace.enabled && !$self.trace.locked {
             $self.read_trace_annotate($value);
         }
     };
 }
 pub(crate) use trace_annotate;
+
+#[cfg(not(feature = "trace"))]
+macro_rules! trace_info {}
+
+#[cfg(feature = "trace")]
+macro_rules! trace_info {
+    ($self:expr, $name:expr, $value:expr) => {
+        if $self.trace.enabled && !$self.trace.locked {
+            $self.read_trace_add_info($name, format!("{:?}", $value));
+        }
+    };
+}
+pub(crate) use trace_info;
 
 #[cfg(feature = "trace")]
 macro_rules! trace_lock {
@@ -259,6 +297,29 @@ macro_rules! trace_unlock {
 }
 pub(crate) use trace_unlock;
 
+impl PrintType for TraceValue {
+    fn print_type(&self) -> String {
+        let rv = match self {
+            TraceValue::None => "None".to_string(),
+            TraceValue::VecU8(d) => d.print_type().clone(),
+            TraceValue::U8(d) => d.print_type().clone(),
+            TraceValue::U16(d) => d.print_type().clone(),
+            TraceValue::U32(d) => d.print_type().clone(),
+            TraceValue::I8(d) => d.print_type().clone(),
+            TraceValue::I16(d) => d.print_type().clone(),
+            TraceValue::I32(d) => d.print_type().clone(),
+            TraceValue::F32(d) => d.print_type().clone(),
+            TraceValue::ServerMessage(d) => d.print_type().clone(),
+            TraceValue::Packet(d) => d.print_type().clone(),
+            TraceValue::StringByte(d) => d.print_type().clone(),
+            TraceValue::DeltaUserCommand(d) => d.print_type().clone(),
+            TraceValue::StringVector(d) => d.print_type().clone(),
+            TraceValue::MvdFrame(d) => d.print_type().clone(),
+        };
+        rv.to_owned()
+    }
+}
+
 macro_rules! create_trace_enums{
     ($(($ty:ident, $en:ident)), *) => {
         paste! {
@@ -275,6 +336,11 @@ macro_rules! create_trace_enums{
                 impl ToTraceValue for $ty {
                     fn to_tracevalue(&self) -> TraceValue {
                         TraceValue::[< $en >](self.clone())
+                    }
+                }
+                impl PrintType for $ty {
+                    fn print_type(&self) -> String {
+                        stringify!($en).to_string()
                     }
                 }
                 )*
@@ -297,6 +363,11 @@ pub(crate) use function;
 impl ToTraceValue for Vec<u8> {
     fn to_tracevalue(&self) -> TraceValue {
         TraceValue::VecU8(self.clone())
+    }
+}
+impl PrintType for Vec<u8> {
+    fn print_type(&self) -> String {
+        "Vec<u8>".to_owned()
     }
 }
 

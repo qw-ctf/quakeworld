@@ -1,15 +1,15 @@
+use std::env;
 use std::error::Error;
 use std::net::UdpSocket;
-use std::env;
 use std::time::{Duration, Instant};
 
-use quakeworld::protocol::message::Message;
-use quakeworld::protocol::types::{Packet,ServerMessage};
 use quakeworld::network::connection::{client, client::ClientConnectionState};
+use quakeworld::protocol::message::Message;
+use quakeworld::protocol::types::{Packet, ServerMessage};
 use quakeworld::utils::ascii_converter::AsciiConverter;
 
 fn generate_crc(_map_name: String) -> u32 {
-    return 1849737252; // maps/maphub_v1.bsp
+    return 1223475483; // maps/maphub_v1.bsp
 }
 
 fn connect(local_ip: String, remote_ip: String) -> Result<bool, Box<dyn Error>> {
@@ -40,17 +40,13 @@ fn connect(local_ip: String, remote_ip: String) -> Result<bool, Box<dyn Error>> 
         let mut message = Message::empty();
         message.bigendian = true;
         let server_packet = match socket.recv_from(&mut buf) {
-            Ok((n, _)) => {
-                buf[..n].to_vec()
-            },
-            Err(..) => {
-                [].to_vec()
-            },
+            Ok((n, _)) => buf[..n].to_vec(),
+            Err(..) => [].to_vec(),
         };
 
         // handle a timeout
         if server_packet.is_empty() {
-            let status  = client.handle_timeout()?;
+            let status = client.handle_timeout()?;
             if let Some(response) = status.response {
                 let r = socket.send_to(&response, &remote_ip)?;
                 assert_eq!(r, response.len());
@@ -62,8 +58,11 @@ fn connect(local_ip: String, remote_ip: String) -> Result<bool, Box<dyn Error>> 
         let status = client.handle_packet(server_packet)?;
         // see if we need to send a response
         if let Some(mut response) = status.response {
-            if last_time.elapsed().as_secs() > 10 {
-                message.write_client_command_string(format!("say hello! from  rust for the {}... time", count));
+            if last_time.elapsed().as_secs() > 1 {
+                message.write_client_command_string(format!(
+                    "say hello! from  rust for the {}... timeaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ",
+                    count
+                ));
                 count += 1;
                 response.extend(message.buffer.to_vec());
                 last_time = Instant::now();
@@ -73,7 +72,7 @@ fn connect(local_ip: String, remote_ip: String) -> Result<bool, Box<dyn Error>> 
         }
 
         // reduce socket read timeout once we are connected
-        if client.state == ClientConnectionState::Connected  && !connected {
+        if client.state == ClientConnectionState::Connected && !connected {
             let _ = socket.set_read_timeout(Some(Duration::new(0, 200000000)));
             connected = true;
         }
@@ -88,14 +87,15 @@ fn connect(local_ip: String, remote_ip: String) -> Result<bool, Box<dyn Error>> 
                                 if pr.message.string.contains("rust panic!") {
                                     return Ok(false);
                                 }
-                            },
+                            }
                             ServerMessage::Disconnect(..) => {
                                 println!("we got diconnected :(");
                                 return Ok(true);
-                            },
+                            }
                             ServerMessage::Modellist(modellist) => {
                                 if modellist.start == 0 {
-                                    client.map_crc = generate_crc(modellist.models[0].string.clone())
+                                    client.map_crc =
+                                        generate_crc(modellist.models[0].string.clone())
                                 }
                             }
                             _ => {}
@@ -112,7 +112,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
         println!("need to supply a remote ip");
-        return
+        return;
     }
     let remote_ip = &args[1];
     match connect("0.0.0.0:0".to_string(), remote_ip.to_string()) {

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::Serialize;
 use strum_macros::Display;
 
@@ -7,8 +9,9 @@ use crate::datatypes::common::DataType;
 pub enum TraceValue {
     #[default]
     None,
-    DataType(DataType),
-    MessageType(crate::protocol::message::trace::TraceValue),
+    Data(DataType),
+    Message(crate::protocol::message::trace::TraceValue),
+    Qtv(crate::qtv::QtvType),
 }
 
 pub trait Tracing {
@@ -32,6 +35,7 @@ pub struct TraceEntry {
     pub value: TraceValue,
     pub traces: Vec<TraceEntry>,
     pub stack: Vec<TraceEntry>,
+    pub info: HashMap<String, String>,
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -110,6 +114,7 @@ impl Trace {
             traces: vec![],
             stack: vec![],
             value: TraceValue::None,
+            info: HashMap::new(),
         };
         self.trace.stack.push(ts);
     }
@@ -126,7 +131,7 @@ impl Trace {
         if let Some(mut p) = self.trace.stack.pop() {
             //p.value = value;
             p.index_stop = size;
-            p.value = TraceValue::DataType(value);
+            p.value = TraceValue::Data(value);
             // get the last trace on the stack
             if let Some(l) = self.trace.stack.last_mut() {
                 l.index_stop = p.index_stop;
