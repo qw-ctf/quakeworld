@@ -35,6 +35,8 @@ pub struct Mvd {
     pub time: f64,
     #[cfg(feature = "trace")]
     pub trace: bool,
+    #[cfg(feature = "trace")]
+    pub trace_value_depth: u32,
 }
 
 #[derive(Serialize, Clone, PartialEq, Debug, PartialOrd)]
@@ -71,6 +73,8 @@ impl Mvd {
             time: 0.0,
             #[cfg(feature = "trace")]
             trace: false,
+            #[cfg(feature = "trace")]
+            trace_value_depth: 0,
         }
     }
 
@@ -78,6 +82,7 @@ impl Mvd {
         buffer: Vec<u8>,
         #[cfg(feature = "ascii_strings")] maybe_ascii_converter: Option<AsciiConverter>,
         #[cfg(feature = "trace")] trace: bool,
+        #[cfg(feature = "trace")] trace_value_depth: u32,
     ) -> Result<Mvd, std::io::Error> {
         let buffer_heap = Box::new(buffer.clone());
 
@@ -108,6 +113,8 @@ impl Mvd {
             time: 0.0,
             #[cfg(feature = "trace")]
             trace,
+            #[cfg(feature = "trace")]
+            trace_value_depth,
         })
     }
 

@@ -47,13 +47,26 @@ pub enum TraceValue {
 */
 
 #[cfg(feature = "trace")]
-#[derive(Serialize, Clone, Default, Debug)]
+#[derive(Serialize, Clone, Debug)]
 pub struct MessageTrace {
     pub annotation: Option<String>,
     pub stack: Vec<ReadTrace>,
     pub read: Vec<ReadTrace>,
     pub enabled: bool,
+    pub value_track_limit: i32,
     pub locked: bool,
+}
+impl Default for MessageTrace {
+    fn default() -> Self {
+        MessageTrace {
+            annotation: None,
+            stack: vec![],
+            read: vec![],
+            enabled: false,
+            value_track_limit: -1,
+            locked: false,
+        }
+    }
 }
 
 impl TraceBase for MessageTrace {
@@ -167,8 +180,13 @@ impl Message {
         if !self.trace.enabled {
             return;
         }
+        let stack_len = self.trace.stack.len();
         if let Some(mut trace) = self.trace.stack.pop() {
-            trace.value = value;
+            if self.trace.value_track_limit == -1
+                || self.trace.value_track_limit as usize >= stack_len
+            {
+                trace.value = value;
+            }
             trace.stop = self.position;
             if trace.function != function {
                 panic!("{} != {}", trace.function, function);
