@@ -54,6 +54,8 @@ pub struct MessageTrace {
     pub read: Vec<ReadTrace>,
     pub enabled: bool,
     pub value_track_limit: i32,
+    pub depth_limit: i32,
+    pub depth: i32,
     pub locked: bool,
 }
 impl Default for MessageTrace {
@@ -64,6 +66,8 @@ impl Default for MessageTrace {
             read: vec![],
             enabled: false,
             value_track_limit: -1,
+            depth_limit: -1,
+            depth: 0,
             locked: false,
         }
     }
@@ -136,6 +140,10 @@ impl Message {
         if !self.trace.enabled {
             return;
         }
+        self.trace.depth += 1;
+        if self.trace.depth_limit != -1 && self.trace.depth_limit <= self.trace.depth {
+            return;
+        }
         let function = function.into();
         let mut annotation = None;
         if self.trace.annotation.is_some() {
@@ -180,6 +188,11 @@ impl Message {
         if !self.trace.enabled {
             return;
         }
+        if self.trace.depth_limit != -1 && self.trace.depth_limit <= self.trace.depth {
+            self.trace.depth -= 1;
+            return;
+        }
+        self.trace.depth -= 1;
         let stack_len = self.trace.stack.len();
         if let Some(mut trace) = self.trace.stack.pop() {
             if self.trace.value_track_limit == -1
@@ -218,12 +231,12 @@ macro_rules! trace_start {}
 macro_rules! trace_start {
     ($self:expr, $readahead:ident) => {
         if $self.trace.enabled && !$self.trace.locked {
-            $self.read_trace_start(format!("{}", function!()), $readahead);
+            $self.read_trace_start(function!(), $readahead);
         }
     };
     ($self:ident, $readahead:ident) => {
         if $self.trace.enabled && !$self.trace.locked {
-            $self.read_trace_start(format!("{}", function!()), $readahead);
+            $self.read_trace_start(function!(), $readahead);
         }
     };
 }
