@@ -192,7 +192,7 @@ pub fn datatyperead_derive(input: TokenStream) -> TokenStream {
     if !we_have_a_generic {
         datatype = quote! { #datatype(self.clone()) };
     }
-    println!("HELLO!: {}", datatype);
+    // println!("HELLO!: {}", datatype);
 
     // Generate the implementation
     let gen = quote! {

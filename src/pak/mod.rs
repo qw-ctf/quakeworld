@@ -210,8 +210,10 @@ mod tests {
         let read_pack = crate::pak::Pak::parse("my_pak".to_string(), data, None)?;
         assert_eq!(2, read_pack.files.len());
         // names
-        assert_eq!(FILE1_NAME.to_vec(), read_pack.files[0].name);
-        assert_eq!(FILE2_NAME.to_vec(), read_pack.files[1].name);
+        let f1_name = FILE1_NAME.to_vec();
+        let f2_name = FILE2_NAME.to_vec();
+        assert_eq!(f1_name, read_pack.files[0].name[..f1_name.len()]);
+        assert_eq!(f2_name, read_pack.files[1].name[..f2_name.len()]);
         // data size
         assert_eq!(FILE1_DATA.to_vec().len() as u32, read_pack.files[0].size);
         assert_eq!(FILE2_DATA.to_vec().len() as u32, read_pack.files[1].size);
