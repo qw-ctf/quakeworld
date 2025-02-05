@@ -33,6 +33,8 @@ pub struct DataTypeReader<'a> {
     pub cursor: Cursor<Vec<u8>>,
     #[cfg(feature = "trace")]
     pub trace: Option<&'a mut Trace>,
+    #[cfg(not(feature = "trace"))]
+    fix_me: &'a bool,
     pub env: HashMap<String, DataTypeReaderEnv>,
 }
 
@@ -43,6 +45,8 @@ impl<'a> DataTypeReader<'a> {
             cursor: Cursor::new(data),
             #[cfg(feature = "trace")]
             trace,
+            #[cfg(not(feature = "trace"))]
+            fix_me: &false,
             env: HashMap::new(),
         }
     }
@@ -188,7 +192,6 @@ macro_rules! datatypereader_generate_base_type {
         ) ->  Result<$ty, DataTypeReaderError> {
         const TYPE_SIZE:usize = std::mem::size_of::<$ty>();
         let current_position: u64 = datareader.cursor.position();
-        #[cfg(feature = "trace")]
         trace_start!(datareader, stringify!($ty));
         let len = datareader.cursor.get_ref().len() as u64;
         if (current_position + TYPE_SIZE as u64) > len {
@@ -255,7 +258,6 @@ macro_rules! datatypereader_generate_sized_dispatch_general {
         ) ->  Result<$typename, DataTypeReaderError> {
         const TYPE_SIZE:usize = std::mem::size_of::<$ty>();
         let current_position: u64 = datareader.cursor.position();
-        #[cfg(feature = "trace")]
         trace_start!(datareader, stringify!($ty));
         let len = datareader.cursor.get_ref().len() as u64;
         if (current_position + TYPE_SIZE as u64 * $size) > len {

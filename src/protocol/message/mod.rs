@@ -5,15 +5,15 @@ use serde::Serialize;
 #[cfg(feature = "ascii_strings")]
 use crate::utils::ascii_converter::AsciiConverter;
 
-use crate::protocol::message::trace::{
-    trace_abort, trace_annotate, trace_lock, trace_start, trace_stop, trace_unlock, MessageTrace,
-    ToTraceValue, TraceValue,
-};
 use crate::protocol::types::*;
 
 pub mod errors;
 pub mod trace;
 
+use trace::{
+    trace_abort, trace_annotate, trace_lock, trace_start, trace_stop, trace_unlock, MessageTrace,
+    ToTraceValue, TraceValue,
+};
 #[derive(Serialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum MessageType {
     #[default]

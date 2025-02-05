@@ -429,7 +429,10 @@ struct MvdThreadReturn {
 impl MvdThreadData {
     pub fn parse_frame_chunk(&mut self) -> MvdThreadReturn {
         let mut frames: Vec<Box<MvdFrame>> = vec![];
+        #[cfg(feature = "trace")]
         let mut mvd = Mvd::new(*self.data.clone(), None, TraceOptions::default()).unwrap();
+        #[cfg(not(feature = "trace"))]
+        let mut mvd = Mvd::new(*self.data.clone(), None).unwrap();
         mvd.message.flags = self.message_flags;
         for frame in self.chunk.clone() {
             mvd.message.position = frame.start;

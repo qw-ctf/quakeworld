@@ -46,9 +46,10 @@ impl From<QtvType> for crate::datatypes::common::DataType {
 
 type QtvResult<T> = Result<T, QtvError>;
 
-use crate::protocol::message::trace::function;
+use crate::trace::{function, trace_annotate, trace_start, trace_stop};
+
 #[cfg(feature = "trace")]
-use crate::trace::{trace_annotate, trace_start, trace_stop, Trace};
+use crate::trace::Trace;
 
 #[derive(Default, Debug, PartialEq)]
 pub enum ConnectionState {
@@ -164,4 +165,7 @@ impl Qtv {
         }
         Ok(())
     }
+
+    // #[cfg(feature = "trace")]
+    // pub fn read_trace_stop(&mut self, value: TraceValue, function: impl Into<String>) {}
 }
