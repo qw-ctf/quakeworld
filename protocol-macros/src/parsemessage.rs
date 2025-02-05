@@ -1,11 +1,7 @@
-use paste::paste;
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
-use std::any::Any;
-use std::collections::HashMap;
 use syn::spanned::Spanned;
-use syn::{parse_macro_input, Attribute, DeriveInput, Meta, Path};
-use syn::{Data, DataStruct, Fields, Type};
+use syn::{Data, DataStruct, Fields};
 
 pub fn parsemessage_derive(input: TokenStream) -> TokenStream {
     // Construct a representation of Rust code as a syntax tree
@@ -28,7 +24,7 @@ fn impl_parsemessage_macro(ast: &syn::DeriveInput) -> TokenStream {
     let field_name_annotate = fields.iter().map(|field| {
         let ft = &field.ident;
         let q = quote! { #ft };
-        format!("{}", q.to_string())
+        format!("{}", q)
     });
     let field_name_value = fields.iter().map(|field| {
         let ft = &field.ident;

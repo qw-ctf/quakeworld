@@ -13,23 +13,19 @@ pub fn datatyperead_derive(input: TokenStream) -> TokenStream {
 
     // if struct_name.to_string() == "BoundingBox" {
     //     println!("start: +++++++++++++++++++++");
-    let (have_tag, tag_value) = check_tag_value_new(&ast.attrs, "datatyperead");
-    if have_tag {
-        println!("tag_new_value: {:?}", tag_value);
-    }
+    // let (have_tag, tag_value) = check_tag_value_new(&ast.attrs, "datatyperead");
+    // if have_tag {
+    //     println!("tag_new_value: {:}", tag_value);
+    // }
     //     println!("stop: ----------------------");
     // }
 
     let mut we_have_a_generic = false;
 
-    match ast.generics.params.first() {
-        Some(param) => {
-            if let syn::GenericParam::Type(ty) = param {
-                we_have_a_generic = true;
-            } else {
-            }
+    if let Some(param) = ast.generics.params.first() {
+        if let syn::GenericParam::Type(ty) = param {
+            we_have_a_generic = true;
         }
-        None => {}
     };
     // if let syn::Type::Path(path) = ast {
     //     println!("{}: {:?}", struct_name, path);
@@ -47,7 +43,7 @@ pub fn datatyperead_derive(input: TokenStream) -> TokenStream {
     //     // }
     // }
 
-    let mut generic_general = String::new();
+    let generic_general = String::new();
     // Extract field names and types
     let fields = if let syn::Data::Struct(data_struct) = &ast.data {
         if let syn::Fields::Named(fields) = &data_struct.fields {
@@ -87,10 +83,7 @@ pub fn datatyperead_derive(input: TokenStream) -> TokenStream {
                     // check if we have datatype read attributes
                     // "string" signifies that the field should be cast to a GENERICSTRING
                     let (_, tag_value) = check_tag_value(&f.attrs, "datatyperead");
-                    let _ = match tag_value.get("string") {
-                        Some(_) => true,
-                        None => false,
-                    };
+                    let _ = tag_value.get("string").is_some();
                     // "size" has multiple options:
                     //  - if its an Int the vector will be read to the specified size
                     //  - if its a Str vector size will be pulled from the datareader environment
@@ -122,7 +115,7 @@ pub fn datatyperead_derive(input: TokenStream) -> TokenStream {
                     let qi = quote! {#field_identifier};
                     let qt = quote! {#ty};
                     let vi = format!("{}", qi);
-                    let id = format_ident!("{}", format!("{}_{}", qi.to_string(), qt.to_string()).replace(&[ '<', '>', ' ' ][..], "_"));
+                    let id = format_ident!("{}", format!("{}_{}", qi, qt).replace(&[ '<', '>', ' ' ][..], "_"));
 
                     let read = if do_size {
                         if do_size_env {
