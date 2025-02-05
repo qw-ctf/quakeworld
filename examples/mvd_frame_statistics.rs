@@ -26,7 +26,10 @@ fn parse_file(filename: String) -> Result<bool, Box<dyn Error>> {
         #[cfg(feature = "ascii_strings")]
         None,
         #[cfg(feature = "trace")]
-        true,
+        quakeworld::protocol::message::trace::TraceOptions {
+            enabled: true,
+            depth_limit: 0,
+        },
     )?;
 
     let mut state = State::new();

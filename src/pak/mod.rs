@@ -10,6 +10,8 @@ use crate::datatypes::pak;
 use crate::datatypes::reader::{
     DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeReaderError,
 };
+
+#[cfg(feature = "trace")]
 use crate::trace::Trace;
 
 #[derive(Error, Debug)]
@@ -205,7 +207,7 @@ mod tests {
         assert_eq!(pack.files[1].name, FILE2_NAME.to_vec());
         assert_eq!(pack.files[1].data, FILE2_DATA.to_vec());
         let data = pack.write_data()?;
-        let read_pack = crate::pak::Pak::parse("my_pak".to_string(), &data[..])?;
+        let read_pack = crate::pak::Pak::parse("my_pak".to_string(), data, None)?;
         assert_eq!(2, read_pack.files.len());
         // names
         assert_eq!(FILE1_NAME.to_vec(), read_pack.files[0].name);

@@ -5,15 +5,19 @@ use serde::Serialize;
 #[cfg(feature = "ascii_strings")]
 use crate::utils::ascii_converter::AsciiConverter;
 
+use crate::protocol::message::trace::{
+    trace_abort, trace_annotate, trace_lock, trace_start, trace_stop, trace_unlock, MessageTrace,
+    ToTraceValue, TraceValue,
+};
 use crate::protocol::types::*;
-use crate::protocol::message::trace::{trace_start, trace_stop, trace_annotate, trace_abort, trace_lock, trace_unlock, MessageTrace, TraceValue, ToTraceValue};
 
 pub mod errors;
 pub mod trace;
 
 #[derive(Serialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum MessageType {
-    #[default] None,
+    #[default]
+    None,
     Connection,
     Mvd,
 }
@@ -26,8 +30,7 @@ pub struct MessageFlags {
     pub mvd_protocol_extension: MvdProtocolExtensions,
 }
 
-
-impl Default for MessageFlags{
+impl Default for MessageFlags {
     fn default() -> Self {
         MessageFlags {
             protocol: 0,
@@ -40,20 +43,19 @@ impl Default for MessageFlags{
 
 impl MessageFlags {
     pub fn new_empty() -> MessageFlags {
-        MessageFlags{
+        MessageFlags {
             protocol: 0,
             fte_protocol_extensions: FteProtocolExtensions::empty(),
             fte_protocol_extensions_2: FteProtocolExtensions2::empty(),
-            mvd_protocol_extension: MvdProtocolExtensions::empty()
+            mvd_protocol_extension: MvdProtocolExtensions::empty(),
         }
     }
 }
 
 #[derive(Serialize, Clone, Default, Debug)]
-pub struct Message
-{
-    pub start: usize, // starting position in the buffer
-    pub length: usize, // length of the message
+pub struct Message {
+    pub start: usize,    // starting position in the buffer
+    pub length: usize,   // length of the message
     pub position: usize, // current read position after start
     pub buffer: Box<Vec<u8>>,
     pub bigendian: bool,
@@ -62,7 +64,7 @@ pub struct Message
     pub ascii_converter: AsciiConverter,
     #[cfg(feature = "trace")]
     pub trace: MessageTrace,
-    pub r#type: MessageType
+    pub r#type: MessageType,
 }
 
 macro_rules! endian_read {
@@ -130,7 +132,7 @@ macro_rules! function {
         }
         let name = type_name_of(f);
         &name[..name.len() - 3].to_string()
-    }}
+    }};
 }
 
 impl From<Message> for Vec<u8> {
@@ -155,11 +157,11 @@ impl Message {
     endian_read!(u8, u16, u32, i8, i16, i32, f32);
     endian_write!(u8, u16, u32, i8, i16, i32, f32);
 
-    pub fn read_bytes (&mut self, count: u32, readahead: bool) -> Result<Vec<u8>, MessageError> {
+    pub fn read_bytes(&mut self, count: u32, readahead: bool) -> Result<Vec<u8>, MessageError> {
         trace_start!(self, readahead);
         let mut buf = Vec::new();
         for i in 0..count {
-            buf.push(self.buffer[self.start + self.position + (i as usize) ]);
+            buf.push(self.buffer[self.start + self.position + (i as usize)]);
         }
         if !readahead {
             self.position += count as usize;
@@ -169,7 +171,7 @@ impl Message {
         Ok(buf)
     }
 
-    pub fn write_stringbyte (&mut self, string: String ) ->  usize {
+    pub fn write_stringbyte(&mut self, string: String) -> usize {
         let mut size: usize = 0;
         let s = string.as_bytes();
         for c in s {
@@ -181,7 +183,7 @@ impl Message {
         size
     }
 
-    pub fn write_client_command_string (&mut self, string: impl Into<String>) ->  usize {
+    pub fn write_client_command_string(&mut self, string: impl Into<String>) -> usize {
         let string = string.into();
         let mut size: usize = 1;
         self.write_u8(ClientServer::StringCommand as u8);
@@ -195,7 +197,7 @@ impl Message {
         size
     }
 
-    pub fn write_client_command_string_vec (&mut self, string: Vec<u8>) ->  usize {
+    pub fn write_client_command_string_vec(&mut self, string: Vec<u8>) -> usize {
         let mut s: usize = 1;
         self.write_u8(ClientServer::StringCommand as u8);
         s += string.len();
@@ -205,10 +207,10 @@ impl Message {
     }
 
     pub fn write_angle16(&mut self, angle: f32) -> usize {
-        self.write_u16((angle *65536.0 / 360.0) as u16)
+        self.write_u16((angle * 65536.0 / 360.0) as u16)
     }
 
-    pub fn write_delta_usercommand(&mut self, delta_usercommand: DeltaUserCommand) ->  usize {
+    pub fn write_delta_usercommand(&mut self, delta_usercommand: DeltaUserCommand) -> usize {
         let mut s: usize = 0;
         let mut bits = UserCommandFlags::from_bits_truncate(0);
 
@@ -258,10 +260,10 @@ impl Message {
         s
     }
 
-#[cfg(not(feature = "ascii_strings"))]
-    pub fn read_stringbyte (&mut self, readahead: bool) ->  Result<StringByte, MessageError> {
+    #[cfg(not(feature = "ascii_strings"))]
+    pub fn read_stringbyte(&mut self, readahead: bool) -> Result<StringByte, MessageError> {
         trace_start!(self, readahead);
-        let mut buf =  Vec::new();
+        let mut buf = Vec::new();
         let original_position = self.position;
         buf.clear();
         loop {
@@ -269,7 +271,7 @@ impl Message {
             if b == 255 {
                 continue;
             } else if b == 0 {
-                break
+                break;
             }
 
             buf.push(b);
@@ -279,20 +281,19 @@ impl Message {
             self.position = original_position;
         }
         trace_stop!(self, buf.clone());
-        Ok(StringByte{ bytes: buf})
+        Ok(StringByte { bytes: buf })
     }
 
-
-#[cfg(feature = "ascii_strings")]
+    #[cfg(feature = "ascii_strings")]
     pub fn to_ascii(&mut self, buffer: impl Into<Vec<u8>>) -> String {
         let buffer = buffer.into();
         self.ascii_converter.convert(buffer)
     }
 
-#[cfg(feature = "ascii_strings")]
-    pub fn read_stringbyte (&mut self, readahead: bool) ->  Result<StringByte, MessageError> {
+    #[cfg(feature = "ascii_strings")]
+    pub fn read_stringbyte(&mut self, readahead: bool) -> Result<StringByte, MessageError> {
         trace_start!(self, readahead);
-        let mut buf : Vec<u8> =  Vec::new();
+        let mut buf: Vec<u8> = Vec::new();
         let original_position = self.position;
         buf.clear();
         trace_lock!(self);
@@ -301,7 +302,7 @@ impl Message {
             if b == 255 {
                 continue;
             } else if b == 0 {
-                break
+                break;
             }
             buf.push(b);
         }
@@ -312,18 +313,15 @@ impl Message {
         }
 
         let string = self.to_ascii(buf.clone());
-        let v = StringByte{
-            bytes: buf,
-            string,
-        };
+        let v = StringByte { bytes: buf, string };
 
         trace_stop!(self, v);
         Ok(v)
     }
 
-    pub fn read_stringvector (&mut self, readahead: bool) ->  Result<Vec<StringByte>, MessageError> {
+    pub fn read_stringvector(&mut self, readahead: bool) -> Result<Vec<StringByte>, MessageError> {
         trace_start!(self, readahead);
-        let mut strings =  Vec::new();
+        let mut strings = Vec::new();
         strings.clear();
         loop {
             let s = self.read_stringbyte(readahead)?;
@@ -337,55 +335,65 @@ impl Message {
         Ok(strings)
     }
 
-    pub fn read_coordinate(&mut self, readahead: bool) ->  Result<Coordinate, MessageError> {
+    pub fn read_coordinate(&mut self, readahead: bool) -> Result<Coordinate, MessageError> {
         trace_start!(self, readahead);
-        if self.flags.fte_protocol_extensions.contains(FteProtocolExtensions::FLOATCOORDS) {
-
+        if self
+            .flags
+            .fte_protocol_extensions
+            .contains(FteProtocolExtensions::FLOATCOORDS)
+        {
             let f = self.read_f32(readahead)?;
             trace_stop!(self);
             return Ok(f);
         }
         let s = self.read_i16(readahead)? as f32;
         trace_stop!(self);
-        Ok(s * (1.0/8.0))
+        Ok(s * (1.0 / 8.0))
     }
 
-    pub fn read_coordinatevector(&mut self, readahead: bool) ->  Result<CoordinateVector, MessageError> {
+    pub fn read_coordinatevector(
+        &mut self,
+        readahead: bool,
+    ) -> Result<CoordinateVector, MessageError> {
         trace_start!(self, readahead);
         let x = self.read_coordinate(readahead)?;
         let y = self.read_coordinate(readahead)?;
         let z = self.read_coordinate(readahead)?;
         trace_stop!(self);
-        Ok(CoordinateVector{x, y, z})
+        Ok(CoordinateVector { x, y, z })
     }
 
-    pub fn read_angle(&mut self, readahead: bool) ->  Result<Angle, MessageError> {
+    pub fn read_angle(&mut self, readahead: bool) -> Result<Angle, MessageError> {
         trace_start!(self, readahead);
-        if self.flags.fte_protocol_extensions.contains(FteProtocolExtensions::FLOATCOORDS) {
+        if self
+            .flags
+            .fte_protocol_extensions
+            .contains(FteProtocolExtensions::FLOATCOORDS)
+        {
             let f = self.read_angle16(readahead)?;
             trace_stop!(self);
             return Ok(f);
         }
         let s = self.read_u8(readahead)? as f32;
         trace_stop!(self);
-        Ok(s * (360.0/256.0))
+        Ok(s * (360.0 / 256.0))
     }
 
-    pub fn read_angle16(&mut self, readahead: bool) ->  Result<Angle, MessageError> {
+    pub fn read_angle16(&mut self, readahead: bool) -> Result<Angle, MessageError> {
         trace_start!(self, readahead);
         let s = self.read_u16(readahead)? as f32;
-        let v = s * (360.0/65535.0);
+        let v = s * (360.0 / 65535.0);
         trace_stop!(self, v);
         Ok(v)
     }
 
-    pub fn read_anglevector(&mut self, readahead: bool) ->  Result<AngleVector, MessageError> {
+    pub fn read_anglevector(&mut self, readahead: bool) -> Result<AngleVector, MessageError> {
         trace_start!(self, readahead);
         let x = self.read_angle(readahead)?;
         let y = self.read_angle(readahead)?;
         let z = self.read_angle(readahead)?;
         trace_stop!(self);
-        Ok(AngleVector{x, y, z})
+        Ok(AngleVector { x, y, z })
     }
 
     pub fn empty() -> Message {
@@ -412,12 +420,20 @@ impl Message {
     }
 
     #[cfg(feature = "ascii_strings")]
-    pub fn new (buffer: Box<Vec<u8>>, start: usize, length: usize, bigendian: bool, flags: MessageFlags, maybe_ascii_converter: Option<AsciiConverter>, r#type: MessageType) -> Message {
+    pub fn new(
+        buffer: Box<Vec<u8>>,
+        start: usize,
+        length: usize,
+        bigendian: bool,
+        flags: MessageFlags,
+        maybe_ascii_converter: Option<AsciiConverter>,
+        r#type: MessageType,
+    ) -> Message {
         let ascii_converter: AsciiConverter;
         if let Some(ascii_convter_in) = maybe_ascii_converter {
             ascii_converter = ascii_convter_in;
         } else {
-            ascii_converter= AsciiConverter::new();
+            ascii_converter = AsciiConverter::new();
         }
 
         Message {
@@ -434,8 +450,14 @@ impl Message {
     }
 
     #[cfg(not(feature = "ascii_strings"))]
-    pub fn new (buffer: Box<Vec<u8>>, start: usize, length: usize, bigendian: bool, flags: MessageFlags, r#type: MessageType) -> Message {
-
+    pub fn new(
+        buffer: Box<Vec<u8>>,
+        start: usize,
+        length: usize,
+        bigendian: bool,
+        flags: MessageFlags,
+        r#type: MessageType,
+    ) -> Message {
         Message {
             start,
             length,
@@ -450,7 +472,7 @@ impl Message {
 
     pub fn get_range(&mut self, start: usize, length: usize) -> Vec<u8> {
         let mut buf = Vec::new();
-        for i in self.start + start .. self.start + start + length {
+        for i in self.start + start..self.start + start + length {
             buf.push(self.buffer[i]);
         }
         buf
@@ -464,9 +486,13 @@ impl Message {
     }
 
     #[inline]
-    fn check_read_size(&mut self, length: usize) -> Result<(), MessageError>{
+    fn check_read_size(&mut self, length: usize) -> Result<(), MessageError> {
         if self.position + length > self.length {
-            return Err(MessageError::ReadBeyondSize(self.length, self.position, length));
+            return Err(MessageError::ReadBeyondSize(
+                self.length,
+                self.position,
+                length,
+            ));
         }
         Ok(())
     }
@@ -476,7 +502,7 @@ impl Message {
         if i == -1 {
             return Ok(true);
         }
-         Ok(false)
+        Ok(false)
     }
 
     pub fn read_packet(&mut self) -> Result<Packet, MessageError> {
@@ -496,24 +522,19 @@ impl Message {
         let mut messages = Vec::new();
 
         loop {
-
             trace_annotate!(self, "message type");
             let t = match self.read_u8(false) {
                 Ok(t) => t,
-                Err(e) => {
-                    match e {
-                        MessageError::ReadBeyondSize(_,_,_) => {
-                            break
-                        },
-                        _ => {
-                            let p = Packet::Connected(Connected{
-                                sequence,
-                                sequence_ack,
-                                messages,
-                            });
-                            trace_stop!(self, p);
-                            return Err(e)
-                        },
+                Err(e) => match e {
+                    MessageError::ReadBeyondSize(_, _, _) => break,
+                    _ => {
+                        let p = Packet::Connected(Connected {
+                            sequence,
+                            sequence_ack,
+                            messages,
+                        });
+                        trace_stop!(self, p);
+                        return Err(e);
                     }
                 },
             };
@@ -521,7 +542,7 @@ impl Message {
             let cmd = match ServerClient::try_from(t) {
                 Ok(cmd) => cmd,
                 Err(_) => {
-                    let p = Packet::Connected(Connected{
+                    let p = Packet::Connected(Connected {
                         sequence,
                         sequence_ack,
                         messages,
@@ -534,7 +555,7 @@ impl Message {
             let ret = match cmd.read_message(self) {
                 Ok(ret) => ret,
                 Err(e) => {
-                    let p = Packet::Connected(Connected{
+                    let p = Packet::Connected(Connected {
                         sequence,
                         sequence_ack,
                         messages,
@@ -545,7 +566,7 @@ impl Message {
             };
             messages.push(ret);
         }
-        let p = Packet::Connected(Connected{
+        let p = Packet::Connected(Connected {
             sequence,
             sequence_ack,
             messages,
@@ -564,12 +585,8 @@ impl Message {
         let packet_type = CommandCode::try_from(_packet_type)?;
         trace_stop!(self, _packet_type, U8);
         match packet_type {
-            CommandCode::S2cChallenge => {
-                self.read_packet_s2c_challenge()
-            }
-            CommandCode::S2cConnection => {
-                Ok(Packet::ConnectionLessServerConnection)
-            },
+            CommandCode::S2cChallenge => self.read_packet_s2c_challenge(),
+            CommandCode::S2cConnection => Ok(Packet::ConnectionLessServerConnection),
         }
     }
 
@@ -582,7 +599,12 @@ impl Message {
         #[cfg(not(feature = "ascii_strings"))]
         let ss = match std::str::from_utf8(&s.bytes) {
             Ok(v) => v,
-            Err(_) => return Err(MessageError::StringError(format!("could not parse challlenge: {}", s))),
+            Err(_) => {
+                return Err(MessageError::StringError(format!(
+                    "could not parse challlenge: {}",
+                    s
+                )))
+            }
         };
 
         #[cfg(feature = "ascii_strings")]
@@ -590,7 +612,12 @@ impl Message {
 
         let challenge = match ss.parse::<i32>() {
             Ok(i) => i,
-            Err(_) => return Err(MessageError::StringError(format!("could not parse challlenge: {}", s))),
+            Err(_) => {
+                return Err(MessageError::StringError(format!(
+                    "could not parse challlenge: {}",
+                    s
+                )))
+            }
         };
         trace_annotate!(self, "protocol");
         while let Ok(prot_r) = self.read_u32(false) {
@@ -617,8 +644,8 @@ impl Message {
                 }
             }
             trace_annotate!(self, "protocol");
-        };
-        let r = Packet::ConnectionLessServerChallenge(ConnectionLessServerChallenge{
+        }
+        let r = Packet::ConnectionLessServerChallenge(ConnectionLessServerChallenge {
             protocol: flags,
             challenge,
         });
@@ -626,12 +653,15 @@ impl Message {
         Ok(r)
     }
 
-    pub fn replace_at_position(&mut self, bytes: impl Into<Vec<u8>>, position: usize) -> Result<(), MessageError> {
+    pub fn replace_at_position(
+        &mut self,
+        bytes: impl Into<Vec<u8>>,
+        position: usize,
+    ) -> Result<(), MessageError> {
         let bytes = bytes.into();
         for (i, c) in bytes.iter().enumerate() {
-            self.buffer[position+i] = *c;
+            self.buffer[position + i] = *c;
         }
         Ok(())
     }
 }
-

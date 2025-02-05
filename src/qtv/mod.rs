@@ -64,6 +64,7 @@ pub struct Qtv {
     pub protocol: f32,
     pub cursor: Cursor<Vec<u8>>,
     pub data: Vec<u8>,
+    #[cfg(feature = "trace")]
     pub trace: Option<Trace>,
 }
 impl Qtv {
@@ -76,6 +77,7 @@ impl Qtv {
             state: ConnectionState::None,
             cursor: Cursor::new(data.clone()),
             data: data.clone(),
+            #[cfg(feature = "trace")]
             trace: Some(Trace::new()),
             protocol: 0.0,
         }

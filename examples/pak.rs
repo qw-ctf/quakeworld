@@ -17,21 +17,24 @@ fn parse_file(filename: String) -> Result<bool, Box<dyn Error>> {
     let mut trace = Trace::new();
     let pak = Pak::load(filename, file, Some(&mut trace))?;
 
-    for t in trace.traces {
-        println!("{} start({}) stop({})", t.annotation, t.index, t.size);
-        if let Some(v) = t.value {
-            let vv = v.downcast::<quakeworld::datatypes::pak::Header>();
-            println!(" v: {:?}", vv);
-        };
+    for t in trace.trace.traces {
+        println!(
+            "{} {} start({}) stop({})",
+            t.field_name, t.field_type, t.index, t.index_stop
+        );
+        println!(" value: {:?}", t.value);
         for t1 in &t.traces {
-            println!("\t{} start({}) stop({})", t1.annotation, t1.index, t1.size);
+            println!(
+                "\t{} {} start({}) stop({})",
+                t1.field_type, t1.field_name, t1.index, t1.index_stop
+            );
         }
     }
     for file in &pak.files {
         //let b = pak.get_data(file)?;
         println!(
             "{} - {} {}",
-            String::from_utf8_lossy(&file.name.0),
+            String::from_utf8_lossy(&file.name),
             file.offset,
             file.size
         );

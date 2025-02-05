@@ -1,3 +1,7 @@
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::thread;
+
 use crate::protocol::errors::MvdParseError;
 use crate::protocol::message::Message;
 use crate::protocol::message::MessageFlags;
@@ -9,6 +13,12 @@ use serde::Serialize;
 use crate::utils::ascii_converter::AsciiConverter;
 
 use crate::protocol::message::trace::*;
+
+#[derive(Serialize, Clone, PartialEq, Eq, Debug, PartialOrd, Default)]
+pub struct MvdFrameIndex {
+    start: usize,
+    stop: usize,
+}
 
 #[derive(Serialize, Clone, PartialEq, Eq, Debug, PartialOrd)]
 pub struct MvdTarget {
@@ -33,10 +43,9 @@ pub struct Mvd {
     pub last: MvdTarget,
     pub frame: u32,
     pub time: f64,
+    pub serverdata_read: bool,
     #[cfg(feature = "trace")]
-    pub trace: bool,
-    #[cfg(feature = "trace")]
-    pub trace_value_depth: u32,
+    pub trace_options: TraceOptions,
 }
 
 #[derive(Serialize, Clone, PartialEq, Debug, PartialOrd)]
@@ -71,18 +80,16 @@ impl Mvd {
             },
             frame: 0,
             time: 0.0,
+            serverdata_read: false,
             #[cfg(feature = "trace")]
-            trace: false,
-            #[cfg(feature = "trace")]
-            trace_value_depth: 0,
+            trace_options: TraceOptions::default(),
         }
     }
 
     pub fn new(
         buffer: Vec<u8>,
         #[cfg(feature = "ascii_strings")] maybe_ascii_converter: Option<AsciiConverter>,
-        #[cfg(feature = "trace")] trace: bool,
-        #[cfg(feature = "trace")] trace_value_depth: u32,
+        #[cfg(feature = "trace")] trace_options: TraceOptions,
     ) -> Result<Mvd, std::io::Error> {
         let buffer_heap = Box::new(buffer.clone());
 
@@ -99,7 +106,7 @@ impl Mvd {
 
         #[cfg(feature = "trace")]
         {
-            message.trace.enabled = trace;
+            message.trace.enabled = trace_options.enabled;
         }
 
         Ok(Mvd {
@@ -111,11 +118,129 @@ impl Mvd {
             },
             frame: 0,
             time: 0.0,
+            serverdata_read: false,
             #[cfg(feature = "trace")]
-            trace,
-            #[cfg(feature = "trace")]
-            trace_value_depth,
+            trace_options,
         })
+    }
+
+    pub fn parse_mutlithreaded(
+        &mut self,
+        thread_count: usize,
+    ) -> Result<Vec<MvdFrame>, MvdParseError> {
+        // read frames till we thte protocol stuff
+        while self.serverdata_read == false {
+            self.parse_frame();
+        }
+        println!("got protocols on frame: {}", self.frame - 1);
+        let mut rval = vec![];
+        // get the indexes for the rest of the frames
+        let frame_indexes: Vec<_> = self.get_frame_indexes()?;
+        let chunk_size = frame_indexes.len() / thread_count;
+        let chunks: Vec<&[MvdFrameIndex]> = frame_indexes.chunks(chunk_size).collect();
+
+        let mut handles = vec![];
+        for (index, chunk) in chunks.iter().enumerate() {
+            // let c: Vec<MvdFrameIndex> = chunk.to_vec();
+            let mut mtf = MvdThreadData {
+                chunk: chunk.to_vec(),
+                data: self.message.buffer.clone(),
+                message_flags: self.message.flags,
+                index: index as u32,
+            };
+            let handle = thread::spawn(move || -> MvdThreadReturn { mtf.parse_frame_chunk() });
+
+            handles.push(handle);
+        }
+        for handle in handles {
+            match handle.join() {
+                Ok(v) => {
+                    println!("index: {} frames: {}", v.index, v.frames.len());
+                }
+                Err(_) => {}
+            };
+        }
+        return Ok(rval);
+    }
+
+    pub fn get_frame_indexes(&mut self) -> Result<Vec<MvdFrameIndex>, MvdParseError> {
+        let mut rval: Vec<MvdFrameIndex> = vec![];
+        let mut start: usize = 0;
+        let mut stop: usize = 0;
+        let mut i = 0;
+        while self.message.position < self.message.length {
+            i += 1;
+            let mut f = MvdFrameIndex {
+                start: self.message.position,
+                stop: self.message.position,
+            };
+            let demo_time = self.message.read_u8(false)?;
+            let cmd = self.message.read_u8(false)?;
+            let msg_type_try = DemoCommand::try_from(cmd & 7);
+            let msg_type = match msg_type_try {
+                Ok(msg_type) => msg_type,
+                Err(_) => return Err(MvdParseError::UnhandledCommand(cmd & 7)),
+            };
+
+            if msg_type >= DemoCommand::Multiple && msg_type <= DemoCommand::All {
+                match msg_type {
+                    DemoCommand::Multiple => {
+                        self.last.to = self.message.read_u32(false)?;
+                        self.last.command = msg_type;
+                    }
+                    DemoCommand::Single => {
+                        self.last.to = (cmd >> 3) as u32;
+                        self.last.command = msg_type;
+                    }
+                    DemoCommand::All => {
+                        self.last.to = 0;
+                        self.last.command = msg_type;
+                    }
+                    DemoCommand::Stats => {
+                        self.last.to = (cmd >> 3) as u32;
+                        self.last.command = msg_type;
+                    }
+                    DemoCommand::Command => {}
+                    DemoCommand::Empty => {}
+                    DemoCommand::Set => {
+                        // incoming
+                        let _ = self.message.read_u32(false);
+                        // outgoing
+                        let _ = self.message.read_u32(false);
+                        f.stop = self.message.position;
+                        rval.push(f);
+                        break;
+                    }
+                    DemoCommand::Read => {}
+                }
+            }
+            let mut loop_read_packet = true;
+            let mut p = 0;
+            let message_start = self.message.position;
+            while loop_read_packet {
+                p += 1;
+                let size = self.message.read_u32(false)? as usize;
+                if size == 0 {
+                    f.stop = self.message.position;
+                    rval.push(f);
+                    break;
+                }
+                self.message.position += size;
+
+                if self.last.command == DemoCommand::Multiple && self.last.to == 0 {
+                    f.stop = self.message.position;
+                    rval.push(f);
+                    break;
+                }
+
+                if self.message.position >= message_start + size {
+                    f.stop = self.message.position;
+                    rval.push(f);
+                    break;
+                }
+            }
+        }
+        Ok(rval)
     }
 
     pub fn parse_frame(&mut self) -> Result<Box<MvdFrame>, MvdParseError> {
@@ -223,6 +348,7 @@ impl Mvd {
         }
         return Ok(true);
     }
+
     pub fn read_packet(&mut self, frame: &mut Box<MvdFrame>) -> Result<bool, MvdParseError> {
         trace_start!(self.message, false);
         trace_annotate!(self.message, "size");
@@ -268,6 +394,7 @@ impl Mvd {
 
             match ret {
                 ServerMessage::Serverdata(r) => {
+                    self.serverdata_read = true;
                     frame.messages.push(ServerMessage::Serverdata(r.clone()));
                     self.message.flags.fte_protocol_extensions = r.fte_protocol_extension;
                     self.message.flags.fte_protocol_extensions_2 = r.fte_protocol_extension_2;
@@ -284,5 +411,34 @@ impl Mvd {
 
         trace_stop!(self.message);
         Ok(false)
+    }
+}
+
+struct MvdThreadData {
+    chunk: Vec<MvdFrameIndex>,
+    data: Box<Vec<u8>>,
+    message_flags: MessageFlags,
+    index: u32,
+}
+
+#[derive(Debug)]
+struct MvdThreadReturn {
+    frames: Vec<Box<MvdFrame>>,
+    index: u32,
+}
+impl MvdThreadData {
+    pub fn parse_frame_chunk(&mut self) -> MvdThreadReturn {
+        let mut frames: Vec<Box<MvdFrame>> = vec![];
+        let mut mvd = Mvd::new(*self.data.clone(), None, TraceOptions::default()).unwrap();
+        mvd.message.flags = self.message_flags;
+        for frame in self.chunk.clone() {
+            mvd.message.position = frame.start;
+            let f = mvd.parse_frame().unwrap();
+            frames.push(f);
+        }
+        MvdThreadReturn {
+            frames,
+            index: self.index,
+        }
     }
 }

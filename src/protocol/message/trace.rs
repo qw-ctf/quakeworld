@@ -13,6 +13,22 @@ use crate::protocol::message::{Message, Packet, ServerMessage};
 use crate::trace::{TraceBase, TraceEntry, TraceEvent};
 
 #[cfg(feature = "trace")]
+#[derive(Serialize, Clone, Debug)]
+pub struct TraceOptions {
+    pub enabled: bool,
+    pub depth_limit: u32,
+}
+
+impl Default for TraceOptions {
+    fn default() -> Self {
+        TraceOptions {
+            enabled: false,
+            depth_limit: 0,
+        }
+    }
+}
+
+#[cfg(feature = "trace")]
 #[derive(Serialize, Clone, Debug, Default)]
 pub struct ReadTrace {
     pub start: usize,
