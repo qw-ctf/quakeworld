@@ -7,13 +7,19 @@ use std::path::Path;
 
 use quakeworld::lmp::Palette;
 use quakeworld::mdl::Mdl;
+#[cfg(feature = "trace")]
 use quakeworld::trace::Trace;
 
 fn parse_file(filename: String) -> Result<bool, Box<dyn Error>> {
     // read the file into a buffer
     let data = std::fs::read(filename)?;
-    let mut trace = Trace::new();
-    let mdl = Mdl::parse(data, Some(&mut trace))?;
+    #[cfg(feature = "trace")]
+    {
+        let mut trace = Trace::new();
+        let mdl = Mdl::parse(data, Some(&mut trace))?;
+    }
+    #[cfg(not(feature = "trace"))]
+    let mdl = Mdl::parse(data)?;
 
     //println!("{:?}", mdl);
 

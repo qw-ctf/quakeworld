@@ -1,5 +1,6 @@
 use core::time;
 use quakeworld::mvd::Mvd;
+#[cfg(feature = "trace")]
 use quakeworld::protocol::message::trace::TraceOptions;
 use quakeworld::protocol::types::ServerMessage;
 use quakeworld::state::State;

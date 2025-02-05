@@ -8,7 +8,6 @@ extern crate unstringify;
 
 pub mod datatypes;
 
-#[cfg(feature = "trace")]
 pub mod trace;
 
 #[cfg(feature = "mvd")]

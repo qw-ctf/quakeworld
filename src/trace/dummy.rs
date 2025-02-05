@@ -1,12 +1,14 @@
 macro_rules! trace_start {
-    ($self:expr, $readahead:ident) => {};
-    ($self:ident, $readahead:ident) => {};
+    ( $dr:ident, $name:expr, $field_name:expr) => {};
+    ( $dr:ident, $name:expr, $field_name:expr) => {};
+    ( $dr:ident, $name:expr) => {};
+    ( $dr:ident, $name:expr) => {};
 }
 pub(crate) use trace_start;
 
 macro_rules! trace_stop {
-    ($self:expr, $value:expr, $valueType:ident) => {};
-    ($self:expr, $value:expr) => {};
+    ( $dr:ident, $value:expr, $valueType:ident) => {};
+    ($dr:expr, $value:expr) => {};
     ($self:expr) => {};
 }
 pub(crate) use trace_stop;
@@ -17,7 +19,8 @@ macro_rules! trace_abort {
 pub(crate) use trace_abort;
 
 macro_rules! trace_annotate {
-    ($self:expr, $value:expr) => {};
+    ($dr:ident, $name:expr) => {};
+    ($dr:ident, $name:expr) => {};
 }
 pub(crate) use trace_annotate;
 

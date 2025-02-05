@@ -7,13 +7,21 @@ use std::io::prelude::*;
 use quakeworld::bsp::Bsp;
 use quakeworld::datatypes::common::AsciiString;
 use quakeworld::pak::Pak;
+#[cfg(feature = "trace")]
 use quakeworld::trace::Trace;
 
 fn parse_file(filename: String, bspname: String) -> Result<bool, Box<dyn Error>> {
     // read the file into a buffer
     let data = fs::read(&filename)?;
+    #[cfg(feature = "trace")]
     let mut trace = Trace::new();
-    let pak = Pak::parse(filename.clone(), data, Some(&mut trace))?;
+    let pak = Pak::parse(
+        filename.clone(),
+        data,
+        #[cfg(feature = "trace")]
+        Some(&mut trace),
+    )?;
+
     let f = pak
         .files
         .iter()
@@ -27,8 +35,13 @@ fn parse_file(filename: String, bspname: String) -> Result<bool, Box<dyn Error>>
     }
     let d = pak.get_data(f.unwrap())?;
     println!("{}", d.len());
+    #[cfg(feature = "trace")]
     let mut tr = Trace::new();
-    let b = Bsp::parse(d, Some(&mut tr))?;
+    let b = Bsp::parse(
+        d,
+        #[cfg(feature = "trace")]
+        Some(&mut tr),
+    )?;
     println!("{:?}", b);
     Ok(true)
 }

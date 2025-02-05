@@ -8,7 +8,8 @@ use thiserror::Error;
 use crate::datatypes::common::AsciiString;
 use crate::datatypes::common::DataType;
 #[cfg(feature = "trace")]
-use crate::trace::{trace_start, trace_stop, Trace};
+use crate::trace::Trace;
+use crate::trace::{trace_start, trace_stop};
 
 use super::common::Vertex;
 

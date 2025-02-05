@@ -5,6 +5,7 @@ use std::hash::{DefaultHasher, Hasher};
 use std::io::prelude::*;
 
 use quakeworld::pak::Pak;
+#[cfg(feature = "trace")]
 use quakeworld::trace::Trace;
 
 fn parse_file(filename: String) -> Result<bool, Box<dyn Error>> {
@@ -14,9 +15,16 @@ fn parse_file(filename: String) -> Result<bool, Box<dyn Error>> {
         Err(err) => return Err(Box::new(err)),
     };
 
+    #[cfg(feature = "trace")]
     let mut trace = Trace::new();
-    let pak = Pak::load(filename, file, Some(&mut trace))?;
+    let pak = Pak::load(
+        filename,
+        file,
+        #[cfg(feature = "trace")]
+        Some(&mut trace),
+    )?;
 
+    #[cfg(feature = "trace")]
     for t in trace.trace.traces {
         println!(
             "{} {} start({}) stop({})",

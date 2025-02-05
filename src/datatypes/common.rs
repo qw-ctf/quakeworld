@@ -10,7 +10,6 @@ use crate::datatypes::reader::{
     DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeReaderError,
 };
 
-#[cfg(feature = "trace")]
 use crate::trace::{trace_annotate, trace_start, trace_stop};
 
 use super::bsp;
