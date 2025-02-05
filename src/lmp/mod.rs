@@ -1,5 +1,5 @@
-use thiserror::Error;
 use serde::Serialize;
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum PaletteError {
@@ -15,7 +15,6 @@ pub struct Color {
     pub a: u8,
 }
 
-
 #[derive(Serialize, Debug, Default)]
 pub struct Palette {
     pub colors: Vec<Color>,
@@ -25,21 +24,24 @@ impl Palette {
     pub fn from(lookup_table: impl Into<Vec<u8>>) -> Result<Palette, PaletteError> {
         let lookup_table = lookup_table.into();
         if lookup_table.len() > 256 * 3 {
-            return Err(PaletteError::ParseError(format!("expected palette of size ({}) got ({})", 256 * 3, lookup_table.len())));
+            return Err(PaletteError::ParseError(format!(
+                "expected palette of size ({}) got ({})",
+                256 * 3,
+                lookup_table.len()
+            )));
         }
-        let mut p: Palette = Palette{
+        let mut p: Palette = Palette {
             ..Default::default()
         };
 
-        let table: Vec<_> = lookup_table.chunks(3)
-            .collect();
+        let table: Vec<_> = lookup_table.chunks(3).collect();
 
         for c in table {
-            p.colors.push(Color{
+            p.colors.push(Color {
                 r: c[0],
                 g: c[1],
                 b: c[2],
-                a: u8::max_value(),
+                a: u8::MAX,
             })
         }
         Ok(p)

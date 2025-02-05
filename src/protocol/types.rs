@@ -1600,13 +1600,13 @@ impl Sound {
             ..Default::default()
         };
 
-        if channel & 1 << 15 == 1 << 15 {
+        if channel & (1 << 15) == 1 << 15 {
             trace_annotate!(message, "volume");
             let b = message.read_u8(false)?;
             volume = Some(b);
         }
 
-        if channel & 1 << 14 == 1 << 14 {
+        if channel & (1 << 14) == 1 << 14 {
             trace_annotate!(message, "channel");
             let b = message.read_u8(false)?;
             attenuation = Some(b);

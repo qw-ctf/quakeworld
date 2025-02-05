@@ -1,5 +1,3 @@
-use std::sync::Arc;
-use std::sync::Mutex;
 use std::thread;
 
 use crate::protocol::errors::MvdParseError;
@@ -128,12 +126,12 @@ impl Mvd {
         &mut self,
         thread_count: usize,
     ) -> Result<Vec<MvdFrame>, MvdParseError> {
-        // read frames till we thte protocol stuff
-        while self.serverdata_read == false {
-            self.parse_frame();
+        // read frames till we hit the protocol stuff
+        while !self.serverdata_read {
+            let _ = self.parse_frame();
         }
         println!("got protocols on frame: {}", self.frame - 1);
-        let mut rval = vec![];
+        let rval = vec![];
         // get the indexes for the rest of the frames
         let frame_indexes: Vec<_> = self.get_frame_indexes()?;
         let chunk_size = frame_indexes.len() / thread_count;
@@ -153,20 +151,17 @@ impl Mvd {
             handles.push(handle);
         }
         for handle in handles {
-            match handle.join() {
-                Ok(v) => {
-                    println!("index: {} frames: {}", v.index, v.frames.len());
-                }
-                Err(_) => {}
+            if let Ok(v) = handle.join() {
+                println!("index: {} frames: {}", v.index, v.frames.len());
             };
         }
-        return Ok(rval);
+        Ok(rval)
     }
 
     pub fn get_frame_indexes(&mut self) -> Result<Vec<MvdFrameIndex>, MvdParseError> {
         let mut rval: Vec<MvdFrameIndex> = vec![];
-        let mut start: usize = 0;
-        let mut stop: usize = 0;
+        let start: usize = 0;
+        let stop: usize = 0;
         let mut i = 0;
         while self.message.position < self.message.length {
             i += 1;
@@ -214,11 +209,11 @@ impl Mvd {
                     DemoCommand::Read => {}
                 }
             }
-            let mut loop_read_packet = true;
-            let mut p = 0;
+            let _loop_read_packet = true;
+            let mut _p = 0;
             let message_start = self.message.position;
-            while loop_read_packet {
-                p += 1;
+            loop {
+                _p += 1;
                 let size = self.message.read_u32(false)? as usize;
                 if size == 0 {
                     f.stop = self.message.position;
@@ -346,7 +341,7 @@ impl Mvd {
                 frame.messages.push(ret);
             }
         }
-        return Ok(true);
+        Ok(true)
     }
 
     pub fn read_packet(&mut self, frame: &mut Box<MvdFrame>) -> Result<bool, MvdParseError> {
@@ -423,12 +418,12 @@ struct MvdThreadData {
 
 #[derive(Debug)]
 struct MvdThreadReturn {
-    frames: Vec<Box<MvdFrame>>,
+    frames: Vec<MvdFrame>,
     index: u32,
 }
 impl MvdThreadData {
     pub fn parse_frame_chunk(&mut self) -> MvdThreadReturn {
-        let mut frames: Vec<Box<MvdFrame>> = vec![];
+        let mut frames: Vec<MvdFrame> = vec![];
         #[cfg(feature = "trace")]
         let mut mvd = Mvd::new(*self.data.clone(), None, TraceOptions::default()).unwrap();
         #[cfg(not(feature = "trace"))]
@@ -437,7 +432,7 @@ impl MvdThreadData {
         for frame in self.chunk.clone() {
             mvd.message.position = frame.start;
             let f = mvd.parse_frame().unwrap();
-            frames.push(f);
+            frames.push(*f);
         }
         MvdThreadReturn {
             frames,

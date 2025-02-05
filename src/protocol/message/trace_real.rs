@@ -10,22 +10,15 @@ use strum_macros::Display;
 
 use crate::mvd::MvdFrame;
 use crate::protocol::message::{Message, Packet, ServerMessage};
-use crate::trace::{TraceBase, TraceEntry, TraceEvent};
+use crate::trace::{TraceBase, TraceEntry};
 
 #[derive(Serialize, Clone, Debug)]
+#[derive(Default)]
 pub struct TraceOptions {
     pub enabled: bool,
     pub depth_limit: u32,
 }
 
-impl Default for TraceOptions {
-    fn default() -> Self {
-        TraceOptions {
-            enabled: false,
-            depth_limit: 0,
-        }
-    }
-}
 
 #[derive(Serialize, Clone, Debug, Default)]
 pub struct ReadTrace {
@@ -87,15 +80,15 @@ impl Default for MessageTrace {
 
 impl TraceBase for MessageTrace {
     fn get_trace(self) -> Vec<TraceEntry> {
-        let traces: Vec<TraceEntry> = self.read.into_iter().map(ReadTrace::from).collect();
-        return traces;
+        let traces: Vec<TraceEntry> = self.read.into_iter().collect();
+        traces
     }
 }
 
 impl From<ReadTrace> for TraceEntry {
     fn from(a: ReadTrace) -> Self {
         let field_name = a.annotation.unwrap_or("".to_owned());
-        let traces: Vec<TraceEntry> = a.read.into_iter().map(ReadTrace::from).collect();
+        let traces: Vec<TraceEntry> = a.read.into_iter().collect();
         let index_stop = if a.stop > 0 { (a.stop - 1) as u64 } else { 0 };
         TraceEntry {
             field_type: a.function,

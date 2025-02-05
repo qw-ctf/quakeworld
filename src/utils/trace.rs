@@ -68,10 +68,7 @@ fn print_hex(message: &Message, trace: &ReadTrace, types: Vec<(usize, usize, u8)
 
     let mut type_iter = types.into_iter();
 
-    let mut current_trace: (usize, usize, u8) = match type_iter.next() {
-        Some(type_val) => { type_val },
-        None => { (0,0,0)},
-    };
+    let mut current_trace: (usize, usize, u8) = type_iter.next().unwrap_or_default();
     for _ in 0..amount_of_lines {
         if colorized {
             stdout.set_color(&cs_normal)?;

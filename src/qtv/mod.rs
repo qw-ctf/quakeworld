@@ -93,7 +93,7 @@ impl Qtv {
         if self.state == ConnectionState::ParsingConnection {
             self.parse_connection()?
         }
-        return Ok(());
+        Ok(())
     }
 
     pub fn parse_connection(&mut self) -> QtvResult<()> {
@@ -122,7 +122,7 @@ impl Qtv {
                 Ok(_) => {
                     header.push(a[0]);
                     if a[0] == b'\n' {
-                        if first_found == false {
+                        if !first_found {
                             first_found = true;
                         } else {
                             break;
@@ -136,7 +136,7 @@ impl Qtv {
                 }
             }
         }
-        let mut header = String::from_utf8(header)?;
+        let header = String::from_utf8(header)?;
 
         trace_stop!(self, QtvType::Header(header.clone()).into());
         let splits: Vec<&str> = header.split("\n").collect();
@@ -151,7 +151,7 @@ impl Qtv {
                 }
                 self.protocol = protocol[1].parse()?;
             } else {
-                if s.len() == 0 {
+                if s.is_empty() {
                     continue;
                 }
                 let (header_entry, header_value) = match s.split_once(": ") {

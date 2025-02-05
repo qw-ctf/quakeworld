@@ -115,7 +115,7 @@ impl IntoDataTypeReaderEnv for i64 {
     }
 }
 
-impl<'a> DataTypeReader<'a> {
+impl DataTypeReader<'_> {
     pub fn read_exact_generic<T: DataTypeRead>(
         &mut self,
         buf: &mut Vec<T>,
