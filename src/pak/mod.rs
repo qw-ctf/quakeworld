@@ -62,6 +62,8 @@ static HEADER: u32 = 0x4b434150;
 const MAX_NAME_LENGTH: usize = 55;
 const NAME_LENGTH: u32 = 56;
 
+pub type File = pak::File;
+
 #[derive(Serialize, Debug, Default, Clone, DataTypeBoundCheckDerive)]
 pub struct Pak {
     pub name: String,
@@ -93,10 +95,11 @@ impl Pak {
 
     pub fn parse(
         name: impl Into<String>,
-        data: Vec<u8>,
+        data: impl Into<Vec<u8>>,
         #[cfg(feature = "trace")] trace: Option<&mut Trace>,
     ) -> PakResult {
         let name = name.into();
+        let data = data.into();
         let mut datatypereader = DataTypeReader::new(
             data.clone(),
             #[cfg(feature = "trace")]
