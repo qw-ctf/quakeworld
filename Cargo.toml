@@ -14,7 +14,7 @@ A collection of quakeworld related libraries.
 [lib]
 
 [features]
-default = ["mvd", "utils", "protocol", "state", "network", "connection", "crc", "pak", "mdl", "lmp", "bsp", "qtv", "trace"]
+default = ["mvd", "utils", "protocol", "state", "network", "connection", "crc", "pak", "mdl", "lmp", "bsp", "qtv"]
 connection = ["protocol", "state", "network", "crc", "ascii_strings"]
 state = ["protocol", "utils"]
 mvd = ["utils", "protocol"]
