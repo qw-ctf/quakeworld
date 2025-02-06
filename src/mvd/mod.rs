@@ -169,7 +169,7 @@ impl Mvd {
                 start: self.message.position,
                 stop: self.message.position,
             };
-            let demo_time = self.message.read_u8(false)?;
+            let _demo_time = self.message.read_u8(false)?;
             let cmd = self.message.read_u8(false)?;
             let msg_type_try = DemoCommand::try_from(cmd & 7);
             let msg_type = match msg_type_try {
