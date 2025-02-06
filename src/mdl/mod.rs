@@ -1,7 +1,7 @@
 //use crate::mdl::mdl::Frame;
+use crate::trace::trace_annotate;
 #[cfg(feature = "trace")]
 use crate::trace::Trace;
-use crate::trace::{trace_annotate};
 
 use crate::datatypes::common::{TextureCoordinate, Triangle};
 use crate::datatypes::mdl;
@@ -133,7 +133,7 @@ impl Mdl {
             )));
         }
 
-        println!("{:?}", header);
+        // println!("{:?}", header);
         // let mut buf: Vec<u8> = Vec::new();
         // let mut model: Mdl = Mdl::default();
         // reader.read_to_end(&mut buf)?;
@@ -185,9 +185,11 @@ impl Mdl {
                 skin.push(mdl::Skin { time, data });
             }
         } else if header.skin_type == 0 {
-            let mut buf: Vec<u8> = vec![0; (header.skin_width * header.skin_height) as usize];
+            let mut buf: Vec<u8> =
+                Vec::with_capacity((header.skin_width * header.skin_height) as usize);
             trace_annotate!(datatypereader, "skin_data");
             datatypereader.read_exact(&mut buf)?;
+
             skin.push(mdl::Skin {
                 time: 0.0,
                 data: buf,
