@@ -30,3 +30,12 @@ pub struct File {
     pub offset: u32,
     pub size: u32,
 }
+
+impl File {
+    pub fn name_as_string(self: &Self) -> String {
+        // @FIXME:  handle this unwrap and all the other crap
+        let s = String::from_utf8(self.name.clone()).unwrap();
+        let s = s.trim_matches(char::from(0));
+        return s.to_string();
+    }
+}

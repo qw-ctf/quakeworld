@@ -14,7 +14,7 @@ A collection of quakeworld related libraries.
 [lib]
 
 [features]
-default = ["mvd", "utils", "protocol", "state", "network", "connection", "crc", "pak", "mdl", "lmp", "bsp", "qtv"]
+default = ["mvd", "utils", "protocol", "state", "network", "connection", "crc", "pak", "mdl", "lmp", "bsp", "qtv", "vfs"]
 connection = ["protocol", "state", "network", "crc", "ascii_strings"]
 state = ["protocol", "utils"]
 mvd = ["utils", "protocol"]
@@ -29,6 +29,7 @@ mdl = []
 lmp = []
 bsp = []
 qtv = []
+vfs = []
 example-ratatui = [ "ratatui", "crossterm", "color-eyre", "anyhow", "palette" ]
 
 [dependencies]
@@ -53,6 +54,8 @@ crossterm = { version = "0.27.0", optional = true }
 color-eyre = { version = "0.6.2", optional = true }
 anyhow = { version = "1.0.81", optional = true }
 palette = { version = "0.7.5", optional = true }
+uuid = { version = "1.13.1", features = ["v4"] }
+time = { version = "0.3.37", features = ["formatting"] }
 # ratatui = { optional = true, features = ["crossterm"] }
 # crossterm = { optional = true }
 

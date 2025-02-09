@@ -7,7 +7,6 @@ extern crate simple_error;
 extern crate unstringify;
 
 pub mod datatypes;
-
 pub mod trace;
 
 #[cfg(feature = "mvd")]
@@ -38,6 +37,9 @@ pub mod bsp;
 
 #[cfg(feature = "qtv")]
 pub mod qtv;
+
+#[cfg(feature = "vfs")]
+pub mod vfs;
 
 #[cfg(test)]
 mod tests {
