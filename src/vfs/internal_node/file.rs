@@ -11,7 +11,7 @@ use crate::vfs::VfsList;
 // pub struct File {}
 pub type File = std::path::PathBuf;
 
-pub fn read(file: &File, path: &VfsQueryFile) -> VfsResult<VfsRawData> {
+pub fn read(file: &File) -> VfsResult<VfsRawData> {
     let mut f = std::fs::File::open(file)?;
     let metadata = std::fs::metadata(file)?;
     let mut buffer = vec![0; metadata.len() as usize];
