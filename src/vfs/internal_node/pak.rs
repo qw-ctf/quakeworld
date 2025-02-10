@@ -34,7 +34,6 @@ pub fn list(pak: &PakAbstraction, path: &VfsQueryDirectory, hash: &VfsHash) -> V
             let fe = VfsEntryFile {
                 path: f.path.clone(),
                 meta: f.meta.clone(),
-                ..Default::default()
             };
             entries.push(VfsEntry::File(fe));
             continue;
@@ -45,7 +44,6 @@ pub fn list(pak: &PakAbstraction, path: &VfsQueryDirectory, hash: &VfsHash) -> V
                 let fe = VfsEntryFile {
                     path: path_diff,
                     meta: f.meta.clone(),
-                    ..Default::default()
                 };
                 entries.push(VfsEntry::File(fe));
                 continue;
@@ -61,7 +59,6 @@ pub fn list(pak: &PakAbstraction, path: &VfsQueryDirectory, hash: &VfsHash) -> V
             let de = VfsEntryDirectory {
                 path: path_diff,
                 meta: f.meta.clone(),
-                ..Default::default()
             };
             entries.push(VfsEntry::Directory(de));
         }

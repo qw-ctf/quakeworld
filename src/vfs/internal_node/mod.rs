@@ -91,19 +91,19 @@ impl VfsNode for VfsInternalNode {
     fn list(&self, path: &VfsQueryDirectory) -> VfsResult<VfsList> {
         match &self.data {
             VfsInternalNodeType::None => todo!(),
-            VfsInternalNodeType::File(f) => return file::list(&f, path, self.hash()),
-            VfsInternalNodeType::Directory(d) => return directory::list(&d, path, self.hash()),
-            VfsInternalNodeType::Pak(pak) => return pak::list(&pak, path, self.hash()),
-        };
+            VfsInternalNodeType::File(f) => file::list(f, path, self.hash()),
+            VfsInternalNodeType::Directory(d) => directory::list(d, path, self.hash()),
+            VfsInternalNodeType::Pak(pak) => pak::list(pak, path, self.hash()),
+        }
     }
 
     fn read(&self, path: &VfsQueryFile) -> VfsResult<VfsRawData> {
         match &self.data {
             VfsInternalNodeType::None => todo!(),
-            VfsInternalNodeType::File(f) => return file::read(&f, path),
-            VfsInternalNodeType::Directory(d) => return directory::read(&d, path, self.hash()),
-            VfsInternalNodeType::Pak(pak) => return pak::read(pak, path, self.hash()), //return list_pak(&pak, path, self.hash()),
-        };
+            VfsInternalNodeType::File(f) => file::read(f, path),
+            VfsInternalNodeType::Directory(d) => directory::read(d, path, self.hash()),
+            VfsInternalNodeType::Pak(pak) => pak::read(pak, path, self.hash()), //return list_pak(&pak, path, self.hash()),
+        }
     }
 
     fn compare(&self, hash: &VfsHash) -> bool {

@@ -17,7 +17,7 @@ pub fn list(directory: &Directory, path: &VfsQueryDirectory, hash: &VfsHash) -> 
     let mut return_entries = vec![];
     let mut d = directory.clone();
     for p in &path.path.nodes {
-        let s: &str = &*p;
+        let s: &str = p;
         d.push(std::path::PathBuf::from(s));
     }
 
@@ -38,14 +38,12 @@ pub fn list(directory: &Directory, path: &VfsQueryDirectory, hash: &VfsHash) -> 
                 let de = VfsEntryDirectory {
                     path: p,
                     meta: meta.into(),
-                    ..Default::default()
                 };
                 return_entries.push(VfsEntry::Directory(de));
             } else if meta.is_file() {
                 let fe = VfsEntryFile {
                     path: p,
                     meta: meta.into(),
-                    ..Default::default()
                 };
                 return_entries.push(VfsEntry::File(fe));
             }
@@ -60,12 +58,12 @@ pub fn list(directory: &Directory, path: &VfsQueryDirectory, hash: &VfsHash) -> 
 pub fn read(file: &Directory, path: &VfsQueryFile, _hash: &VfsHash) -> VfsResult<VfsRawData> {
     let mut filename = file.clone();
     for p in &path.path.nodes {
-        let s: &str = &*p;
+        let s: &str = p;
         filename.push(std::path::PathBuf::from(s));
     }
     let mut f = File::open(&filename)?;
     let metadata = fs::metadata(&filename)?;
     let mut buffer = vec![0; metadata.len() as usize];
-    f.read(&mut buffer)?;
+    let _ = f.read(&mut buffer)?;
     Ok(buffer)
 }

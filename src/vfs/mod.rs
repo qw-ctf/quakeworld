@@ -52,19 +52,18 @@ pub struct VfsEntryFile {
     pub meta: VfsMetaData,
     // pub nodes: Vec<VfsHash>,
 }
-impl Into<VfsQueryFile> for VfsEntryFile {
-    fn into(self) -> VfsQueryFile {
+impl From<VfsEntryFile> for VfsQueryFile {
+    fn from(val: VfsEntryFile) -> Self {
         VfsQueryFile {
-            path: self.path.clone(),
-            // node: None,
+            path: val.path.clone(),
         }
     }
 }
 
-impl Into<VfsQueryFile> for &VfsEntryFile {
-    fn into(self) -> VfsQueryFile {
+impl From<&VfsEntryFile> for VfsQueryFile {
+    fn from(val: &VfsEntryFile) -> Self {
         VfsQueryFile {
-            path: self.path.clone(),
+            path: val.path.clone(),
         }
     }
 }
@@ -88,18 +87,10 @@ pub struct VfsEntryDirectory {
     // pub nodes: Vec<VfsHash>,
 }
 
-impl Into<VfsQueryDirectory> for VfsEntryDirectory {
-    fn into(self) -> VfsQueryDirectory {
+impl From<&VfsEntryDirectory> for VfsQueryDirectory {
+    fn from(value: &VfsEntryDirectory) -> Self {
         VfsQueryDirectory {
-            path: self.path.clone(),
-        }
-    }
-}
-
-impl Into<VfsQueryDirectory> for &VfsEntryDirectory {
-    fn into(self) -> VfsQueryDirectory {
-        VfsQueryDirectory {
-            path: self.path.clone(),
+            path: value.path.clone(),
         }
     }
 }
@@ -181,9 +172,9 @@ impl Display for VfsQueryDirectory {
 
 impl From<String> for VfsQueryDirectory {
     fn from(value: String) -> Self {
-        return VfsQueryDirectory {
+        VfsQueryDirectory {
             path: VfsPath::new(&value).unwrap(),
-        };
+        }
     }
 }
 
@@ -195,17 +186,17 @@ pub struct VfsQueryFile {
 
 impl From<String> for VfsQueryFile {
     fn from(value: String) -> Self {
-        return VfsQueryFile {
+        VfsQueryFile {
             path: VfsPath::new(&value).unwrap(),
-        };
+        }
     }
 }
 
 impl From<&str> for VfsQueryFile {
     fn from(value: &str) -> Self {
-        return VfsQueryFile {
-            path: VfsPath::new(&value).unwrap(),
-        };
+        VfsQueryFile {
+            path: VfsPath::new(value).unwrap(),
+        }
     }
 }
 
@@ -269,27 +260,14 @@ impl Vfs {
     pub fn list(&self, directory: VfsQueryDirectory) -> VfsResult<Vec<VfsList>> {
         let mut entries = vec![];
         for n in &self.nodes {
-            // println!("vfs::mod::list:");
-            // check if the search directory starts with the mount path
-            // println!(
-            //     "\tnode path: {:?}\n\tquery path: {:?}\n\tstarts_with: {}\n\t{}\n",
-            //     n.path,
-            //     directory,
-            //     n.path.starts_with(&directory.path),
-            //     n.node.hash()
-            // );
-
             // if !directory.path.starts_with(&n.path) {
             if !n.path.starts_with(&directory.path) {
-                // println!("\t-> we continue");
                 continue;
             }
 
             // check if the we are still below the mount path
             let p_diff = n.path.subtract(&directory.path);
-            // println!("\tp_diff: {:?} {}", p_diff, p_diff.len());
-            if p_diff.len() >= 1 {
-                // println!("\twe happen too? {:?}", p_diff);
+            if !p_diff.is_empty() {
                 let entry = VfsEntry::Directory(VfsEntryDirectory {
                     path: VfsPath::new(&p_diff.nodes[0])?,
                     meta: VfsMetaData::default(),
@@ -304,14 +282,9 @@ impl Vfs {
 
             let p = directory.path.subtract(&n.path);
 
-            let node_entries = n.node.list(&VfsQueryDirectory {
-                path: p,
-                ..Default::default()
-            })?;
-            // println!("vfs::list: node path: {:?}", n.path);
+            let node_entries = n.node.list(&VfsQueryDirectory { path: p })?;
             entries.push(node_entries);
         }
-        // println!("\twe happen? {:?}", entries);
         Ok(entries)
     }
 
@@ -328,9 +301,8 @@ impl Vfs {
                 continue;
             }
 
-            match node.node.read(&file_path) {
-                Ok(r) => return Ok(r),
-                Err(_) => {}
+            if let Ok(r) = node.node.read(&file_path) {
+                return Ok(r);
             };
         }
         if let Some(node_hash) = node_hash {
@@ -345,10 +317,10 @@ impl Display for Vfs {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut buffer = Vec::new();
         let c = self.nodes.len();
-        let _ = write!(&mut buffer, "Vfs: nodes({})\n", c);
+        let _ = writeln!(&mut buffer, "Vfs: nodes({})\n", c);
         for node in &self.nodes {
-            let _ = write!(&mut buffer, "Node: {}\n", node.node.hash());
-            let _ = write!(&mut buffer, "\tvfs path: {}\n", node.path);
+            let _ = writeln!(&mut buffer, "Node: {}\n", node.node.hash());
+            let _ = writeln!(&mut buffer, "\tvfs path: {}\n", node.path);
         }
         let s = String::from_utf8(buffer).unwrap();
         write!(f, "{}", s)

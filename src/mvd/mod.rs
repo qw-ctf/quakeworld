@@ -91,7 +91,7 @@ impl Mvd {
     ) -> Result<Mvd, std::io::Error> {
         let buffer_heap = Box::new(buffer.clone());
 
-        let mut message = Message::new(
+        let message = Message::new(
             buffer_heap,
             0,
             buffer.len(),

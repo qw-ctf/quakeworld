@@ -16,28 +16,25 @@ impl Display for VfsPath {
         write!(f, "{}", s)
     }
 }
-//
-// impl TryFrom<&str> for VfsPath {
-//     type Error = VfsError;
-//
-//     fn try_from(path: &str) -> Result<Self, Self::Error> {
-//         return VfsPath::new(path);
-//     }
-// }
 
 impl From<&str> for VfsPath {
     fn from(value: &str) -> Self {
-        let path = match VfsPath::new(value) {
+        match VfsPath::new(value) {
             Ok(p) => p,
             Err(e) => panic!("{}", e),
-        };
-        return path;
+        }
     }
 }
 
-impl Into<String> for VfsPath {
-    fn into(self) -> String {
-        self.to_string().clone()
+impl From<&VfsPath> for String {
+    fn from(val: &VfsPath) -> Self {
+        val.to_string().clone()
+    }
+}
+
+impl From<VfsPath> for String {
+    fn from(val: VfsPath) -> Self {
+        val.to_string().clone()
     }
 }
 
@@ -73,16 +70,13 @@ impl VfsPath {
 
         let mut path_iter = path.nodes.iter();
         for node in &self.nodes {
-            match path_iter.next() {
-                Some(p) => {
-                    if node == p {
-                        continue;
-                    } else {
-                        panic!("should probably handle this")
-                    }
+            if let Some(p) = path_iter.next() {
+                if node == p {
+                    continue;
+                } else {
+                    panic!("should probably handle this")
                 }
-                None => {}
-            };
+            }
             new_path.push(node.to_string());
         }
         new_path
@@ -90,12 +84,8 @@ impl VfsPath {
 
     pub fn starts_with(&self, path: &VfsPath) -> bool {
         let mut path_iter = path.nodes.iter();
-        if self.nodes.len() == 0 {
-            if path.nodes.len() == 0 {
-                return true;
-            } else {
-                return false;
-            }
+        if self.nodes.is_empty() {
+            return path.nodes.is_empty();
         }
         for node in &self.nodes {
             let path_node = match path_iter.next() {
@@ -130,7 +120,7 @@ impl VfsPath {
             .filter(|&(a, b)| a != b)
             .count();
 
-        return count == 0;
+        count == 0
     }
 
     pub fn equals_string(&self, path: impl Into<String>) -> bool {
@@ -153,6 +143,10 @@ impl VfsPath {
 
     pub fn len(&self) -> usize {
         self.nodes.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.nodes.len() == 0
     }
 }
 

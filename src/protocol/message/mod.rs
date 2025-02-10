@@ -409,7 +409,6 @@ impl Message {
             #[cfg(feature = "ascii_strings")]
             ascii_converter: AsciiConverter::new(),
             r#type: MessageType::Connection,
-            ..Default::default()
         }
     }
 
@@ -447,7 +446,6 @@ impl Message {
             flags,
             ascii_converter,
             r#type,
-            ..Default::default()
         }
     }
 

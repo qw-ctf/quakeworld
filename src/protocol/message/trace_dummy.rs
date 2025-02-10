@@ -39,4 +39,3 @@ pub(crate) use trace_unlock;
 macro_rules! function {
     () => {{}};
 }
-pub(crate) use function;

@@ -1,5 +1,4 @@
 extern crate paste;
-use paste::paste;
 
 use serde::Serialize;
 use std::{
@@ -46,7 +45,7 @@ impl From<QtvType> for crate::datatypes::common::DataType {
 
 type QtvResult<T> = Result<T, QtvError>;
 
-use crate::trace::{function, trace_annotate, trace_start, trace_stop};
+use crate::trace::{trace_annotate, trace_start, trace_stop};
 
 #[cfg(feature = "trace")]
 use crate::trace::Trace;

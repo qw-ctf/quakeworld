@@ -22,7 +22,7 @@ impl Display for Perf {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.stop {
             Some(stop) => {
-                write!(f, "{}", format!("{:?}", stop - self.start))
+                write!(f, "{:?}", stop - self.start)
             }
             None => {
                 write!(f, "started: {:?}", self.start)

@@ -36,6 +36,6 @@ impl File {
         // @FIXME:  handle this unwrap and all the other crap
         let s = String::from_utf8(self.name.clone()).unwrap();
         let s = s.trim_matches(char::from(0));
-        return s.to_string();
+        s.to_string()
     }
 }

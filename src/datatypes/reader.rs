@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use std::io::{Cursor, Read};
 use thiserror::Error;
 
-use crate::datatypes::common::AsciiString;
 use crate::datatypes::common::DataType;
 #[cfg(feature = "trace")]
 use crate::trace::Trace;
@@ -39,7 +38,7 @@ pub struct DataTypeReader<'a> {
     pub env: HashMap<String, DataTypeReaderEnv>,
 }
 
-impl<'a> DataTypeReader<'a> {
+impl DataTypeReader<'_> {
     pub fn new(data: Vec<u8>, #[cfg(feature = "trace")] trace: Option<&'a mut Trace>) -> Self {
         DataTypeReader {
             data: data.clone(),

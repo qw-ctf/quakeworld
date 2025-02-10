@@ -13,10 +13,10 @@ use crate::vfs::VfsList;
 pub type File = std::path::PathBuf;
 
 pub fn read(file: &File, path: &VfsQueryFile) -> VfsResult<VfsRawData> {
-    let mut f = std::fs::File::open(&file)?;
-    let metadata = std::fs::metadata(&file)?;
+    let mut f = std::fs::File::open(file)?;
+    let metadata = std::fs::metadata(file)?;
     let mut buffer = vec![0; metadata.len() as usize];
-    f.read(&mut buffer)?;
+    let _ = f.read(&mut buffer)?;
     Ok(buffer)
 }
 
