@@ -32,7 +32,7 @@ pub struct File {
 }
 
 impl File {
-    pub fn name_as_string(self: &Self) -> String {
+    pub fn name_as_string(&self) -> String {
         // @FIXME:  handle this unwrap and all the other crap
         let s = String::from_utf8(self.name.clone()).unwrap();
         let s = s.trim_matches(char::from(0));

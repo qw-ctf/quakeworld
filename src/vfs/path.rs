@@ -3,7 +3,6 @@ use std::{fmt::Display, rc::Rc};
 /// Internal Path Definitions
 use crate::vfs::VfsResult;
 
-use super::VfsError;
 
 #[derive(Clone, Debug, Default)]
 pub struct VfsPath {

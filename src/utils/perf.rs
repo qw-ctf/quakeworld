@@ -1,4 +1,3 @@
-use core::time;
 use std::{fmt::Display, time::Instant};
 
 pub struct Perf {

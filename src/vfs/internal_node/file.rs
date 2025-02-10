@@ -1,4 +1,3 @@
-use std::fmt::Display;
 use std::io::Read;
 
 use crate::vfs::path::VfsPath;

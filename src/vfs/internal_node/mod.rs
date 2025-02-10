@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::vfs::{
-    VfsEntry, VfsEntryDirectory, VfsEntryFile, VfsHash, VfsNode, VfsPath, VfsRawData, VfsResult,
+    VfsEntry, VfsHash, VfsNode, VfsPath, VfsRawData, VfsResult,
 };
 use uuid::Uuid;
 

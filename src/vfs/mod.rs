@@ -3,7 +3,6 @@ use std::{convert::Infallible, fmt::Display, io::Write, path::Path};
 use thiserror::Error;
 use time::OffsetDateTime;
 
-use crate::pak;
 
 use internal_node::VfsList;
 
