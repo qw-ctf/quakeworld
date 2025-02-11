@@ -145,6 +145,15 @@ struct PakWriterFile {
     data: Vec<u8>,
 }
 
+impl PakWriterFile {
+    pub fn name_as_string(&self) -> String {
+        // @FIXME:  handle this unwrap and all the other crap
+        let s = String::from_utf8(self.name.clone()).unwrap();
+        let s = s.trim_matches(char::from(0));
+        s.to_string()
+    }
+}
+
 impl Default for PakWriter {
     fn default() -> Self {
         Self::new()
@@ -194,32 +203,45 @@ impl PakWriter {
     }
 }
 
+macro_rules! create_pak {
+    ($(($name: expr, $data: expr)), *) => {{
+        let mut pak = crate::pak::PakWriter::new();
+        $(
+            pak.file_add($name.to_string().into(), &$data[..]);
+        )*
+        pak
+    }};
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
     pub fn pak_creation_and_reading() -> Result<(), crate::pak::PakError> {
-        const FILE1_NAME: &[u8; 9] = b"dir/file1";
+        const FILE1_NAME: &str = "dir/file1";
         const FILE1_DATA: &[u8; 8] = b"01234567";
-        const FILE2_NAME: &[u8; 11] = b"dir_a/file2";
+        const FILE2_NAME: &str = "dir_a/file2";
         const FILE2_DATA: &[u8; 8] = b"76543210";
-        let mut pack = crate::pak::PakWriter::new();
-        pack.file_add(FILE1_NAME.to_vec(), &FILE1_DATA[..])?;
-        pack.file_add(FILE2_NAME.to_vec(), &FILE2_DATA[..])?;
-        assert_eq!(pack.files[0].name, FILE1_NAME.to_vec());
+        let pack = create_pak!((FILE1_NAME, FILE1_DATA), (FILE2_NAME, FILE2_DATA));
+
+        // check if the files are properly inserted
+        assert_eq!(pack.files[0].name_as_string(), FILE1_NAME);
         assert_eq!(pack.files[0].data, FILE1_DATA.to_vec());
-        assert_eq!(pack.files[1].name, FILE2_NAME.to_vec());
+        assert_eq!(pack.files[1].name_as_string(), FILE2_NAME);
         assert_eq!(pack.files[1].data, FILE2_DATA.to_vec());
+
         let data = pack.write_data()?;
-        #[cfg(feature = "trace")]
-        let read_pack = crate::pak::Pak::parse("my_pak".to_string(), data, None)?;
-        #[cfg(not(feature = "trace"))]
-        let read_pack = crate::pak::Pak::parse("my_pak".to_string(), data)?;
+
+        //reread the pak
+        let read_pack = crate::pak::Pak::parse(
+            "my_pak",
+            data,
+            #[cfg(feature = "trace")]
+            None,
+        )?;
         assert_eq!(2, read_pack.files.len());
         // names
-        let f1_name = FILE1_NAME.to_vec();
-        let f2_name = FILE2_NAME.to_vec();
-        assert_eq!(f1_name, read_pack.files[0].name[..f1_name.len()]);
-        assert_eq!(f2_name, read_pack.files[1].name[..f2_name.len()]);
+        assert_eq!(FILE1_NAME, read_pack.files[0].name_as_string());
+        assert_eq!(FILE2_NAME, read_pack.files[1].name_as_string());
         // data size
         assert_eq!(FILE1_DATA.to_vec().len() as u32, read_pack.files[0].size);
         assert_eq!(FILE2_DATA.to_vec().len() as u32, read_pack.files[1].size);

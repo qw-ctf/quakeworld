@@ -1,3 +1,6 @@
+mod datareader_integration;
+
+use std::default;
 use std::fs::File;
 
 use quakeworld::datatypes::common::AsciiString;
@@ -5,8 +8,8 @@ use quakeworld::pak::Pak;
 use quakeworld::utils::perf::Perf;
 use quakeworld::vfs::internal_node::VfsFlattenedListEntry;
 use quakeworld::vfs::{
-    internal_node::VfsInternalNode, path::VfsPath, Vfs, VfsEntryDirectory, VfsEntryFile, VfsNode,
-    VfsQueryDirectory, VfsQueryFile,
+    internal_node::VfsInternalNode, meta::VfsMetaData, path::VfsPath, Vfs, VfsEntryDirectory,
+    VfsEntryFile, VfsNode, VfsQueryDirectory, VfsQueryFile,
 };
 
 macro_rules! check_file {
@@ -33,6 +36,32 @@ macro_rules! check_directory {
                 assert!(vfs_entry_directory.path.equals_string($directory_name));
             }
         };
+    };
+}
+
+macro_rules! create_pak {
+    ($(($name: expr, $data: expr)), *) => {{
+        let mut pak = quakeworld::pak::PakWriter::new();
+        $(
+            pak.file_add($name.to_string().into(), &$data[..]);
+        )*
+        match pak.write_data() {
+            Ok(data) => std::io::Cursor::new(data),
+            Err(e) => panic!("{}", e),
+        }
+    }};
+}
+
+macro_rules! create_pak_node {
+    ($name: expr, $($rest:tt)*) => {
+        {
+            let pak_data = create_pak!($($rest)*);
+            let pak = Pak::load($name, pak_data).unwrap();
+            let pak_node = VfsInternalNode::new_from_pak(
+            pak,
+            VfsMetaData { ..Default::default() },);
+            pak_node
+        }
     };
 }
 
@@ -132,15 +161,7 @@ pub fn file_integration() -> Result<(), quakeworld::vfs::VfsError> {
 #[test]
 pub fn pak_integration() -> Result<(), quakeworld::vfs::VfsError> {
     let mut vfs = Vfs::default();
-
-    // mount the "tests/data/file1.data" under "/"
-    let file = match File::open("tests/data/test0.pak") {
-        Ok(file) => file,
-        Err(err) => panic!("{:?}", err),
-    };
-    let meta = file.metadata()?;
-    let pak = Pak::load("pak0.pak", file).unwrap();
-    let pak_node = VfsInternalNode::new_from_pak(pak, meta.into());
+    let pak_node = create_pak_node!("test0.pak", ("testfile.dat", b"deadbeef"));
     let pak_node_hash = pak_node.hash().clone();
     vfs.insert_node(pak_node, "test".try_into()?);
 
@@ -180,25 +201,11 @@ pub fn pak_integration() -> Result<(), quakeworld::vfs::VfsError> {
 pub fn hash_integration() -> Result<(), quakeworld::vfs::VfsError> {
     let mut vfs = Vfs::default();
 
-    // mount the "tests/data/test0.pak" under "/"
-    let file = match File::open("tests/data/test0.pak") {
-        Ok(file) => file,
-        Err(err) => panic!("{:?}", err),
-    };
-    let meta = file.metadata()?;
-    let pak = Pak::load("test0.pak", file).unwrap();
-    let pak_node = VfsInternalNode::new_from_pak(pak, meta.into());
+    let pak_node = create_pak_node!("test0.pak", ("testfile.dat", b"deadbeef"));
     let pak_0_node_hash = pak_node.hash().clone();
     vfs.insert_node(pak_node, "".try_into()?);
 
-    // mount the "tests/data/test0_reverse.pak" under "/"
-    let file = match File::open("tests/data/test0_reverse.pak") {
-        Ok(file) => file,
-        Err(err) => panic!("{:?}", err),
-    };
-    let meta = file.metadata()?;
-    let pak = Pak::load("testpak0_reverse.pak", file).unwrap();
-    let pak_node = VfsInternalNode::new_from_pak(pak, meta.into());
+    let pak_node = create_pak_node!("test0_reverse.pak", ("testfile.dat", b"beefdead"));
     let pak_0_reverse_node_hash = pak_node.hash().clone();
     vfs.insert_node(pak_node, "".try_into()?);
 
