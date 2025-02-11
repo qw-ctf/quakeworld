@@ -2,7 +2,7 @@ use std::io::Read;
 
 use crate::vfs::path::VfsPath;
 use crate::vfs::{
-    VfsEntry, VfsEntryFile, VfsHash, VfsQueryDirectory, VfsQueryFile, VfsRawData, VfsResult,
+    VfsEntry, VfsEntryFile, VfsHash, VfsQueryDirectory, VfsRawData, VfsResult,
 };
 
 use crate::vfs::VfsList;

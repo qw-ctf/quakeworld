@@ -148,6 +148,7 @@ impl Trace {
 }
 
 #[allow(unused)]
+#[macro_export]
 macro_rules! function {
     () => {{
         fn f() {}
@@ -161,6 +162,7 @@ macro_rules! function {
 #[allow(unused)]
 pub(crate) use function;
 
+#[macro_export]
 macro_rules! trace_start {
     ( $dr:ident, $name:expr, $field_name:expr) => {
         if let Some(trace) = &mut $dr.trace {
@@ -189,6 +191,7 @@ macro_rules! trace_start {
 }
 pub(crate) use trace_start;
 
+#[macro_export]
 macro_rules! trace_stop {
     ( $dr:ident, $value:expr, $valueType:ident) => {
         paste! {
@@ -214,6 +217,7 @@ macro_rules! trace_stop {
 }
 pub(crate) use trace_stop;
 
+#[macro_export]
 macro_rules! trace_annotate {
     ($dr:ident, $name:expr) => {
         if let Some(trace) = &mut $dr.trace {

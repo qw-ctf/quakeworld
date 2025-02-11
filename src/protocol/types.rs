@@ -6,7 +6,7 @@ use std::fmt;
 use strum_macros::Display;
 
 use crate::protocol::message::errors::*;
-use crate::protocol::message::trace::*;
+use crate::protocol::message::trace;
 use crate::protocol::message::*;
 
 use protocol_macros::ParseMessage;
@@ -42,8 +42,8 @@ pub struct DeltaUserCommand {
 
 impl DeltaUserCommand {
     pub fn read(message: &mut Message) -> Result<DeltaUserCommand, MessageError> {
-        trace_start!(message, false);
-        trace_annotate!(message, "bits");
+        trace::trace_start!(message, false);
+        trace::trace_annotate!(message, "bits");
         let bits = message.read_u8(false)?;
         let flags = UserCommandFlags::from_bits_truncate(bits);
         let mut angle = AngleVectorOption::empty();
@@ -53,76 +53,76 @@ impl DeltaUserCommand {
 
         if message.flags.protocol <= 26 {
             if flags.contains(UserCommandFlags::ANGLE1) {
-                trace_annotate!(message, "angle1");
+                trace::trace_annotate!(message, "angle1");
                 angle.x = Some(message.read_angle16(false)?);
             }
 
-            trace_annotate!(message, "angle2");
+            trace::trace_annotate!(message, "angle2");
             angle.y = Some(message.read_angle16(false)?);
             if flags.contains(UserCommandFlags::ANGLE3) {
-                trace_annotate!(message, "angle3");
+                trace::trace_annotate!(message, "angle3");
                 angle.z = Some(message.read_angle16(false)?);
             }
             if flags.contains(UserCommandFlags::FORWARD) {
-                trace_annotate!(message, "forward");
+                trace::trace_annotate!(message, "forward");
                 forward = Some((message.read_i8(false)? << 3) as i16);
             }
             if flags.contains(UserCommandFlags::SIDE) {
-                trace_annotate!(message, "side");
+                trace::trace_annotate!(message, "side");
                 side = Some((message.read_i8(false)? << 3) as i16);
             }
             if flags.contains(UserCommandFlags::UP) {
-                trace_annotate!(message, "up");
+                trace::trace_annotate!(message, "up");
                 up = Some((message.read_i8(false)? << 3) as i16);
             }
         } else {
             if flags.contains(UserCommandFlags::ANGLE1) {
-                trace_annotate!(message, "angle1");
+                trace::trace_annotate!(message, "angle1");
                 angle.x = Some(message.read_angle16(false)?);
             }
             if flags.contains(UserCommandFlags::ANGLE2) {
-                trace_annotate!(message, "angle2");
+                trace::trace_annotate!(message, "angle2");
                 angle.y = Some(message.read_angle16(false)?);
             }
             if flags.contains(UserCommandFlags::ANGLE3) {
-                trace_annotate!(message, "angle3");
+                trace::trace_annotate!(message, "angle3");
                 angle.z = Some(message.read_angle16(false)?);
             }
             if flags.contains(UserCommandFlags::FORWARD) {
-                trace_annotate!(message, "forward");
+                trace::trace_annotate!(message, "forward");
                 forward = Some(message.read_i16(false)?);
             }
             if flags.contains(UserCommandFlags::SIDE) {
-                trace_annotate!(message, "side");
+                trace::trace_annotate!(message, "side");
                 side = Some(message.read_i16(false)?);
             }
             if flags.contains(UserCommandFlags::UP) {
-                trace_annotate!(message, "up");
+                trace::trace_annotate!(message, "up");
                 up = Some(message.read_i16(false)?);
             }
         }
 
         let mut buttons: Option<u8> = None;
         if flags.contains(UserCommandFlags::BUTTONS) {
-            trace_annotate!(message, "buttons");
+            trace::trace_annotate!(message, "buttons");
             buttons = Some(message.read_u8(false)?);
         }
 
         let mut impulse: Option<u8> = None;
         if flags.contains(UserCommandFlags::IMPULSE) {
-            trace_annotate!(message, "impulse");
+            trace::trace_annotate!(message, "impulse");
             impulse = Some(message.read_u8(false)?);
         }
 
         let mut msec: Option<u8> = None;
         if message.flags.protocol <= 26 {
-            // ANGLE2 here is CM_MSEC in the original
+            // ANtrace::GLE2 here is CM_MSEC in the original
             if flags.contains(UserCommandFlags::ANGLE2) {
-                trace_annotate!(message, "angle2");
+                trace::trace_annotate!(message, "angle2");
                 msec = Some(message.read_u8(false)?);
             }
         } else {
-            trace_annotate!(message, "msec");
+            trace::trace_annotate!(message, "msec");
             msec = Some(message.read_u8(false)?);
         }
         let r = DeltaUserCommand {
@@ -136,7 +136,7 @@ impl DeltaUserCommand {
             msec,
         };
 
-        trace_stop!(message, r);
+        trace::trace_stop!(message, r);
         Ok(r)
     }
 }
@@ -377,9 +377,9 @@ impl Serverdata {
         let mut fte_protocol_extension_2 = FteProtocolExtensions2::empty();
         let mut mvd_protocol_extension = MvdProtocolExtensions::empty();
 
-        trace_start!(message, false);
+        trace::trace_start!(message, false);
         loop {
-            trace_annotate!(message, "protocol");
+            trace::trace_annotate!(message, "protocol");
             let p = message.read_u32(false)?;
             protocol = ProtocolVersion::try_from(p)?;
 
@@ -392,38 +392,38 @@ impl Serverdata {
                 }
                 ProtocolVersion::Standard => break,
                 ProtocolVersion::Mvd1 => {
-                    trace_annotate!(message, "mvd1");
+                    trace::trace_annotate!(message, "mvd1");
                     let u = message.read_u32(false)?;
                     mvd_protocol_extension = MvdProtocolExtensions::from_bits_truncate(u);
                     continue;
                 }
                 ProtocolVersion::Fte => {
-                    trace_annotate!(message, "fte");
+                    trace::trace_annotate!(message, "fte");
                     let u = message.read_u32(false)?;
                     fte_protocol_extension = FteProtocolExtensions::from_bits_truncate(u);
                     continue;
                 }
                 ProtocolVersion::Fte2 => {
-                    trace_annotate!(message, "fte2");
+                    trace::trace_annotate!(message, "fte2");
                     let u = message.read_u32(false)?;
                     fte_protocol_extension_2 = FteProtocolExtensions2::from_bits_truncate(u);
                     continue;
                 }
             }
         }
-        trace_annotate!(message, "servercount");
+        trace::trace_annotate!(message, "servercount");
         let servercount = message.read_u32(false)?;
-        trace_annotate!(message, "gamedir");
+        trace::trace_annotate!(message, "gamedir");
         let gamedir = message.read_stringbyte(false)?;
         let mut demotime: f32 = 0.0;
         let mut player_number: u8 = 0;
         match message.r#type {
             MessageType::Connection => {
-                trace_annotate!(message, "player_number");
+                trace::trace_annotate!(message, "player_number");
                 player_number = message.read_u8(false)?;
             }
             MessageType::Mvd => {
-                trace_annotate!(message, "demotime");
+                trace::trace_annotate!(message, "demotime");
                 demotime = message.read_f32(false)?;
             }
             _ => {
@@ -432,11 +432,11 @@ impl Serverdata {
                 ))
             }
         }
-        trace_annotate!(message, "map");
+        trace::trace_annotate!(message, "map");
         let map = message.read_stringbyte(false)?;
         let mut movevars: [f32; 10] = [0.0; 10];
         for mv in &mut movevars {
-            trace_annotate!(message, "movevar");
+            trace::trace_annotate!(message, "movevar");
             *mv = message.read_f32(false)?;
         }
 
@@ -452,7 +452,7 @@ impl Serverdata {
             map,
             movevars,
         });
-        trace_stop!(message, r);
+        trace::trace_stop!(message, r);
         Ok(r)
     }
 }
@@ -644,12 +644,12 @@ pub struct PlayerinfoConnection {
 }
 
 fn playerinfo_read_demo(message: &mut Message) -> Result<ServerMessage, MessageError> {
-    trace_annotate!(message, "player number");
+    trace::trace_annotate!(message, "player number");
     let player_number = message.read_u8(false)?;
-    trace_annotate!(message, "flags");
+    trace::trace_annotate!(message, "flags");
     let u = message.read_u16(false)?;
     let flags = DfTypes::from_bits_truncate(u);
-    trace_annotate!(message, "frame");
+    trace::trace_annotate!(message, "frame");
     let frame = message.read_u8(false)?;
     let mut origin = None;
     let mut origin_read = false;
@@ -667,15 +667,15 @@ fn playerinfo_read_demo(message: &mut Message) -> Result<ServerMessage, MessageE
             let f = message.read_coordinate(false)?;
             match i {
                 0 => {
-                    trace_annotate!(message, "origin x");
+                    trace::trace_annotate!(message, "origin x");
                     origin_vec.x = Some(f);
                 }
                 1 => {
-                    trace_annotate!(message, "origin y");
+                    trace::trace_annotate!(message, "origin y");
                     origin_vec.y = Some(f);
                 }
                 2 => {
-                    trace_annotate!(message, "origin z");
+                    trace::trace_annotate!(message, "origin z");
                     origin_vec.z = Some(f);
                 }
                 _ => return Err(MessageError::StringError("this is weird".to_string())),
@@ -700,17 +700,17 @@ fn playerinfo_read_demo(message: &mut Message) -> Result<ServerMessage, MessageE
             }
             match i {
                 0 => {
-                    trace_annotate!(message, "angle x");
+                    trace::trace_annotate!(message, "angle x");
                     let f = message.read_angle16(false)?;
                     angle_vec.x = Some(f);
                 }
                 1 => {
-                    trace_annotate!(message, "angle y");
+                    trace::trace_annotate!(message, "angle y");
                     let f = message.read_angle16(false)?;
                     angle_vec.y = Some(f);
                 }
                 2 => {
-                    trace_annotate!(message, "angle z");
+                    trace::trace_annotate!(message, "angle z");
                     let f = message.read_angle16(false)?;
                     angle_vec.z = Some(f);
                 }
@@ -724,28 +724,28 @@ fn playerinfo_read_demo(message: &mut Message) -> Result<ServerMessage, MessageE
 
     let mut model = None;
     if flags.contains(DfTypes::MODEL) {
-        trace_annotate!(message, "model");
+        trace::trace_annotate!(message, "model");
         let i = message.read_u8(false)?;
         model = Some(i);
     }
 
     let mut skinnum = None;
     if flags.contains(DfTypes::SKINNUM) {
-        trace_annotate!(message, "skinnum");
+        trace::trace_annotate!(message, "skinnum");
         let i = message.read_u8(false)?;
         skinnum = Some(i);
     }
 
     let mut effects = None;
     if flags.contains(DfTypes::EFFECTS) {
-        trace_annotate!(message, "effects");
+        trace::trace_annotate!(message, "effects");
         let i = message.read_u8(false)?;
         effects = Some(i);
     }
 
     let mut weaponframe = None;
     if flags.contains(DfTypes::WEAPONFRAME) {
-        trace_annotate!(message, "weaponframe");
+        trace::trace_annotate!(message, "weaponframe");
         let i = message.read_u8(false)?;
         weaponframe = Some(i);
     }
@@ -936,10 +936,10 @@ pub struct Packetentities {
 
 impl Packetentities {
     pub fn read(message: &mut Message) -> Result<ServerMessage, MessageError> {
-        trace_start!(message, false);
+        trace::trace_start!(message, false);
         let mut entities = Vec::new();
         loop {
-            trace_annotate!(message, "bits");
+            trace::trace_annotate!(message, "bits");
             let mut bits = message.read_u16(false)?;
             if bits == 0 {
                 break;
@@ -948,7 +948,7 @@ impl Packetentities {
             bits &= !511;
             let mut flags = UpdateTypes::from_bits_truncate(bits);
             if flags.contains(UpdateTypes::MOREBITS) {
-                trace_annotate!(message, "morebits");
+                trace::trace_annotate!(message, "morebits");
                 let morebits = message.read_u8(false)?;
                 bits |= morebits as u16;
                 flags = UpdateTypes::from_bits_truncate(bits);
@@ -961,35 +961,35 @@ impl Packetentities {
 
             let mut model = None;
             if flags.contains(UpdateTypes::MODEL) {
-                trace_annotate!(message, "model");
+                trace::trace_annotate!(message, "model");
                 let tmp = message.read_u8(false)? as u16;
                 model = Some(tmp);
             }
 
             let mut frame = None;
             if flags.contains(UpdateTypes::FRAME) {
-                trace_annotate!(message, "frame");
+                trace::trace_annotate!(message, "frame");
                 let tmp = message.read_u8(false)?;
                 frame = Some(tmp);
             }
 
             let mut colormap = None;
             if flags.contains(UpdateTypes::COLORMAP) {
-                trace_annotate!(message, "colormap");
+                trace::trace_annotate!(message, "colormap");
                 let tmp = message.read_u8(false)?;
                 colormap = Some(tmp);
             }
 
             let mut skin = None;
             if flags.contains(UpdateTypes::SKIN) {
-                trace_annotate!(message, "skin");
+                trace::trace_annotate!(message, "skin");
                 let tmp = message.read_u8(false)?;
                 skin = Some(tmp);
             }
 
             let mut effects = None;
             if flags.contains(UpdateTypes::EFFECTS) {
-                trace_annotate!(message, "effects");
+                trace::trace_annotate!(message, "effects");
                 let tmp = message.read_u8(false)?;
                 effects = Some(tmp);
             }
@@ -1001,37 +1001,37 @@ impl Packetentities {
             let mut angle_internal = AngleVectorOption::empty();
 
             if flags.contains(UpdateTypes::ORIGIN1) {
-                trace_annotate!(message, "origin.x");
+                trace::trace_annotate!(message, "origin.x");
                 let tmp = message.read_coordinate(false)?;
                 origin_internal.x = Some(tmp);
             }
 
             if flags.contains(UpdateTypes::ANGLE1) {
-                trace_annotate!(message, "angle.x");
+                trace::trace_annotate!(message, "angle.x");
                 let tmp = message.read_angle(false)?;
                 angle_internal.x = Some(tmp);
             }
 
             if flags.contains(UpdateTypes::ORIGIN2) {
-                trace_annotate!(message, "origin.y");
+                trace::trace_annotate!(message, "origin.y");
                 let tmp = message.read_coordinate(false)?;
                 origin_internal.y = Some(tmp);
             }
 
             if flags.contains(UpdateTypes::ANGLE2) {
-                trace_annotate!(message, "angle.y");
+                trace::trace_annotate!(message, "angle.y");
                 let tmp = message.read_angle(false)?;
                 angle_internal.y = Some(tmp);
             }
 
             if flags.contains(UpdateTypes::ORIGIN3) {
-                trace_annotate!(message, "origin.z");
+                trace::trace_annotate!(message, "origin.z");
                 let tmp = message.read_coordinate(false)?;
                 origin_internal.z = Some(tmp);
             }
 
             if flags.contains(UpdateTypes::ANGLE3) {
-                trace_annotate!(message, "angle.z");
+                trace::trace_annotate!(message, "angle.z");
                 let tmp = message.read_angle(false)?;
                 angle_internal.z = Some(tmp);
             }
@@ -1061,7 +1061,7 @@ impl Packetentities {
             entities.push(p);
         }
         let r = ServerMessage::Packetentities(Packetentities { entities });
-        trace_stop!(message, r);
+        trace::trace_stop!(message, r);
         Ok(r)
     }
 }
@@ -1082,7 +1082,7 @@ pub struct FteSpawnbaseline2 {
 
 impl FteSpawnbaseline2 {
     pub fn read(message: &mut Message) -> Result<ServerMessage, MessageError> {
-        trace_start!(message, false);
+        trace::trace_start!(message, false);
         let from = 0;
 
         let mut morebits = FteDeltaExtension::empty();
@@ -1251,7 +1251,7 @@ impl FteSpawnbaseline2 {
         };
 
         let v = ServerMessage::SpawnstaticFte2(SpawnstaticFte2 { from, entity: p });
-        trace_stop!(message, v);
+        trace::trace_stop!(message, v);
         Ok(v)
     }
 }
@@ -1264,18 +1264,18 @@ pub struct SpawnstaticFte2 {
 
 impl SpawnstaticFte2 {
     pub fn read(message: &mut Message) -> Result<ServerMessage, MessageError> {
-        trace_start!(message, false);
+        trace::trace_start!(message, false);
         let from = 0;
 
         let mut morebits = FteDeltaExtension::empty();
 
-        trace_annotate!(message, "bits");
+        trace::trace_annotate!(message, "bits");
         let mut bits = message.read_u16(false)?;
         let mut baseline_index = bits & 511;
         bits &= !511;
         let mut flags = UpdateTypes::from_bits_truncate(bits);
         if flags.contains(UpdateTypes::MOREBITS) {
-            trace_annotate!(message, "morebits");
+            trace::trace_annotate!(message, "morebits");
             let morebits = message.read_u8(false)?;
             bits |= morebits as u16;
             flags = UpdateTypes::from_bits_truncate(bits);
@@ -1283,10 +1283,10 @@ impl SpawnstaticFte2 {
 
         let cflags = UpdateTypes::from_bits_truncate(FteDeltaCheck::EVENMORE.bits());
         if flags.contains(cflags) {
-            trace_annotate!(message, "fte evenmore");
+            trace::trace_annotate!(message, "fte evenmore");
             let mut b = message.read_u8(false)? as u16;
             if b & FteDeltaExtension::YETMORE.bits() > 0 {
-                trace_annotate!(message, "fte yetmore");
+                trace::trace_annotate!(message, "fte yetmore");
                 let mb = message.read_u8(false)? as u16;
                 b |= mb << 8;
             }
@@ -1301,35 +1301,35 @@ impl SpawnstaticFte2 {
         let mut model = None;
         if flags.contains(UpdateTypes::MODEL) {
             #[cfg(feature = "trace")]
-            trace_annotate!(message, "model");
+            trace::trace_annotate!(message, "model");
             let tmp = message.read_u8(false)? as u16;
             model = Some(tmp);
         }
 
         let mut frame = None;
         if flags.contains(UpdateTypes::FRAME) {
-            trace_annotate!(message, "frame");
+            trace::trace_annotate!(message, "frame");
             let tmp = message.read_u8(false)?;
             frame = Some(tmp);
         }
 
         let mut colormap = None;
         if flags.contains(UpdateTypes::COLORMAP) {
-            trace_annotate!(message, "colormap");
+            trace::trace_annotate!(message, "colormap");
             let tmp = message.read_u8(false)?;
             colormap = Some(tmp);
         }
 
         let mut skin = None;
         if flags.contains(UpdateTypes::SKIN) {
-            trace_annotate!(message, "skin");
+            trace::trace_annotate!(message, "skin");
             let tmp = message.read_u8(false)?;
             skin = Some(tmp);
         }
 
         let mut effects = None;
         if flags.contains(UpdateTypes::EFFECTS) {
-            trace_annotate!(message, "effects");
+            trace::trace_annotate!(message, "effects");
             let tmp = message.read_u8(false)?;
             effects = Some(tmp);
         }
@@ -1341,37 +1341,37 @@ impl SpawnstaticFte2 {
         let mut angle_internal = AngleVectorOption::empty();
 
         if flags.contains(UpdateTypes::ORIGIN1) {
-            trace_annotate!(message, "origin1");
+            trace::trace_annotate!(message, "origin1");
             let tmp = message.read_coordinate(false)?;
             origin_internal.x = Some(tmp);
         }
 
         if flags.contains(UpdateTypes::ANGLE1) {
-            trace_annotate!(message, "angle1");
+            trace::trace_annotate!(message, "angle1");
             let tmp = message.read_angle(false)?;
             angle_internal.x = Some(tmp);
         }
 
         if flags.contains(UpdateTypes::ORIGIN2) {
-            trace_annotate!(message, "origin2");
+            trace::trace_annotate!(message, "origin2");
             let tmp = message.read_coordinate(false)?;
             origin_internal.y = Some(tmp);
         }
 
         if flags.contains(UpdateTypes::ANGLE2) {
-            trace_annotate!(message, "angle2");
+            trace::trace_annotate!(message, "angle2");
             let tmp = message.read_angle(false)?;
             angle_internal.y = Some(tmp);
         }
 
         if flags.contains(UpdateTypes::ORIGIN3) {
-            trace_annotate!(message, "origin3");
+            trace::trace_annotate!(message, "origin3");
             let tmp = message.read_coordinate(false)?;
             origin_internal.z = Some(tmp);
         }
 
         if flags.contains(UpdateTypes::ANGLE3) {
-            trace_annotate!(message, "angle3");
+            trace::trace_annotate!(message, "angle3");
             let tmp = message.read_angle(false)?;
             angle_internal.z = Some(tmp);
         }
@@ -1386,7 +1386,7 @@ impl SpawnstaticFte2 {
 
         let mut transparency = None;
         if morebits.contains(FteDeltaExtension::TRANS) {
-            trace_annotate!(message, "fte trans");
+            trace::trace_annotate!(message, "fte trans");
             transparency = Some(message.read_u8(false)?);
         }
 
@@ -1418,7 +1418,7 @@ impl SpawnstaticFte2 {
         };
 
         let v = ServerMessage::SpawnstaticFte2(SpawnstaticFte2 { from, entity: p });
-        trace_stop!(message, v);
+        trace::trace_stop!(message, v);
         Ok(v)
     }
 }
@@ -1431,12 +1431,12 @@ pub struct Deltapacketentities {
 
 impl Deltapacketentities {
     pub fn read(message: &mut Message) -> Result<ServerMessage, MessageError> {
-        trace_start!(message, false);
+        trace::trace_start!(message, false);
         let mut entities = Vec::new();
-        trace_annotate!(message, "from");
+        trace::trace_annotate!(message, "from");
         let from = message.read_u8(false)?;
         loop {
-            trace_annotate!(message, "bits");
+            trace::trace_annotate!(message, "bits");
             let mut bits = message.read_u16(false)?;
             if bits == 0 {
                 break;
@@ -1445,7 +1445,7 @@ impl Deltapacketentities {
             bits &= !511;
             let mut flags = UpdateTypes::from_bits_truncate(bits);
             if flags.contains(UpdateTypes::MOREBITS) {
-                trace_annotate!(message, "more bits");
+                trace::trace_annotate!(message, "more bits");
                 let morebits = message.read_u8(false)?;
                 bits |= morebits as u16;
                 flags = UpdateTypes::from_bits_truncate(bits);
@@ -1462,35 +1462,35 @@ impl Deltapacketentities {
 
             let mut model = None;
             if flags.contains(UpdateTypes::MODEL) {
-                trace_annotate!(message, "model");
+                trace::trace_annotate!(message, "model");
                 let tmp = message.read_u8(false)? as u16;
                 model = Some(tmp);
             }
 
             let mut frame = None;
             if flags.contains(UpdateTypes::FRAME) {
-                trace_annotate!(message, "frame");
+                trace::trace_annotate!(message, "frame");
                 let tmp = message.read_u8(false)?;
                 frame = Some(tmp);
             }
 
             let mut colormap = None;
             if flags.contains(UpdateTypes::COLORMAP) {
-                trace_annotate!(message, "colormap");
+                trace::trace_annotate!(message, "colormap");
                 let tmp = message.read_u8(false)?;
                 colormap = Some(tmp);
             }
 
             let mut skin = None;
             if flags.contains(UpdateTypes::SKIN) {
-                trace_annotate!(message, "skin");
+                trace::trace_annotate!(message, "skin");
                 let tmp = message.read_u8(false)?;
                 skin = Some(tmp);
             }
 
             let mut effects = None;
             if flags.contains(UpdateTypes::EFFECTS) {
-                trace_annotate!(message, "effects");
+                trace::trace_annotate!(message, "effects");
                 let tmp = message.read_u8(false)?;
                 effects = Some(tmp);
             }
@@ -1502,37 +1502,37 @@ impl Deltapacketentities {
             let mut angle_internal = AngleVectorOption::empty();
 
             if flags.contains(UpdateTypes::ORIGIN1) {
-                trace_annotate!(message, "origin1");
+                trace::trace_annotate!(message, "origin1");
                 let tmp = message.read_coordinate(false)?;
                 origin_internal.x = Some(tmp);
             }
 
             if flags.contains(UpdateTypes::ANGLE1) {
-                trace_annotate!(message, "angle1");
+                trace::trace_annotate!(message, "angle1");
                 let tmp = message.read_angle(false)?;
                 angle_internal.x = Some(tmp);
             }
 
             if flags.contains(UpdateTypes::ORIGIN2) {
-                trace_annotate!(message, "origin2");
+                trace::trace_annotate!(message, "origin2");
                 let tmp = message.read_coordinate(false)?;
                 origin_internal.z = Some(tmp);
             }
 
             if flags.contains(UpdateTypes::ANGLE2) {
-                trace_annotate!(message, "angle2");
+                trace::trace_annotate!(message, "angle2");
                 let tmp = message.read_angle(false)?;
                 angle_internal.y = Some(tmp);
             }
 
             if flags.contains(UpdateTypes::ORIGIN3) {
-                trace_annotate!(message, "origin3");
+                trace::trace_annotate!(message, "origin3");
                 let tmp = message.read_coordinate(false)?;
                 origin_internal.z = Some(tmp);
             }
 
             if flags.contains(UpdateTypes::ANGLE3) {
-                trace_annotate!(message, "angle3");
+                trace::trace_annotate!(message, "angle3");
                 let tmp = message.read_angle(false)?;
                 angle_internal.z = Some(tmp);
             }
@@ -1561,7 +1561,7 @@ impl Deltapacketentities {
             entities.push(p);
         }
         let v = ServerMessage::Deltapacketentities(Deltapacketentities { from, entities });
-        trace_stop!(message, v);
+        trace::trace_stop!(message, v);
         Ok(v)
     }
 }
@@ -1591,8 +1591,8 @@ pub struct Sound {
 
 impl Sound {
     pub fn read(message: &mut Message) -> Result<ServerMessage, MessageError> {
-        trace_start!(message, false);
-        trace_annotate!(message, "channel");
+        trace::trace_start!(message, false);
+        trace::trace_annotate!(message, "channel");
         let channel = message.read_u16(false)?;
         let mut volume = None;
         let mut attenuation = None;
@@ -1601,27 +1601,27 @@ impl Sound {
         };
 
         if channel & (1 << 15) == 1 << 15 {
-            trace_annotate!(message, "volume");
+            trace::trace_annotate!(message, "volume");
             let b = message.read_u8(false)?;
             volume = Some(b);
         }
 
         if channel & (1 << 14) == 1 << 14 {
-            trace_annotate!(message, "channel");
+            trace::trace_annotate!(message, "channel");
             let b = message.read_u8(false)?;
             attenuation = Some(b);
         }
 
         let entity = (channel >> 3) & 1023;
 
-        trace_annotate!(message, "index");
+        trace::trace_annotate!(message, "index");
         let index = message.read_u8(false)?;
 
-        trace_annotate!(message, "origin.x");
+        trace::trace_annotate!(message, "origin.x");
         origin.x = message.read_coordinate(false)?;
-        trace_annotate!(message, "origin.y");
+        trace::trace_annotate!(message, "origin.y");
         origin.y = message.read_coordinate(false)?;
-        trace_annotate!(message, "origin.x");
+        trace::trace_annotate!(message, "origin.x");
         origin.z = message.read_coordinate(false)?;
 
         let r = ServerMessage::Sound(Sound {
@@ -1632,7 +1632,7 @@ impl Sound {
             attenuation,
             origin,
         });
-        trace_stop!(message, r);
+        trace::trace_stop!(message, r);
         Ok(r)
     }
 }
@@ -1710,14 +1710,14 @@ pub struct Tempentity {
 
 impl Tempentity {
     pub fn read(message: &mut Message) -> Result<ServerMessage, MessageError> {
-        trace_start!(message, false);
-        trace_annotate!(message, "entity type");
+        trace::trace_start!(message, false);
+        trace::trace_annotate!(message, "entity type");
         let t = message.read_u8(false)?;
         let r#type = TempEntityType::try_from(t)?;
 
         let mut count = 0_i8;
         if r#type == TempEntityType::Gunshot || r#type == TempEntityType::Blood {
-            trace_annotate!(message, "count");
+            trace::trace_annotate!(message, "count");
             count = message.read_i8(false)?;
         }
 
@@ -1729,24 +1729,24 @@ impl Tempentity {
             || r#type == TempEntityType::Lightning2
             || r#type == TempEntityType::Lightning3
         {
-            trace_annotate!(message, "entity");
+            trace::trace_annotate!(message, "entity");
             entity = message.read_u16(false)?;
-            trace_annotate!(message, "start.x");
+            trace::trace_annotate!(message, "start.x");
             start.x = message.read_coordinate(false)?;
-            trace_annotate!(message, "start.y");
+            trace::trace_annotate!(message, "start.y");
             start.y = message.read_coordinate(false)?;
-            trace_annotate!(message, "start.z");
+            trace::trace_annotate!(message, "start.z");
             start.z = message.read_coordinate(false)?;
         }
 
         let mut origin = CoordinateVector {
             ..Default::default()
         };
-        trace_annotate!(message, "origin.x");
+        trace::trace_annotate!(message, "origin.x");
         origin.x = message.read_coordinate(false)?;
-        trace_annotate!(message, "origin.y");
+        trace::trace_annotate!(message, "origin.y");
         origin.y = message.read_coordinate(false)?;
-        trace_annotate!(message, "origin.z");
+        trace::trace_annotate!(message, "origin.z");
         origin.z = message.read_coordinate(false)?;
         let r = ServerMessage::Tempentity(Tempentity {
             r#type,
@@ -1755,7 +1755,7 @@ impl Tempentity {
             entity,
             count,
         });
-        trace_stop!(message, r);
+        trace::trace_stop!(message, r);
         Ok(r)
     }
 }

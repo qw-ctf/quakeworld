@@ -12,13 +12,11 @@ use crate::mvd::MvdFrame;
 use crate::protocol::message::{Message, Packet, ServerMessage};
 use crate::trace::{TraceBase, TraceEntry};
 
-#[derive(Serialize, Clone, Debug)]
-#[derive(Default)]
+#[derive(Serialize, Clone, Debug, Default)]
 pub struct TraceOptions {
     pub enabled: bool,
     pub depth_limit: u32,
 }
-
 
 #[derive(Serialize, Clone, Debug, Default)]
 pub struct ReadTrace {
@@ -266,7 +264,6 @@ macro_rules! trace_abort {
         }
     };
 }
-
 pub(crate) use trace_abort;
 
 macro_rules! trace_annotate {

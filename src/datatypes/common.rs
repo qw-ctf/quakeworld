@@ -104,6 +104,29 @@ pub enum DataType {
     QTV(crate::qtv::QtvType),
     VECTOR3GENERIC,
     BOUNDINGBOXGENERIC,
+    // these are just for testing
+    TESTSIZEDVECTORSIZEDSTRING(TestSizedVectorSizedString),
+    TESTSIZEDVECTORSIZED(TestSizedVectorSized),
+    // TESTSIZEDVECTORSTRING(TestSizedVectorString),
+    TESTSIZEDVECTORNAME(TestSizedVectorName),
+}
+
+#[derive(Serialize, Clone, Debug, DataTypeRead)]
+pub struct TestSizedVectorSizedString {
+    #[datatyperead(size = 16)]
+    pub data: Vec<u8>,
+}
+
+#[derive(Serialize, Clone, Debug, DataTypeRead)]
+pub struct TestSizedVectorSized {
+    #[datatyperead(size = 8, string)]
+    pub data: Vec<u8>,
+}
+
+#[derive(Serialize, Clone, Debug, DataTypeRead)]
+pub struct TestSizedVectorName {
+    #[datatyperead(size = "environment_size")]
+    pub data: Vec<u8>,
 }
 
 impl DataType {
@@ -164,3 +187,9 @@ pub struct Vertex {
     pub v: Vector3<u8>,
     pub normal_index: u8,
 }
+
+// #[derive(Serialize, Clone, Debug, DataTypeRead)]
+// pub struct SizedVector {
+//     pub capacity: usize,
+//     pub data: Vec<u8>,
+// }

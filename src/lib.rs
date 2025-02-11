@@ -7,6 +7,7 @@ extern crate simple_error;
 extern crate unstringify;
 
 pub mod datatypes;
+#[macro_use]
 pub mod trace;
 
 #[cfg(feature = "mvd")]

@@ -58,7 +58,7 @@ impl From<std::num::TryFromIntError> for PakError {
     }
 }
 
-static HEADER: u32 = 0x4b434150;
+static HEADER: u32 = 0x4b434150; // PACK
 const MAX_NAME_LENGTH: usize = 55;
 const NAME_LENGTH: u32 = 56;
 
