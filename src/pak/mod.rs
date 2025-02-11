@@ -203,6 +203,7 @@ impl PakWriter {
     }
 }
 
+#[macro_export]
 macro_rules! create_pak {
     ($(($name: expr, $data: expr)), *) => {{
         let mut pak = crate::pak::PakWriter::new();
