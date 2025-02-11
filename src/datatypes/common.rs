@@ -98,6 +98,7 @@ pub enum DataType {
     MDLHEADER(mdl::Header),
     GENERICSTRING(String),
     GENERICVECTOR(usize),
+    GENERICVECTORSTRING(usize),
     TRIANGLE(Triangle),
     TEXTURECOORDINATE(TextureCoordinate),
     VERTEX(Vertex),
@@ -113,7 +114,7 @@ pub enum DataType {
 
 #[derive(Serialize, Clone, Debug, DataTypeRead)]
 pub struct TestSizedVectorSizedString {
-    #[datatyperead(size = 16)]
+    #[datatyperead(size = 16, string)]
     pub data: Vec<u8>,
 }
 

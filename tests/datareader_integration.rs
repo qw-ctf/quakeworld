@@ -22,9 +22,9 @@ use protocol_macros::DataTypeBoundCheckDerive;
 use quakeworld::datatypes::common::DataType;
 
 #[test]
-pub fn sized_vector() -> Result<(), quakeworld::vfs::VfsError> {
+pub fn sized_vector_string_sized() -> Result<(), quakeworld::vfs::VfsError> {
+    // this ill read all 16 bytes but stop reading to the Vec when the first \0 is encountered
     let mut raw_data = b"deadbeef\0\0\0\0\0\0\0\0".to_vec();
-
     let mut datatypereader = DataTypeReader::new(
         raw_data.clone(),
         #[cfg(feature = "trace")]
@@ -37,9 +37,14 @@ pub fn sized_vector() -> Result<(), quakeworld::vfs::VfsError> {
             Ok(v) => v,
             Err(e) => panic!("{}", e),
         };
-    assert_eq!(sized_vector.data.len(), 16);
-    assert_eq!(sized_vector.data, raw_data);
+    assert_eq!(datatypereader.cursor.position(), 16);
+    assert_eq!(sized_vector.data.len(), 8);
+    assert_eq!(sized_vector.data, b"deadbeef");
+    Ok(())
+}
 
+#[test]
+pub fn sized_vector_sized() -> Result<(), quakeworld::vfs::VfsError> {
     let mut raw_data = b"deadbeef\0\0\0\0\0\0\0\0".to_vec();
 
     let mut datatypereader = DataTypeReader::new(
@@ -56,15 +61,35 @@ pub fn sized_vector() -> Result<(), quakeworld::vfs::VfsError> {
         };
     assert_eq!(sized_vector.data.len(), 8);
     assert_eq!(sized_vector.data, b"deadbeef");
+    Ok(())
+}
 
+#[test]
+pub fn sized_vector_sized_named_from_environment() -> Result<(), quakeworld::vfs::VfsError> {
     let mut raw_data = b"deadbeef\0\0\0\0\0\0\0\0".to_vec();
-
     let mut datatypereader = DataTypeReader::new(
         raw_data.clone(),
         #[cfg(feature = "trace")]
         trace,
     );
-    datatypereader.set_env("environment_size", 8);
+
+    // missing environment variable
+    let sized_vector =
+        match <quakeworld::datatypes::common::TestSizedVectorName as DataTypeRead>::read(
+            &mut datatypereader,
+        ) {
+            Ok(v) => panic!("we should have errord' here"),
+            Err(e) => {
+                if let DataTypeReaderError::EnvironmentVariableNotSet(v, s) = e {
+                    assert_eq!(v, "\"environment_size\"");
+                    assert_eq!(s, "TestSizedVectorName");
+                } else {
+                    panic!("encountered wrong error: {}", e);
+                }
+            }
+        };
+
+    datatypereader.set_env("environment_size", 12);
     let sized_vector =
         match <quakeworld::datatypes::common::TestSizedVectorName as DataTypeRead>::read(
             &mut datatypereader,
@@ -72,25 +97,8 @@ pub fn sized_vector() -> Result<(), quakeworld::vfs::VfsError> {
             Ok(v) => v,
             Err(e) => panic!("{}", e),
         };
-    assert_eq!(sized_vector.data.len(), 8);
-    assert_eq!(sized_vector.data, b"deadbeef");
+    assert_eq!(sized_vector.data.len(), 12);
+    assert_eq!(sized_vector.data, b"deadbeef\0\0\0\0");
 
-    let mut raw_data = b"deadbeef\0\0\0\0\0\0\0\0".to_vec();
-
-    let mut datatypereader = DataTypeReader::new(
-        raw_data.clone(),
-        #[cfg(feature = "trace")]
-        trace,
-    );
-    datatypereader.set_env("environment_size", 4);
-    let sized_vector =
-        match <quakeworld::datatypes::common::TestSizedVectorName as DataTypeRead>::read(
-            &mut datatypereader,
-        ) {
-            Ok(v) => v,
-            Err(e) => panic!("{}", e),
-        };
-    assert_eq!(sized_vector.data.len(), 4);
-    assert_eq!(sized_vector.data, b"dead");
     Ok(())
 }

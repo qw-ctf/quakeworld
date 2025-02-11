@@ -4,6 +4,11 @@ use syn::{parse_macro_input, DeriveInput, Type};
 
 use crate::helpers::*;
 
+/// derive macro for DataTypeRead
+///
+/// available attributes:
+///   string : the element is to be read as a string if no size attribute is set it will read till
+///   a 0 byte is encountered. if size is a
 pub fn datatyperead_derive(input: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree
     let ast = parse_macro_input!(input as DeriveInput);
@@ -43,7 +48,6 @@ pub fn datatyperead_derive(input: TokenStream) -> TokenStream {
     //     // }
     // }
 
-    let generic_general = String::new();
     // Extract field names and types
     let fields = if let syn::Data::Struct(data_struct) = &ast.data {
         if let syn::Fields::Named(fields) = &data_struct.fields {
@@ -52,7 +56,7 @@ pub fn datatyperead_derive(input: TokenStream) -> TokenStream {
                 .iter()
                 .map(|f| {
                     let ft = &f.ty;
-                    let qt = quote! {#ft};
+                    let _qt = quote! {#ft};
                     let mut generic_field_type = "".to_string();
                     // extract generic type
                     if let Type::Path(path) = ft {
@@ -81,14 +85,13 @@ pub fn datatyperead_derive(input: TokenStream) -> TokenStream {
                     let mut do_size_env = false;
                     let mut size_env: String = "".to_string();
                     // check if we have datatype read attributes
-                    // "string" signifies that the field should be cast to a GENERICSTRING
+                    // if string and size is set reading will stop at the first \0
                     let (_, tag_value) = check_tag_value(&f.attrs, "datatyperead");
-                    let _ = tag_value.get("string").is_some();
+                    let do_string = tag_value.get("string").is_some();
                     // "size" has multiple options:
                     //  - if its an Int the vector will be read to the specified size
                     //  - if its a Str vector size will be pulled from the datareader environment
-                    let tv = tag_value.get("size");
-                    let do_size = if let Some(v) = tv {
+                    let do_size = if let Some(v) = tag_value.get("size") {
                         match  v {
                             syn::Lit::Int(value) => {
                                 if let Ok(parsed_value) = value.base10_parse::<usize>() {
@@ -118,6 +121,10 @@ pub fn datatyperead_derive(input: TokenStream) -> TokenStream {
                     let id = format_ident!("{}", format!("{}_{}", qi, qt).replace(&[ '<', '>', ' ' ][..], "_"));
 
                     let read = if do_size {
+                        let read_type = match do_string {
+                            true => format_ident!("read_exact_generic_string"),
+                            false => format_ident!("read_exact_generic"),
+                        };
                         if do_size_env {
                         quote! {
                             trace_annotate!(datareader, #vi);
@@ -125,16 +132,21 @@ pub fn datatyperead_derive(input: TokenStream) -> TokenStream {
                                 Some(value) => {
                                     value.into()
                                 }
-                                None => {panic!("datareader environtment \"{}\" not set", #size_env);}
+                                None => {
+                                    return Err(
+                                        DataTypeReaderError::EnvironmentVariableNotSet(
+                                            stringify!(#size_env).to_string(),
+                                            stringify!(#struct_name).to_string()));
+                                }
                             };
                             let mut #id: #ty = Vec::with_capacity(size);
-                            datareader.read_exact_generic(&mut #id)?;
+                            datareader. #read_type (&mut #id)?;
                         }
                         } else {
                             quote! {
                                 trace_annotate!(datareader, #vi);
                                 let mut #id: #ty = Vec::with_capacity(#size);
-                                datareader.read_exact_string(&mut #id)?;
+                                datareader. #read_type (&mut #id)?;
                             }
                         }
                     } else {

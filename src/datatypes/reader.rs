@@ -26,6 +26,8 @@ pub enum DataTypeReaderError {
     BoundCheckError(u64, u64, u64, u64),
     #[error("not implemented for this type")]
     NotImplemented,
+    #[error("environment variable ({0}) not set for ({1})")]
+    EnvironmentVariableNotSet(String, String),
 }
 // DataTypeReader: implements a generic parser for structs
 pub struct DataTypeReader<'a> {
@@ -60,6 +62,27 @@ impl DataTypeReader<'_> {
         Ok(())
     }
 
+    pub fn read_exact_generic_string(
+        &mut self,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), DataTypeReaderError> {
+        let n = buf.capacity();
+        println!("test");
+        trace_start!(self, format!("Vec<u8>[{}]", n));
+        let mut null_terminated = false;
+        for i in 0..n {
+            let b = <u8 as DataTypeRead>::read(self)?;
+            if b == 0 {
+                null_terminated = true;
+            }
+            if !null_terminated {
+                buf.push(b);
+            }
+        }
+        trace_stop!(self, DataType::GENERICVECTORSTRING(i));
+        Ok(())
+    }
+
     pub fn read_exact_string(&mut self, buf: &mut Vec<u8>) -> Result<(), DataTypeReaderError> {
         let n = buf.capacity();
         trace_start!(self, format!("Vec<u8>[{}]", n));
@@ -69,6 +92,7 @@ impl DataTypeReader<'_> {
         trace_stop!(self, DataType::GENERICSTRING(buf.ascii_string()));
         Ok(())
     }
+
     pub fn set_env<T: IntoDataTypeReaderEnv>(&mut self, name: impl Into<String>, value: T) {
         self.env.insert(name.into(), value.into());
     }
