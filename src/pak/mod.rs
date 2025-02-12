@@ -16,18 +16,16 @@ use crate::trace::Trace;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("read error")]
-    ParseError,
-    #[error("header mismath: expected {0}, got {1}")]
-    HeaderError(u32, u32),
-    #[error("io error {0}")]
-    IoError(std::io::Error),
-    #[error("utf8 error {0}")]
-    UtfConversionError(std::string::FromUtf8Error),
-    #[error("from int error {0}")]
-    IntConversionError(std::num::TryFromIntError),
-    #[error("supplied file name is longer than {0} >= {1}")]
-    NameLengthError(usize, usize),
+    #[error("header mismath: {0} != {1}")]
+    HeaderMismatch(u32, u32),
+    #[error("io {0}")]
+    Io(std::io::Error),
+    #[error("from utf8 {0}")]
+    UtfConversion(std::string::FromUtf8Error),
+    #[error("try from int {0}")]
+    IntConversion(std::num::TryFromIntError),
+    #[error("supplied file name is longer than {0} > {1}")]
+    MaxNameLength(usize, usize),
     #[error("write length mismatch expected: {0}, got: {1}")]
     WriteLength(usize, usize),
     #[error("datareadererror: {0}")]
@@ -36,7 +34,7 @@ pub enum Error {
 
 impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Error {
-        Error::IoError(err)
+        Error::Io(err)
     }
 }
 
@@ -48,13 +46,13 @@ impl From<DataTypeReaderError> for Error {
 
 impl From<std::string::FromUtf8Error> for Error {
     fn from(err: std::string::FromUtf8Error) -> Error {
-        Error::UtfConversionError(err)
+        Error::UtfConversion(err)
     }
 }
 
 impl From<std::num::TryFromIntError> for Error {
     fn from(err: std::num::TryFromIntError) -> Error {
-        Error::IntConversionError(err)
+        Error::IntConversion(err)
     }
 }
 
@@ -83,7 +81,7 @@ impl Pak {
         let mut data = Vec::new();
         match reader.read_to_end(&mut data) {
             Ok(size) => size,
-            Err(err) => return Err(Error::IoError(err)),
+            Err(err) => return Err(Error::Io(err)),
         };
         Pak::parse(
             name,
@@ -109,7 +107,7 @@ impl Pak {
         header.check_bounds(&mut datatypereader)?;
 
         if header.version != HEADER {
-            return Err(Error::HeaderError(header.version, HEADER));
+            return Err(Error::HeaderMismatch(header.version, HEADER));
         }
 
         let file_count = header.directory_offset.size / (NAME_LENGTH + 4 * 2);
@@ -171,7 +169,7 @@ impl PakWriter {
 
     pub fn file_add(&mut self, name: Vec<u8>, mut data: impl Read) -> PakResult<()> {
         if name.len() > MAX_NAME_LENGTH {
-            return Err(Error::NameLengthError(name.len(), MAX_NAME_LENGTH));
+            return Err(Error::MaxNameLength(name.len(), MAX_NAME_LENGTH));
         }
         let mut file_data = Vec::new();
 
