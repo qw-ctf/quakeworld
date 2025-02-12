@@ -9,20 +9,16 @@ use thiserror::Error;
 use crate::trace::Trace;
 
 #[derive(Error, Debug)]
-pub enum BspError {
-    #[error("read error")]
-    ReadError,
-    #[error("parse error: {0}")]
-    ParseError(String),
-    #[error("io error {0}")]
-    IoError(std::io::Error),
+pub enum Error {
+    #[error("io {0}")]
+    Io(std::io::Error),
     #[error("datatypereader error: {0}")]
-    DataTypeReaderError(DataTypeReaderError),
+    DataTypeReader(DataTypeReaderError),
 }
 
-impl From<DataTypeReaderError> for BspError {
-    fn from(err: DataTypeReaderError) -> BspError {
-        BspError::DataTypeReaderError(err)
+impl From<DataTypeReaderError> for Error {
+    fn from(err: DataTypeReaderError) -> Error {
+        Error::DataTypeReader(err)
     }
 }
 
@@ -31,11 +27,13 @@ pub struct Bsp {
     header: bsp::Header,
 }
 
+pub type Result<T> = core::result::Result<T, Error>;
+
 impl Bsp {
     pub fn parse(
         data: Vec<u8>,
         #[cfg(feature = "trace")] trace: Option<&mut Trace>,
-    ) -> Result<Self, BspError> {
+    ) -> Result<Self> {
         let mut datatypereader = DataTypeReader::new(
             data,
             #[cfg(feature = "trace")]

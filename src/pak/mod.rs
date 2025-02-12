@@ -70,14 +70,14 @@ pub struct Pak {
     pub files: Vec<pak::File>,
 }
 
-type PakResult<T> = core::result::Result<T, Error>;
+type Result<T> = core::result::Result<T, Error>;
 
 impl Pak {
     pub fn load(
         name: impl Into<String>,
         mut reader: impl Read,
         #[cfg(feature = "trace")] trace: Option<&mut Trace>,
-    ) -> PakResult<Pak> {
+    ) -> Result<Pak> {
         let mut data = Vec::new();
         match reader.read_to_end(&mut data) {
             Ok(size) => size,
@@ -95,7 +95,7 @@ impl Pak {
         name: impl Into<String>,
         data: impl Into<Vec<u8>>,
         #[cfg(feature = "trace")] trace: Option<&mut Trace>,
-    ) -> PakResult<Pak> {
+    ) -> Result<Pak> {
         let name = name.into();
         let data = data.into();
         let mut datatypereader = DataTypeReader::new(
@@ -126,7 +126,7 @@ impl Pak {
         Ok(p)
     }
 
-    pub fn get_data(&self, file: &pak::File) -> PakResult<Vec<u8>> {
+    pub fn get_data(&self, file: &pak::File) -> Result<Vec<u8>> {
         let mut cursor = Cursor::new(&self.data);
         let size: usize = file.size.try_into()?;
         let mut buf = vec![0; size];
@@ -167,7 +167,7 @@ impl PakWriter {
         PakWriter { files: Vec::new() }
     }
 
-    pub fn file_add(&mut self, name: Vec<u8>, mut data: impl Read) -> PakResult<()> {
+    pub fn file_add(&mut self, name: Vec<u8>, mut data: impl Read) -> Result<()> {
         if name.len() > MAX_NAME_LENGTH {
             return Err(Error::MaxNameLength(name.len(), MAX_NAME_LENGTH));
         }
@@ -181,7 +181,7 @@ impl PakWriter {
         Ok(())
     }
 
-    pub fn write_data(self) -> PakResult<Vec<u8>> {
+    pub fn write_data(self) -> Result<Vec<u8>> {
         let mut buffer: Vec<u8> = Vec::new();
         let mut c = Cursor::new(&mut buffer);
         c.write_all(&HEADER.to_le_bytes())?;

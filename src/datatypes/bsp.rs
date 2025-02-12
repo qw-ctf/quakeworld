@@ -14,6 +14,7 @@ use crate::datatypes::common::{DataType, DirectoryEntry};
 
 /// BSP related structs
 /// BSP Header
+///https://www.gamers.org/dEngine/quake/spec/quake-spec34/qkspec_4.htm
 #[derive(Serialize, Clone, Debug, Copy, DataTypeRead, DataTypeBoundCheckDerive)]
 #[datatyperead(prefix = "bsp")]
 pub struct Header {

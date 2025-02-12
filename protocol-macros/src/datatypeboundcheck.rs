@@ -38,7 +38,7 @@ pub fn datatype_bound_check_derive(input: TokenStream) -> TokenStream {
     // Generate the implementation
     let gen = quote! {
         impl DataTypeBoundCheck for #struct_name {
-            fn check_bounds(&self, datareader: &mut DataTypeReader) -> Result<(), DataTypeReaderError> {
+            fn check_bounds(&self, datareader: &mut DataTypeReader) -> core::result::Result<(), DataTypeReaderError> {
                 #(#fields)*
                 Ok(())
             }

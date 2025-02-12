@@ -14,24 +14,24 @@ pub mod meta;
 use meta::VfsMetaData;
 
 #[derive(Error, Debug)]
-pub enum VfsError {
+pub enum Error {
     #[error("read error")]
     ParseError,
     #[error("node not found")]
     NodeNotFoundError,
     #[error("io error: {0}")]
-    IoError(#[from] std::io::Error),
+    Io(#[from] std::io::Error),
     #[error("node ({0}) not found")]
-    NodeHashNotFoundError(String),
+    NodeHashNotFoun(String),
     #[error("file ({0}) not found")]
     FileNotFound(VfsQueryFile),
     #[error("pak error: {0}")]
     PakError(#[from] crate::pak::Error),
-    #[error("infallive {0}")]
+    #[error("infallible: {0}")]
     InfallibleError(#[from] Infallible),
 }
 
-pub type VfsResult<T> = Result<T, VfsError>;
+pub type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Serialize, Debug, Clone)]
 pub struct FileEntry<'a> {
@@ -218,8 +218,8 @@ impl Display for VfsQueryFile {
 }
 
 pub trait VfsNode: std::fmt::Debug {
-    fn list(&self, path: &VfsQueryDirectory) -> VfsResult<VfsList>;
-    fn read(&self, path: &VfsQueryFile) -> VfsResult<VfsRawData>;
+    fn list(&self, path: &VfsQueryDirectory) -> Result<VfsList>;
+    fn read(&self, path: &VfsQueryFile) -> Result<VfsRawData>;
     fn compare(&self, hash: &VfsHash) -> bool;
     fn hash(&self) -> &VfsHash;
     fn boxed(self) -> Box<dyn VfsNode>;
@@ -244,18 +244,18 @@ impl Vfs {
         let n = node.boxed();
         self.nodes.push(VfsNodeEntry { node: n, path });
     }
-    pub fn remove_node(&mut self, node: impl VfsNode) -> VfsResult<()> {
+    pub fn remove_node(&mut self, node: impl VfsNode) -> Result<()> {
         let node_hash = node.hash();
         let index = match self.nodes.iter().position(|x| x.node.hash() == node_hash) {
             Some(i) => i,
-            None => return Err(VfsError::NodeNotFoundError),
+            None => return Err(Error::NodeNotFoundError),
         };
         self.nodes.remove(index);
         Ok(())
     }
 
     /// list all entries in a directory
-    pub fn list(&self, directory: VfsQueryDirectory) -> VfsResult<Vec<VfsList>> {
+    pub fn list(&self, directory: VfsQueryDirectory) -> Result<Vec<VfsList>> {
         let mut entries = vec![];
         for n in &self.nodes {
             // if !directory.path.starts_with(&n.path) {
@@ -286,7 +286,7 @@ impl Vfs {
         Ok(entries)
     }
 
-    pub fn read(&self, file: VfsQueryFile, node_hash: Option<VfsHash>) -> VfsResult<VfsRawData> {
+    pub fn read(&self, file: VfsQueryFile, node_hash: Option<VfsHash>) -> Result<VfsRawData> {
         for node in &self.nodes {
             let mut file_path = file.clone();
             file_path.path = file_path.path.subtract(&node.path);
@@ -304,9 +304,9 @@ impl Vfs {
             };
         }
         if let Some(node_hash) = node_hash {
-            Err(VfsError::NodeHashNotFoundError(node_hash))
+            Err(Error::NodeHashNotFoun(node_hash))
         } else {
-            Err(VfsError::FileNotFound(file.clone()))
+            Err(Error::FileNotFound(file.clone()))
         }
     }
 }

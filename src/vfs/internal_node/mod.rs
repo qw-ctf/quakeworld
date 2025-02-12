@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::vfs::{VfsEntry, VfsHash, VfsNode, VfsPath, VfsRawData, VfsResult};
+use crate::vfs::{Result, VfsEntry, VfsHash, VfsNode, VfsPath, VfsRawData};
 use uuid::Uuid;
 
 use super::{meta::VfsMetaData, VfsQueryDirectory, VfsQueryFile};
@@ -86,7 +86,7 @@ impl VfsInternalNode {
 }
 
 impl VfsNode for VfsInternalNode {
-    fn list(&self, path: &VfsQueryDirectory) -> VfsResult<VfsList> {
+    fn list(&self, path: &VfsQueryDirectory) -> Result<VfsList> {
         match &self.data {
             VfsInternalNodeType::None => todo!(),
             VfsInternalNodeType::File(f) => file::list(f, path, self.hash()),
@@ -95,7 +95,7 @@ impl VfsNode for VfsInternalNode {
         }
     }
 
-    fn read(&self, path: &VfsQueryFile) -> VfsResult<VfsRawData> {
+    fn read(&self, path: &VfsQueryFile) -> Result<VfsRawData> {
         match &self.data {
             VfsInternalNodeType::None => todo!(),
             VfsInternalNodeType::File(f) => file::read(f),

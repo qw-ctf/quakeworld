@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use crate::{
     pak,
     vfs::{
-        meta::VfsMetaData, path::VfsPath, VfsEntry, VfsEntryDirectory, VfsEntryFile, VfsError,
-        VfsHash, VfsQueryDirectory, VfsQueryFile, VfsRawData, VfsResult,
+        meta::VfsMetaData, path::VfsPath, Error, Result, VfsEntry, VfsEntryDirectory, VfsEntryFile,
+        VfsHash, VfsQueryDirectory, VfsQueryFile, VfsRawData,
     },
 };
 
@@ -25,7 +25,7 @@ pub struct PakAbstraction {
 }
 
 // TODO: this seems to be far too complex for what it does
-pub fn list(pak: &PakAbstraction, path: &VfsQueryDirectory, hash: &VfsHash) -> VfsResult<VfsList> {
+pub fn list(pak: &PakAbstraction, path: &VfsQueryDirectory, hash: &VfsHash) -> Result<VfsList> {
     let mut entries = vec![];
     let mut found_directories: HashMap<String, usize> = HashMap::new();
 
@@ -69,7 +69,7 @@ pub fn list(pak: &PakAbstraction, path: &VfsQueryDirectory, hash: &VfsHash) -> V
     })
 }
 
-pub fn read(pak: &PakAbstraction, path: &VfsQueryFile, _hash: &VfsHash) -> VfsResult<VfsRawData> {
+pub fn read(pak: &PakAbstraction, path: &VfsQueryFile, _hash: &VfsHash) -> Result<VfsRawData> {
     for f in &pak.files {
         // println!(
         //     "we are here? -- ({}) ({}) {}",
@@ -83,5 +83,5 @@ pub fn read(pak: &PakAbstraction, path: &VfsQueryFile, _hash: &VfsHash) -> VfsRe
             return Ok(d);
         }
     }
-    Err(VfsError::FileNotFound(path.clone()))
+    Err(Error::FileNotFound(path.clone()))
 }

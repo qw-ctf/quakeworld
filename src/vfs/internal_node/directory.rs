@@ -4,15 +4,15 @@ use std::{
 };
 
 use crate::vfs::{
-    VfsEntry, VfsEntryDirectory, VfsEntryFile, VfsHash, VfsQueryDirectory, VfsQueryFile,
-    VfsRawData, VfsResult,
+    Result, VfsEntry, VfsEntryDirectory, VfsEntryFile, VfsHash, VfsQueryDirectory, VfsQueryFile,
+    VfsRawData,
 };
 
 use super::VfsList;
 
 pub type Directory = std::path::PathBuf;
 
-pub fn list(directory: &Directory, path: &VfsQueryDirectory, hash: &VfsHash) -> VfsResult<VfsList> {
+pub fn list(directory: &Directory, path: &VfsQueryDirectory, hash: &VfsHash) -> Result<VfsList> {
     // println!("++++++++++\n{:?}\n{:?}\n----------", directory, path);
     let mut return_entries = vec![];
     let mut d = directory.clone();
@@ -55,7 +55,7 @@ pub fn list(directory: &Directory, path: &VfsQueryDirectory, hash: &VfsHash) -> 
     })
 }
 
-pub fn read(file: &Directory, path: &VfsQueryFile, _hash: &VfsHash) -> VfsResult<VfsRawData> {
+pub fn read(file: &Directory, path: &VfsQueryFile, _hash: &VfsHash) -> Result<VfsRawData> {
     let mut filename = file.clone();
     for p in &path.path.nodes {
         let s: &str = p;

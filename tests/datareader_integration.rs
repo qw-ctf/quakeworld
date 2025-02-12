@@ -22,7 +22,7 @@ use protocol_macros::DataTypeBoundCheckDerive;
 use quakeworld::datatypes::common::DataType;
 
 #[test]
-pub fn sized_vector_string_sized() -> Result<(), quakeworld::vfs::VfsError> {
+pub fn sized_vector_string_sized() -> Result<(), quakeworld::vfs::Error> {
     // this ill read all 16 bytes but stop reading to the Vec when the first \0 is encountered
     let mut raw_data = b"deadbeef\0\0\0\0\0\0\0\0".to_vec();
     let mut datatypereader = DataTypeReader::new(
@@ -44,7 +44,7 @@ pub fn sized_vector_string_sized() -> Result<(), quakeworld::vfs::VfsError> {
 }
 
 #[test]
-pub fn sized_vector_sized() -> Result<(), quakeworld::vfs::VfsError> {
+pub fn sized_vector_sized() -> Result<(), quakeworld::vfs::Error> {
     let mut raw_data = b"deadbeef\0\0\0\0\0\0\0\0".to_vec();
 
     let mut datatypereader = DataTypeReader::new(
@@ -65,7 +65,7 @@ pub fn sized_vector_sized() -> Result<(), quakeworld::vfs::VfsError> {
 }
 
 #[test]
-pub fn sized_vector_sized_named_from_environment() -> Result<(), quakeworld::vfs::VfsError> {
+pub fn sized_vector_sized_named_from_environment() -> Result<(), quakeworld::vfs::Error> {
     let mut raw_data = b"deadbeef\0\0\0\0\0\0\0\0".to_vec();
     let mut datatypereader = DataTypeReader::new(
         raw_data.clone(),

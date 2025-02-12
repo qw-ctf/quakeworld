@@ -1,8 +1,7 @@
 use std::{fmt::Display, rc::Rc};
 
 /// Internal Path Definitions
-use crate::vfs::VfsResult;
-
+use crate::vfs::Result;
 
 #[derive(Clone, Debug, Default)]
 pub struct VfsPath {
@@ -38,7 +37,7 @@ impl From<VfsPath> for String {
 }
 
 impl VfsPath {
-    pub fn new(path: &str) -> VfsResult<VfsPath> {
+    pub fn new(path: &str) -> Result<VfsPath> {
         let mut nodes = vec![];
         let p = std::path::Path::new(path);
         for component in p.components() {
@@ -153,7 +152,7 @@ impl VfsPath {
 mod tests {
     use crate::vfs::path::VfsPath;
     #[test]
-    pub fn starts_with() -> Result<(), crate::vfs::VfsError> {
+    pub fn starts_with() -> Result<(), crate::vfs::Error> {
         // first path longer
         let p = VfsPath::new("test/problem")?;
         let p1 = VfsPath::new("test/")?;
@@ -188,7 +187,7 @@ mod tests {
     }
 
     #[test]
-    pub fn subtract() -> Result<(), crate::vfs::VfsError> {
+    pub fn subtract() -> Result<(), crate::vfs::Error> {
         let p = VfsPath::new("test/problem")?;
         let p1 = VfsPath::new("test/")?;
         let p_new = p.subtract(&p1);
@@ -197,14 +196,14 @@ mod tests {
     }
 
     #[test]
-    pub fn as_string() -> Result<(), crate::vfs::VfsError> {
+    pub fn as_string() -> Result<(), crate::vfs::Error> {
         let p = VfsPath::new("/test/problem///")?;
         assert_eq!(p.as_string(), "test/problem");
         Ok(())
     }
 
     #[test]
-    pub fn extend() -> Result<(), crate::vfs::VfsError> {
+    pub fn extend() -> Result<(), crate::vfs::Error> {
         let mut p = VfsPath::new("/test/")?;
         let p1 = VfsPath::new("/problem/solves")?;
         p.extend(&p1);
@@ -213,7 +212,7 @@ mod tests {
     }
 
     #[test]
-    pub fn push() -> Result<(), crate::vfs::VfsError> {
+    pub fn push() -> Result<(), crate::vfs::Error> {
         let mut p = VfsPath::new("/test/")?;
         p.push("problem".to_string());
         assert_eq!(p.as_string(), "test/problem");
@@ -221,14 +220,14 @@ mod tests {
     }
 
     #[test]
-    pub fn new() -> Result<(), crate::vfs::VfsError> {
+    pub fn new() -> Result<(), crate::vfs::Error> {
         let p = VfsPath::new("//test//problem")?;
         assert_eq!(p.as_string(), "test/problem");
         Ok(())
     }
 
     #[test]
-    pub fn diff() -> Result<(), crate::vfs::VfsError> {
+    pub fn diff() -> Result<(), crate::vfs::Error> {
         let p = VfsPath::new("/test/expected")?;
         let p1 = VfsPath::new("/test/")?;
         let p_diff = p.diff(&p1, 0);
@@ -247,7 +246,7 @@ mod tests {
     }
 
     #[test]
-    pub fn equals() -> Result<(), crate::vfs::VfsError> {
+    pub fn equals() -> Result<(), crate::vfs::Error> {
         let p = VfsPath::new("/test/error")?;
         let p1 = VfsPath::new("/test/")?;
         assert_eq!(p.equals(&p1), false);
@@ -259,7 +258,7 @@ mod tests {
     }
 
     #[test]
-    pub fn equals_string() -> Result<(), crate::vfs::VfsError> {
+    pub fn equals_string() -> Result<(), crate::vfs::Error> {
         let path_str = "test/path";
         let path: VfsPath = path_str.try_into()?;
         let path_compare: VfsPath = path_str.try_into()?;

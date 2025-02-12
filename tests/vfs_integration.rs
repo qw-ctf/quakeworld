@@ -66,7 +66,7 @@ macro_rules! create_pak_node {
 }
 
 #[test]
-pub fn directory_integration() -> Result<(), quakeworld::vfs::VfsError> {
+pub fn directory_integration() -> Result<(), quakeworld::vfs::Error> {
     let mut vfs = Vfs::default();
 
     // mount the "tests"" directory under "some/path""
@@ -103,7 +103,7 @@ pub fn directory_integration() -> Result<(), quakeworld::vfs::VfsError> {
 }
 
 #[test]
-pub fn file_integration() -> Result<(), quakeworld::vfs::VfsError> {
+pub fn file_integration() -> Result<(), quakeworld::vfs::Error> {
     let mut vfs = Vfs::default();
 
     // mount the "tests/data/file1.data" under "/"
@@ -159,7 +159,7 @@ pub fn file_integration() -> Result<(), quakeworld::vfs::VfsError> {
 }
 
 #[test]
-pub fn pak_integration() -> Result<(), quakeworld::vfs::VfsError> {
+pub fn pak_integration() -> Result<(), quakeworld::vfs::Error> {
     let mut vfs = Vfs::default();
     let pak_node = create_pak_node!("test0.pak", ("testfile.dat", b"deadbeef"));
     let pak_node_hash = pak_node.hash().clone();
@@ -198,7 +198,7 @@ pub fn pak_integration() -> Result<(), quakeworld::vfs::VfsError> {
 }
 
 #[test]
-pub fn hash_integration() -> Result<(), quakeworld::vfs::VfsError> {
+pub fn hash_integration() -> Result<(), quakeworld::vfs::Error> {
     let mut vfs = Vfs::default();
 
     let pak_node = create_pak_node!("test0.pak", ("testfile.dat", b"deadbeef"));
@@ -254,7 +254,7 @@ pub fn hash_integration() -> Result<(), quakeworld::vfs::VfsError> {
 }
 
 #[test]
-pub fn conversion_integration() -> Result<(), quakeworld::vfs::VfsError> {
+pub fn conversion_integration() -> Result<(), quakeworld::vfs::Error> {
     let path: VfsPath = "this/is/a/test".try_into()?;
     // conversion from path into String
     assert!(path.equals_string("this/is/a/test"));

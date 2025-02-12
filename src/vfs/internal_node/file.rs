@@ -1,9 +1,7 @@
 use std::io::Read;
 
 use crate::vfs::path::VfsPath;
-use crate::vfs::{
-    VfsEntry, VfsEntryFile, VfsHash, VfsQueryDirectory, VfsRawData, VfsResult,
-};
+use crate::vfs::{Result, VfsEntry, VfsEntryFile, VfsHash, VfsQueryDirectory, VfsRawData};
 
 use crate::vfs::VfsList;
 
@@ -11,7 +9,7 @@ use crate::vfs::VfsList;
 // pub struct File {}
 pub type File = std::path::PathBuf;
 
-pub fn read(file: &File) -> VfsResult<VfsRawData> {
+pub fn read(file: &File) -> Result<VfsRawData> {
     let mut f = std::fs::File::open(file)?;
     let metadata = std::fs::metadata(file)?;
     let mut buffer = vec![0; metadata.len() as usize];
@@ -19,7 +17,7 @@ pub fn read(file: &File) -> VfsResult<VfsRawData> {
     Ok(buffer)
 }
 
-pub fn list(file: &File, path: &VfsQueryDirectory, hash: &VfsHash) -> VfsResult<VfsList> {
+pub fn list(file: &File, path: &VfsQueryDirectory, hash: &VfsHash) -> Result<VfsList> {
     let mut entries = vec![];
 
     if let Ok(metadata) = std::fs::metadata(file) {
