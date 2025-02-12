@@ -14,8 +14,8 @@ use crate::datatypes::reader::{
 #[cfg(feature = "trace")]
 use crate::trace::Trace;
 
-#[derive(Error, Debug)]
-pub enum PakError {
+#[derive(Debug, Error)]
+pub enum Error {
     #[error("read error")]
     ParseError,
     #[error("header mismath: expected {0}, got {1}")]
@@ -34,32 +34,32 @@ pub enum PakError {
     DataTypeReaderError(DataTypeReaderError),
 }
 
-impl From<std::io::Error> for PakError {
-    fn from(err: std::io::Error) -> PakError {
-        PakError::IoError(err)
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Error {
+        Error::IoError(err)
     }
 }
 
-impl From<DataTypeReaderError> for PakError {
-    fn from(err: DataTypeReaderError) -> PakError {
-        PakError::DataTypeReaderError(err)
+impl From<DataTypeReaderError> for Error {
+    fn from(err: DataTypeReaderError) -> Error {
+        Error::DataTypeReaderError(err)
     }
 }
 
-impl From<std::string::FromUtf8Error> for PakError {
-    fn from(err: std::string::FromUtf8Error) -> PakError {
-        PakError::UtfConversionError(err)
+impl From<std::string::FromUtf8Error> for Error {
+    fn from(err: std::string::FromUtf8Error) -> Error {
+        Error::UtfConversionError(err)
     }
 }
 
-impl From<std::num::TryFromIntError> for PakError {
-    fn from(err: std::num::TryFromIntError) -> PakError {
-        PakError::IntConversionError(err)
+impl From<std::num::TryFromIntError> for Error {
+    fn from(err: std::num::TryFromIntError) -> Error {
+        Error::IntConversionError(err)
     }
 }
 
 static HEADER: u32 = 0x4b434150; // PACK
-const MAX_NAME_LENGTH: usize = 55;
+pub const MAX_NAME_LENGTH: usize = 55;
 const NAME_LENGTH: u32 = 56;
 
 pub type File = pak::File;
@@ -72,18 +72,18 @@ pub struct Pak {
     pub files: Vec<pak::File>,
 }
 
-type PakResult = Result<Pak, PakError>;
+type PakResult<T> = core::result::Result<T, Error>;
 
 impl Pak {
     pub fn load(
         name: impl Into<String>,
         mut reader: impl Read,
         #[cfg(feature = "trace")] trace: Option<&mut Trace>,
-    ) -> PakResult {
+    ) -> PakResult<Pak> {
         let mut data = Vec::new();
         match reader.read_to_end(&mut data) {
             Ok(size) => size,
-            Err(err) => return Err(PakError::IoError(err)),
+            Err(err) => return Err(Error::IoError(err)),
         };
         Pak::parse(
             name,
@@ -97,7 +97,7 @@ impl Pak {
         name: impl Into<String>,
         data: impl Into<Vec<u8>>,
         #[cfg(feature = "trace")] trace: Option<&mut Trace>,
-    ) -> PakResult {
+    ) -> PakResult<Pak> {
         let name = name.into();
         let data = data.into();
         let mut datatypereader = DataTypeReader::new(
@@ -107,6 +107,10 @@ impl Pak {
         );
         let header = <pak::Header as DataTypeRead>::read(&mut datatypereader)?;
         header.check_bounds(&mut datatypereader)?;
+
+        if header.version != HEADER {
+            return Err(Error::HeaderError(header.version, HEADER));
+        }
 
         let file_count = header.directory_offset.size / (NAME_LENGTH + 4 * 2);
 
@@ -124,7 +128,7 @@ impl Pak {
         Ok(p)
     }
 
-    pub fn get_data(&self, file: &pak::File) -> Result<Vec<u8>, PakError> {
+    pub fn get_data(&self, file: &pak::File) -> PakResult<Vec<u8>> {
         let mut cursor = Cursor::new(&self.data);
         let size: usize = file.size.try_into()?;
         let mut buf = vec![0; size];
@@ -165,9 +169,9 @@ impl PakWriter {
         PakWriter { files: Vec::new() }
     }
 
-    pub fn file_add(&mut self, name: Vec<u8>, mut data: impl Read) -> Result<(), PakError> {
+    pub fn file_add(&mut self, name: Vec<u8>, mut data: impl Read) -> PakResult<()> {
         if name.len() > MAX_NAME_LENGTH {
-            return Err(PakError::NameLengthError(name.len(), MAX_NAME_LENGTH));
+            return Err(Error::NameLengthError(name.len(), MAX_NAME_LENGTH));
         }
         let mut file_data = Vec::new();
 
@@ -179,7 +183,7 @@ impl PakWriter {
         Ok(())
     }
 
-    pub fn write_data(self) -> Result<Vec<u8>, PakError> {
+    pub fn write_data(self) -> PakResult<Vec<u8>> {
         let mut buffer: Vec<u8> = Vec::new();
         let mut c = Cursor::new(&mut buffer);
         c.write_all(&HEADER.to_le_bytes())?;
@@ -206,7 +210,7 @@ impl PakWriter {
 #[macro_export]
 macro_rules! create_pak {
     ($(($name: expr, $data: expr)), *) => {{
-        let mut pak = crate::pak::PakWriter::new();
+        let mut pak = PakWriter::new();
         $(
             pak.file_add($name.to_string().into(), &$data[..]);
         )*
@@ -216,8 +220,9 @@ macro_rules! create_pak {
 
 #[cfg(test)]
 mod tests {
+    use crate::pak::PakWriter;
     #[test]
-    pub fn pak_creation_and_reading() -> Result<(), crate::pak::PakError> {
+    pub fn pak_creation_and_reading() -> Result<(), crate::pak::Error> {
         const FILE1_NAME: &str = "dir/file1";
         const FILE1_DATA: &[u8; 8] = b"01234567";
         const FILE2_NAME: &str = "dir_a/file2";

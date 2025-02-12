@@ -67,7 +67,6 @@ impl DataTypeReader<'_> {
         buf: &mut Vec<u8>,
     ) -> Result<(), DataTypeReaderError> {
         let n = buf.capacity();
-        println!("test");
         trace_start!(self, format!("Vec<u8>[{}]", n));
         let mut null_terminated = false;
         for i in 0..n {

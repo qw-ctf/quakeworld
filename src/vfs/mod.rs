@@ -3,7 +3,6 @@ use std::{convert::Infallible, fmt::Display, io::Write, path::Path};
 use thiserror::Error;
 use time::OffsetDateTime;
 
-
 use internal_node::VfsList;
 
 pub mod internal_node;
@@ -27,7 +26,7 @@ pub enum VfsError {
     #[error("file ({0}) not found")]
     FileNotFound(VfsQueryFile),
     #[error("pak error: {0}")]
-    PakError(#[from] crate::pak::PakError),
+    PakError(#[from] crate::pak::Error),
     #[error("infallive {0}")]
     InfallibleError(#[from] Infallible),
 }
