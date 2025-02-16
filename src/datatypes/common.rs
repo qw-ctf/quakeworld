@@ -23,6 +23,7 @@ pub trait AsciiString {
 
 /// A vector or position
 #[derive(Serialize, Clone, Debug, Copy, DataTypeRead, Default)]
+#[datatyperead(ommit_func = datatype_size)]
 pub struct Vector3<T: DataTypeRead + 'static>
 where
     T: Clone,
@@ -33,8 +34,14 @@ where
 }
 
 impl<T: std::clone::Clone + DataTypeRead> DataTypeSize for Vector3<T> {
-    fn datatypereader_size(&self) -> usize {
+    fn datatype_size() -> usize {
         return std::mem::size_of::<T>() * 3;
+    }
+}
+
+impl<T: DataTypeSize> DataTypeSize for Vec<T> {
+    fn datatype_size() -> usize {
+        <T as DataTypeSize>::datatype_size()
     }
 }
 
@@ -57,6 +64,12 @@ where
 //         DataType::VECTOR3
 //     }
 // }
+//
+// impl<T> DataTypeSize for Vector3<T> {
+//     fn datatype_size(&self) -> usize {
+//         std::mem::size_of::<T>() * 3
+//     }
+// }
 
 impl AsciiString for Vec<u8> {
     fn ascii_string(&self) -> String {
@@ -67,8 +80,8 @@ impl AsciiString for Vec<u8> {
 
 /// Bounding box
 #[derive(Serialize, Clone, Debug, Copy, Default, DataTypeRead)]
-// #[datatyperead(types("Vertex", "u8"))]
-pub struct BoundingBox<T: DataTypeRead + 'static>
+// #[datatyperead(ommit_func=datatype_size)]
+pub struct BoundingBox<T: DataTypeRead + DataTypeSize + 'static>
 where
     T: Clone,
 {
@@ -196,7 +209,7 @@ pub struct Plane {
 
 #[derive(Serialize, Clone, Debug, DataTypeRead, Default)]
 pub struct TextureHeader {
-    #[datatyperead(environment = "count")]
+    #[datatyperead(environment)]
     pub count: i32, // texture count
     #[datatyperead(size_from = "count")]
     pub offsets: Vec<i32>,
@@ -233,10 +246,10 @@ pub struct Texture {
 #[derive(Serialize, Clone, Debug, DataTypeRead, Default)]
 pub struct Bsp {
     pub header: bsp::Header,
-    #[datatyperead(size_offset_from = "environment", size_from = 14)]
+    #[datatyperead(size_offset_from, size=modulo_self_environment)]
     pub planes: Vec<Plane>,
-    // #[datatyperead(size=once)]
-    // pub textures: TextureHeader,
+    #[datatyperead(offset_from)]
+    pub textures: TextureHeader,
     // #[datatyperead(size_from_directory_entry)]
     // pub textures: Vec<Texture>,
 }

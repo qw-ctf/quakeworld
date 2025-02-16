@@ -40,6 +40,7 @@ impl Bsp {
         );
         // read the header
         let bsp = <Bsp as DataTypeRead>::read(&mut datatypereader)?;
+        println!("{:?}", bsp.textures);
 
         // println!("something: {:?}", bsp.textures);
         // let texture_data = <crate::datatypes::common::TextureHeader

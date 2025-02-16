@@ -1,5 +1,5 @@
 use crate::datatypes::reader::{
-    DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeReaderError,
+    DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeReaderError, DataTypeSize,
 };
 use paste::paste;
 use protocol_macros::DataTypeRead;

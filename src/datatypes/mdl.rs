@@ -5,7 +5,7 @@ use protocol_macros::DataTypeRead;
 use serde::Serialize;
 
 use crate::datatypes::common::{BoundingBox, DataType, Vector3, Vertex};
-use crate::datatypes::reader::{DataTypeRead, DataTypeReader, DataTypeReaderError};
+use crate::datatypes::reader::{DataTypeRead, DataTypeReader, DataTypeReaderError, DataTypeSize};
 use crate::trace::{trace_annotate, trace_start, trace_stop};
 
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead)]

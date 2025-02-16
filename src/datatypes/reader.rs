@@ -243,10 +243,10 @@ pub trait DataTypeRead: Sized {
 }
 
 pub trait DataTypeSize: Sized {
-    fn datatypereader_size(&self) -> usize;
+    fn datatype_size() -> usize;
 }
 
-impl DataTypeRead for Vec<Vertex> {}
+// impl DataTypeRead for Vec<Vertex> {}
 
 // Bound checking trait
 pub trait DataTypeBoundCheck {
@@ -293,6 +293,12 @@ macro_rules! datatypereader_generate_base_type {
     ($($ty:ty), *) => {
         $(
         paste! {
+        impl DataTypeSize for $ty {
+            fn datatype_size () -> usize {
+                std::mem::size_of::<$ty>()
+            }
+        }
+
         impl DataTypeRead for $ty {
             fn  [< read >] (datareader: &mut DataTypeReader,) ->  Result<$ty, DataTypeReaderError> {
                 const TYPE_SIZE:usize = std::mem::size_of::<$ty>();
@@ -324,6 +330,7 @@ macro_rules! datatypereader_generate_base_type {
                 let name = name.into();
                 datatypereader.set_env(name, self.clone());
             }
+
         }
         })*
         }

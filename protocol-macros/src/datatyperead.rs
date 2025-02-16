@@ -1,7 +1,9 @@
-
-
 use syn::{
-    braced, parenthesized, parse::{Parse, ParseStream}, punctuated::Punctuated, spanned::Spanned, token, Attribute, Expr, PathSegment, Token
+    braced, parenthesized,
+    parse::{Parse, ParseStream},
+    punctuated::Punctuated,
+    spanned::Spanned,
+    token, Attribute, Expr, PathSegment, Token,
 };
 
 use proc_macro::{Delimiter, Ident, Span, TokenStream};
@@ -19,11 +21,11 @@ use syn::parse::Parser;
 * offset_from = String // pull the offset from the environment
 */
 
-
 #[derive(Default, PartialEq, Eq)]
 enum OffsetParsed {
     #[default]
     None,
+    Auto,
     Int(syn::LitInt),
     Str(syn::LitStr),
 }
@@ -31,16 +33,24 @@ enum OffsetParsed {
 impl From<&SizeOffset> for OffsetParsed {
     fn from(value: &SizeOffset) -> Self {
         match value {
-            SizeOffset::None| SizeOffset::SizeInt(_) |SizeOffset::SizeStr(_) => OffsetParsed::None,
+            SizeOffset::None
+            | SizeOffset::SizeInt(_)
+            | SizeOffset::SizeStr(_)
+            | SizeOffset::SizeAuto => OffsetParsed::None,
             SizeOffset::OffsetInt(lit_int) => OffsetParsed::Int(lit_int.clone()),
             SizeOffset::OffsetStr(lit_str) => OffsetParsed::Str(lit_str.clone()),
-            SizeOffset::SizeOffsetStrStr(lit_str, _)|  SizeOffset::SizeOffsetStrInt(lit_str, _) => OffsetParsed::Str(lit_str.clone()),
-            SizeOffset::SizeOffsetIntStr(lit_int, _) | SizeOffset::SizeOffsetIntInt(lit_int, _) => OffsetParsed::Int(lit_int.clone()),
+            SizeOffset::SizeOffsetStrStr(lit_str, _) | SizeOffset::SizeOffsetStrInt(lit_str, _) => {
+                OffsetParsed::Str(lit_str.clone())
+            }
+            SizeOffset::SizeOffsetIntStr(lit_int, _) | SizeOffset::SizeOffsetIntInt(lit_int, _) => {
+                OffsetParsed::Int(lit_int.clone())
+            }
             SizeOffset::SizeOffsetStr(lit_str) => {
-                    let name_offset = format!("{}_offset", lit_str.value());
-                    let name_offset = syn::LitStr::new(&name_offset, lit_str.span());
+                let name_offset = format!("{}_offset", lit_str.value());
+                let name_offset = syn::LitStr::new(&name_offset, lit_str.span());
                 OffsetParsed::Str(name_offset)
-            },
+            }
+            SizeOffset::OffsetAuto | SizeOffset::SizeOffsetAuto => OffsetParsed::Auto,
         }
     }
 }
@@ -49,6 +59,7 @@ impl From<&SizeOffset> for OffsetParsed {
 enum SizeParsed {
     #[default]
     None,
+    Auto,
     Int(syn::LitInt),
     Str(syn::LitStr),
 }
@@ -56,27 +67,43 @@ enum SizeParsed {
 impl From<&SizeOffset> for SizeParsed {
     fn from(value: &SizeOffset) -> Self {
         match value {
-            SizeOffset::None| SizeOffset::OffsetInt(_) |SizeOffset::OffsetStr(_) => SizeParsed::None,
+            SizeOffset::None
+            | SizeOffset::OffsetInt(_)
+            | SizeOffset::OffsetStr(_)
+            | SizeOffset::OffsetAuto => SizeParsed::None,
             SizeOffset::SizeInt(lit_int) => SizeParsed::Int(lit_int.clone()),
             SizeOffset::SizeStr(lit_str) => SizeParsed::Str(lit_str.clone()),
-            SizeOffset::SizeOffsetStrStr(_, lit_str) | SizeOffset::SizeOffsetIntStr(_, lit_str) => SizeParsed::Str(lit_str.clone()),
-            SizeOffset::SizeOffsetIntInt(_, lit_int) | SizeOffset::SizeOffsetStrInt(_, lit_int) => SizeParsed::Int(lit_int.clone()),
+            SizeOffset::SizeOffsetStrStr(_, lit_str) | SizeOffset::SizeOffsetIntStr(_, lit_str) => {
+                SizeParsed::Str(lit_str.clone())
+            }
+            SizeOffset::SizeOffsetIntInt(_, lit_int) | SizeOffset::SizeOffsetStrInt(_, lit_int) => {
+                SizeParsed::Int(lit_int.clone())
+            }
             SizeOffset::SizeOffsetStr(lit_str) => {
-                let name_size= format!("{}_size", lit_str.value());
-                let name_size= syn::LitStr::new(&name_size, lit_str.span());
-                SizeParsed::Str(name_size)},
+                let name_size = format!("{}_size", lit_str.value());
+                let name_size = syn::LitStr::new(&name_size, lit_str.span());
+                SizeParsed::Str(name_size)
+            }
+            SizeOffset::SizeAuto | SizeOffset::SizeOffsetAuto => SizeParsed::Auto,
         }
     }
+}
+
+#[derive(Default, PartialEq, Eq, Clone, Debug)]
+enum SizeRecalc {
+    #[default]
+    None,
+    ModuloSelfEnvironment,
 }
 
 #[derive(Default)]
 struct FieldAttributesParsed {
     pub treat_as_string: bool,
     pub size: SizeParsed,
+    pub size_recalc: SizeRecalc,
     pub offset: OffsetParsed,
     pub environment: Environment,
 }
-
 
 #[derive(Debug, Clone, Default)]
 enum StructDataType {
@@ -84,13 +111,13 @@ enum StructDataType {
     None,
     String(syn::LitStr),
     Ident(syn::Ident),
-
 }
 
 #[derive(Debug, Default, Clone)]
 struct StructAttr {
     pub prefix: Option<syn::LitStr>, // prefix for the struct
-    pub datatype: StructDataType, // datatype overwrite for the struct
+    pub datatype: StructDataType,    // datatype overwrite for the struct
+    pub ommit_datatype_size: bool,
 }
 
 impl Parse for StructAttr {
@@ -107,6 +134,7 @@ impl Parse for StructAttr {
             if input.is_empty() {
                 break;
             }
+
             let type_name: syn::Ident = input.parse()?;
             match type_name.to_string().as_str() {
                 "prefix" => {
@@ -117,11 +145,17 @@ impl Parse for StructAttr {
                             struct_attributes.prefix = Some(s);
                             continue;
                         }
-                        return Err(syn::Error::new(type_name.span(), format!("`{}` attribute does not support the value", type_name)))
+                        return Err(syn::Error::new(
+                            type_name.span(),
+                            format!("`{}` attribute does not support the value", type_name),
+                        ));
                     } else {
-                        return Err(syn::Error::new(type_name.span(), format!("`{}` attribute does not support the value", type_name)))
+                        return Err(syn::Error::new(
+                            type_name.span(),
+                            format!("`{}` attribute does not support the value", type_name),
+                        ));
                     }
-                },
+                }
                 "datatype" => {
                     if input.peek(Token![=]) {
                         let _: Option<Token![=]> = input.parse()?;
@@ -137,14 +171,49 @@ impl Parse for StructAttr {
                             continue;
                         }
 
-                        return Err(syn::Error::new(type_name.span(), format!("`{}` attribute does not support the value", type_name)))
+                        return Err(syn::Error::new(
+                            type_name.span(),
+                            format!("`{}` attribute does not support the value", type_name),
+                        ));
                     } else {
-                        return Err(syn::Error::new(type_name.span(), format!("`{}` attribute does not support the value", type_name)))
+                        return Err(syn::Error::new(
+                            type_name.span(),
+                            format!("`{}` attribute does not support the value", type_name),
+                        ));
                     }
-                },
+                }
+                "ommit_func" => {
+                    if !input.peek(Token![=]) {
+                        return Err(syn::Error::new(
+                            type_name.span(),
+                            format!("`{}` attribute does need a value", type_name),
+                        ));
+                    }
+                    let _: Option<Token![=]> = input.parse()?;
+                    if !input.peek(syn::Ident) {
+                        return Err(syn::Error::new(
+                            type_name.span(),
+                            format!("`{}` attribute value needs to be Ident", type_name),
+                        ));
+                    }
+
+                    let s: syn::Ident = input.parse()?;
+                    if let "datatype_size" = s.to_string().as_str() {
+                        struct_attributes.ommit_datatype_size = true;
+                        continue;
+                    }
+
+                    return Err(syn::Error::new(
+                        type_name.span(),
+                        format!("`{}` attribute value `{}` not supported", type_name, s),
+                    ));
+                }
                 _ => {
-                    return Err(syn::Error::new(type_name.span(), format!("`{}` attribute not supported", type_name)))
-                },
+                    return Err(syn::Error::new(
+                        type_name.span(),
+                        format!("`{}` attribute not supported", type_name),
+                    ))
+                }
             }
         }
         Ok(struct_attributes)
@@ -157,13 +226,16 @@ enum SizeOffset {
     None,
     SizeInt(syn::LitInt),
     SizeStr(syn::LitStr),
+    SizeAuto,
     OffsetInt(syn::LitInt),
     OffsetStr(syn::LitStr),
+    OffsetAuto,
     SizeOffsetStrStr(syn::LitStr, syn::LitStr),
     SizeOffsetStrInt(syn::LitStr, syn::LitInt),
     SizeOffsetIntStr(syn::LitInt, syn::LitStr),
     SizeOffsetIntInt(syn::LitInt, syn::LitInt),
     SizeOffsetStr(syn::LitStr),
+    SizeOffsetAuto,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -171,7 +243,7 @@ enum Environment {
     #[default]
     None,
     Auto,
-    String(syn::LitStr)
+    String(syn::LitStr),
 }
 
 #[derive(Debug, Clone)]
@@ -179,6 +251,7 @@ enum FieldAttribute {
     SizeOffset(SizeOffset),
     EnvironmentSet(Environment),
     String, // Parse a Vec<u8> as a string
+    SizeRecalc(SizeRecalc),
 }
 
 #[derive(Debug)]
@@ -206,62 +279,86 @@ impl Parse for FieldAttr {
                         let _: Option<Token![=]> = input.parse()?;
                         if input.peek(syn::LitStr) {
                             let s: syn::LitStr = input.parse()?;
-                            field_attributes.push(FieldAttribute::EnvironmentSet(Environment::String(s)));
+                            field_attributes
+                                .push(FieldAttribute::EnvironmentSet(Environment::String(s)));
                             continue;
                         }
-                        return Err(syn::Error::new(type_name.span(), format!("`{}` attribute does not support the value", type_name)))
+                        return Err(syn::Error::new(
+                            type_name.span(),
+                            format!("`{}` attribute does not support the value", type_name),
+                        ));
                     } else {
                         field_attributes.push(FieldAttribute::EnvironmentSet(Environment::Auto));
                         continue;
                     }
-                },
+                }
                 "string" => {
                     field_attributes.push(FieldAttribute::String);
-                },
+                }
                 "size_from" => {
                     if input.peek(Token![=]) {
                         let _: Option<Token![=]> = input.parse()?;
                         if input.peek(syn::LitInt) {
                             let i: syn::LitInt = input.parse()?;
-                            field_attributes.push(
-                                FieldAttribute::SizeOffset(
-                                    SizeOffset::SizeInt(i)));
+                            field_attributes
+                                .push(FieldAttribute::SizeOffset(SizeOffset::SizeInt(i)));
                             continue;
                         }
                         if input.peek(syn::LitStr) {
                             let s: syn::LitStr = input.parse()?;
-                            field_attributes.push(
-                                FieldAttribute::SizeOffset(
-                                    SizeOffset::SizeStr(s)));
+                            field_attributes
+                                .push(FieldAttribute::SizeOffset(SizeOffset::SizeStr(s)));
                             continue;
                         }
-                        return Err(syn::Error::new(type_name.span(), format!("`{}` attribute does not support the value", type_name)))
+
+                        if input.peek(syn::Ident) {
+                            let i: syn::Ident = input.parse()?;
+                            // field_attributes.push(
+                            //     FieldAttribute::SizeOffset(
+                            //         SizeOffset::SizeStr(s)));
+                            continue;
+                        }
+                        return Err(syn::Error::new(
+                            type_name.span(),
+                            format!("`{}` attribute does not support the value", type_name),
+                        ));
+                    } else if input.is_empty() || input.peek(Token![,]) {
+                        field_attributes.push(FieldAttribute::SizeOffset(SizeOffset::SizeAuto));
                     } else {
-                        return Err(syn::Error::new(type_name.span(), format!("`{}` attribute needs a = value", type_name)))
+                        return Err(syn::Error::new(
+                            type_name.span(),
+                            format!("`{}` attribute needs a = value", type_name),
+                        ));
                     }
-                },
+                }
                 "offset_from" => {
                     if input.peek(Token![=]) {
                         let _: Option<Token![=]> = input.parse()?;
                         if input.peek(syn::LitInt) {
                             let i: syn::LitInt = input.parse()?;
-                            field_attributes.push(
-                                FieldAttribute::SizeOffset(
-                                    SizeOffset::OffsetInt(i)));
+                            field_attributes
+                                .push(FieldAttribute::SizeOffset(SizeOffset::OffsetInt(i)));
                             continue;
                         }
                         if input.peek(syn::LitStr) {
                             let s: syn::LitStr = input.parse()?;
-                            field_attributes.push(
-                                FieldAttribute::SizeOffset(
-                                    SizeOffset::OffsetStr(s)));
+                            field_attributes
+                                .push(FieldAttribute::SizeOffset(SizeOffset::OffsetStr(s)));
                             continue;
                         }
-                        return Err(syn::Error::new(type_name.span(), format!("`{}` attribute does not support the value", type_name)))
+                        return Err(syn::Error::new(
+                            type_name.span(),
+                            format!("`{}` attribute does not support the value", type_name),
+                        ));
+                    } else if input.is_empty() || input.peek(Token![,]) {
+                        field_attributes.push(FieldAttribute::SizeOffset(SizeOffset::OffsetAuto));
                     } else {
-                        return Err(syn::Error::new(type_name.span(), format!("`{}` attribute needs a = value", type_name)))
+                        return Err(syn::Error::new(
+                            type_name.span(),
+                            format!("`{}` attribute needs a = value", type_name),
+                        ));
                     }
-                },
+                }
                 "size_offset_from" => {
                     if input.peek(Token![=]) {
                         let _: Option<Token![=]> = input.parse()?;
@@ -274,69 +371,141 @@ impl Parse for FieldAttr {
                                 let _: Token![,] = content.parse()?;
                                 if content.peek(syn::LitInt) {
                                     let second_field_int: syn::LitInt = content.parse()?;
-                                    field_attributes.push(
-                                        FieldAttribute::SizeOffset(
-                                            SizeOffset::SizeOffsetIntInt(
-                                                first_field_int,
-                                                second_field_int)));
+                                    field_attributes.push(FieldAttribute::SizeOffset(
+                                        SizeOffset::SizeOffsetIntInt(
+                                            first_field_int,
+                                            second_field_int,
+                                        ),
+                                    ));
                                     continue;
                                 }
                                 if content.peek(syn::LitStr) {
                                     let second_field_str: syn::LitStr = content.parse()?;
-                                    field_attributes.push(
-                                        FieldAttribute::SizeOffset(
-                                            SizeOffset::SizeOffsetIntStr(
-                                                first_field_int,
-                                                second_field_str)));
+                                    field_attributes.push(FieldAttribute::SizeOffset(
+                                        SizeOffset::SizeOffsetIntStr(
+                                            first_field_int,
+                                            second_field_str,
+                                        ),
+                                    ));
                                     continue;
                                 }
-                                return Err(syn::Error::new(type_name.span(), format!("`{}` attribute first value supplied is wrong", type_name)))
+                                return Err(syn::Error::new(
+                                    type_name.span(),
+                                    format!(
+                                        "`{}` attribute first value supplied is wrong",
+                                        type_name
+                                    ),
+                                ));
                             } else if content.peek(syn::LitStr) {
                                 let first_field_str: syn::LitStr = content.parse()?;
                                 if content.peek(syn::LitInt) {
                                     let second_field_int: syn::LitInt = content.parse()?;
-                                    field_attributes.push(
-                                        FieldAttribute::SizeOffset(
-                                            SizeOffset::SizeOffsetStrInt(
-                                                first_field_str,
-                                                second_field_int)));
+                                    field_attributes.push(FieldAttribute::SizeOffset(
+                                        SizeOffset::SizeOffsetStrInt(
+                                            first_field_str,
+                                            second_field_int,
+                                        ),
+                                    ));
                                     continue;
                                 }
                                 if content.peek(syn::LitStr) {
                                     let second_field_str: syn::LitStr = content.parse()?;
-                                    field_attributes.push(
-                                        FieldAttribute::SizeOffset(
-                                            SizeOffset::SizeOffsetStrStr(
-                                                first_field_str,
-                                                second_field_str)));
+                                    field_attributes.push(FieldAttribute::SizeOffset(
+                                        SizeOffset::SizeOffsetStrStr(
+                                            first_field_str,
+                                            second_field_str,
+                                        ),
+                                    ));
                                     continue;
                                 }
-                                return Err(syn::Error::new(type_name.span(), format!("`{}` attribute second value supplied is wrong", type_name)))
+                                return Err(syn::Error::new(
+                                    type_name.span(),
+                                    format!(
+                                        "`{}` attribute second value supplied is wrong",
+                                        type_name
+                                    ),
+                                ));
                             }
-                            return Err(syn::Error::new(type_name.span(), format!("`{}` attribute does not support the value supplied", type_name)))
+                            return Err(syn::Error::new(
+                                type_name.span(),
+                                format!(
+                                    "`{}` attribute does not support the value supplied",
+                                    type_name
+                                ),
+                            ));
                         } else if input.peek(syn::LitInt) {
-                            return Err(syn::Error::new(type_name.span(), format!("`{}` attribute does not support the value supplied", type_name)))
+                            return Err(syn::Error::new(
+                                type_name.span(),
+                                format!(
+                                    "`{}` attribute does not support the value supplied",
+                                    type_name
+                                ),
+                            ));
                         } else if input.peek(syn::LitStr) {
                             let s = input.parse()?;
-                            field_attributes.push(
-                                FieldAttribute::SizeOffset(
-                                    SizeOffset::SizeOffsetStr(s)));
+                            field_attributes
+                                .push(FieldAttribute::SizeOffset(SizeOffset::SizeOffsetStr(s)));
                             continue;
                         }
-                        return Err(syn::Error::new(type_name.span(), format!("`{}` attribute does not support the value supplied", type_name)))
+                        return Err(syn::Error::new(
+                            type_name.span(),
+                            format!(
+                                "`{}` attribute does not support the value supplied",
+                                type_name
+                            ),
+                        ));
+                    } else if input.peek(Token![,]) || input.is_empty() {
+                        field_attributes
+                            .push(FieldAttribute::SizeOffset(SizeOffset::SizeOffsetAuto));
+                        continue;
                     } else {
-                        return Err(syn::Error::new(type_name.span(), format!("`{}` attribute needs a = value", type_name)))
+                        return Err(syn::Error::new(
+                            type_name.span(),
+                            format!("`{}` attribute needs a = value", type_name),
+                        ));
                     }
-                },
+                }
+                "size" => {
+                    if !input.peek(Token![=]) {
+                        return Err(syn::Error::new(
+                            type_name.span(),
+                            format!("`{}` attribute needs a = value", type_name),
+                        ));
+                    }
+                    let _: Option<Token![=]> = input.parse()?;
+                    if !input.peek(syn::Ident) {
+                        return Err(syn::Error::new(
+                            type_name.span(),
+                            format!("`{}` only accepts literals", type_name),
+                        ));
+                    }
+                    let ident: syn::Ident = input.parse()?;
+                    let s = ident.to_string();
+                    if let "modulo_self_environment" = s.as_str() {
+                        field_attributes.push(FieldAttribute::SizeRecalc(
+                            SizeRecalc::ModuloSelfEnvironment,
+                        ));
+                        continue;
+                    } else {
+                        return Err(syn::Error::new(
+                            type_name.span(),
+                            format!("`{}` not a valid `{}` option", s, type_name),
+                        ));
+                    }
+                }
                 _ => {
-                    return Err(syn::Error::new(type_name.span(), format!("`{}` attribute not supported", type_name)))
-                },
+                    return Err(syn::Error::new(
+                        type_name.span(),
+                        format!("`{}` attribute not supported", type_name),
+                    ))
+                }
             }
         }
-        Ok(FieldAttr { attributes: field_attributes})
+        Ok(FieldAttr {
+            attributes: field_attributes,
+        })
     }
 }
-
 
 #[derive(Debug)]
 struct FieldInformation {
@@ -358,38 +527,48 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     // check if we are implementing on a struct
     let data_struct = match input.data {
-        syn::Data::Struct(data_struct) => data_struct,  
+        syn::Data::Struct(data_struct) => data_struct,
         syn::Data::Enum(data_enum) => {
             return quote_spanned! {
                 data_enum.enum_token.span =>
                 compile_error!("DataTypeReader can only be used on structs not enums");
-            }.into()
-        },
+            }
+            .into()
+        }
         syn::Data::Union(data_union) => {
             return quote_spanned! {
                 data_union.union_token.span =>
                 compile_error!("DataTypeReader can only be used on structs not unions");
-            }.into()
-        },
+            }
+            .into()
+        }
     };
 
-    let mut struct_attrib=  StructAttr::default();
+    let mut struct_attrib = StructAttr::default();
     for attr in &input.attrs {
-        if !attr.path.is_ident("datatyperead"){continue;}
+        if !attr.path.is_ident("datatyperead") {
+            continue;
+        }
         // println!("{:?}", attr);
 
         let attr_span = attr.span();
         let a = attr.parse_args_with(Punctuated::<StructAttr, Token![,]>::parse_terminated);
-        if let Ok(sa) = a { struct_attrib = sa[0].clone() };
+        if let Ok(sa) = a {
+            struct_attrib = sa[0].clone()
+        };
     }
 
     if input.ident.clone() == "SizedVectorNameTest" {
-        println!("we are here right: {:?} {}", input.generics.params.first(), input.generics.params.first().is_some());
+        println!(
+            "we are here right: {:?} {}",
+            input.generics.params.first(),
+            input.generics.params.first().is_some()
+        );
     }
 
     let is_generic = input.generics.params.first().is_some();
 
-    let mut struct_information = StructInformation{
+    let mut struct_information = StructInformation {
         identifier: input.ident.clone(),
         generics: input.generics,
         is_generic,
@@ -400,23 +579,46 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
     // println!("{}", input.generics.params.to_token_stream());
     // println!("{}", struct_information);
     for field in data_struct.fields.iter() {
-        let field_span= field.span();
-        let field_ident = match &field.ident {
-            Some(f) => f.clone(),
-            None => {
-                return quote_spanned! {
+        // println!("{:?}", field.ty);
+        // match &field.ty {
+        //     Type::Array(type_array) => {}
+        //     Type::BareFn(type_bare_fn) => {}
+        //     Type::Group(type_group) => {}
+        //     Type::ImplTrait(type_impl_trait) => {}
+        //     Type::Infer(type_infer) => {}
+        //     Type::Macro(type_macro) => {}
+        //     Type::Never(type_never) => {}
+        //     Type::Paren(type_paren) => {}
+        //     Type::Path(type_path) => {
+        //         // println!("{:?}", type_path);
+        //     }
+        //     Type::Ptr(type_ptr) => {}
+        //     Type::Reference(type_reference) => {}
+        //     Type::Slice(type_slice) => {}
+        //     Type::TraitObject(type_trait_object) => {}
+        //     Type::Tuple(type_tuple) => {}
+        //     Type::Verbatim(token_stream) => {}
+        //     _ => {}
+        // };
+        let field_span = field.span();
+        let field_ident =
+            match &field.ident {
+                Some(f) => f.clone(),
+                None => return quote_spanned! {
                     field_span =>
                     compile_error!("DataTypeReader can only be used on structs with named fields");
-                }.into()
-            },
-        };
+                }
+                .into(),
+            };
 
-        let field_ty= field.ty.clone();
+        let field_ty = field.ty.clone();
 
-        let mut field_attributes: Vec<FieldAttribute>= vec![];
+        let mut field_attributes: Vec<FieldAttribute> = vec![];
 
         for attr in &field.attrs {
-            if !attr.path.is_ident("datatyperead"){continue;}
+            if !attr.path.is_ident("datatyperead") {
+                continue;
+            }
             let attr_span = attr.span();
             let a = attr.parse_args_with(Punctuated::<FieldAttr, Token![,]>::parse_terminated);
             match a {
@@ -424,20 +626,21 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
                     for attribute in a[0].attributes.clone() {
                         field_attributes.push(attribute);
                     }
-                },
+                }
                 Err(e) => {
                     let b = format!("{}", e);
                     return quote_spanned! {
                         attr_span =>
                         compile_error!(#b);
-                    }.into();
-                },
+                    }
+                    .into();
+                }
             };
         }
         struct_information.fields.push(FieldInformation {
             identifier: field_ident,
             ty: field_ty,
-            attributes: field_attributes
+            attributes: field_attributes,
         });
     }
     // println!("we here?: {:?}", struct_information);
@@ -446,20 +649,25 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
         Some(e) => e.value().clone().to_uppercase(),
         None => "".to_string(),
     };
-    let struct_name = struct_information.identifier.clone().to_string().to_uppercase();
+    let struct_name = struct_information
+        .identifier
+        .clone()
+        .to_string()
+        .to_uppercase();
     // let (_, generic_types, _) = struct_information.generics.split_for_impl();
     let datatype = match struct_information.generics.params.first() {
-        Some(_) => format_ident!("{}{}GENERIC", prefix, struct_name)
-,
-        None => format_ident!("{}{}", prefix, struct_name)
+        Some(_) => format_ident!("{}{}GENERIC", prefix, struct_name),
+        None => format_ident!("{}{}", prefix, struct_name),
     };
 
     let mut field_creations: Vec<_> = vec![];
     let mut field_assignments: Vec<_> = vec![];
     let mut field_errors: Vec<_> = vec![];
+    let mut field_sizes: Vec<_> = vec![];
 
     struct_information.fields.iter().for_each(|f| {
         let mut field_creation: Vec<_> = vec![];
+        let mut field_size: Vec<_> = vec![];
         let mut field_assignment: Vec<_> = vec![];
         let mut field_error: Vec<_> = vec![];
 
@@ -472,7 +680,7 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
         for attribute in &f.attributes {
             match attribute {
                 FieldAttribute::SizeOffset(size_offset) => {
-                    let s:SizeParsed  = size_offset.into();
+                    let s: SizeParsed = size_offset.into();
                     if fap.size != SizeParsed::None && s != SizeParsed::None {
                         field_error.push(quote_spanned! {
                             f.identifier.span() =>
@@ -482,7 +690,7 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
                         fap.size = s;
                     }
 
-                    let o:OffsetParsed = size_offset.into();
+                    let o: OffsetParsed = size_offset.into();
                     if fap.offset != OffsetParsed::None && o != OffsetParsed::None {
                         field_error.push(quote_spanned! {
                             f.identifier.span() =>
@@ -491,9 +699,14 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
                     } else if fap.offset == OffsetParsed::None {
                         fap.offset = o;
                     }
-                },
-                FieldAttribute::EnvironmentSet(environment) => fap.environment = environment.clone(),
+                }
+                FieldAttribute::EnvironmentSet(environment) => {
+                    fap.environment = environment.clone()
+                }
                 FieldAttribute::String => fap.treat_as_string = true,
+                FieldAttribute::SizeRecalc(size_recalc) => {
+                    fap.size_recalc = size_recalc.clone();
+                }
             }
         }
         let field_name = f.identifier.clone();
@@ -502,52 +715,84 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
         // let newline = format_ident!("\n");
         // let newline = Char::from_u8(10).unwrao();
 
-        let read_exect_type = match fap.treat_as_string  {
-            true => quote!{ read_exact_generic_string },
-            false => quote!{ read_exact_generic_v2 },
+        let read_exect_type = match fap.treat_as_string {
+            true => quote! { read_exact_generic_string },
+            false => quote! { read_exact_generic_v2 },
         };
 
         let field_environment = match fap.environment {
-            Environment::None => quote!{},
-            Environment::Auto => quote!{
+            Environment::None => quote! {},
+            Environment::Auto => quote! {
                 #field_identifier . environment( datareader , stringify!(#field_name));
             },
-            Environment::String(lit_str) => quote!{
+            Environment::String(lit_str) => quote! {
                 #field_identifier . environment( datareader , #lit_str);
             },
         };
 
-        let mut field_offset_after = quote!{};
+        let mut field_offset_after = quote! {};
         let field_offset = match fap.offset {
-            OffsetParsed::None => quote!{},
+            OffsetParsed::None => quote! {},
             OffsetParsed::Int(lit_int) => {
-                field_offset_after = quote!{
+                field_offset_after = quote! {
                     datareader.set_position(old_offset);
                 };
-                quote!{
+                quote! {
                     let old_offset = datareader.position();
                     datareader.set_position(#lit_int);
-                }},
+                }
+            }
             OffsetParsed::Str(lit_str) => {
-                field_offset_after = quote!{
+                field_offset_after = quote! {
                     datareader.set_position(old_offset);
                 };
-                quote!{
+                quote! {
                     let old_offset = datareader.position();
                     let current_field_offset: u64 = datareader.get_env_error(#lit_str)?.into();
                     datareader.set_position(current_field_offset);
-                }},
+                }
+            }
+            OffsetParsed::Auto => {
+                field_offset_after = quote! {
+                    datareader.set_position(old_offset);
+                };
+                let f_n = format!("{}_offset", field_name);
+                quote! {
+                    let old_offset = datareader.position();
+                    let current_field_offset: u64 = datareader.get_env_error(#f_n)?.into();
+                    datareader.set_position(current_field_offset);
+                }
+            }
+        };
+
+        let field_size_recalc = match fap.size_recalc {
+            SizeRecalc::None => quote!(),
+            SizeRecalc::ModuloSelfEnvironment => {
+                quote! {
+                    // let modulo_type_size = std::mem::size_of::< #field_type >();
+                    let modulo_type_size = < #field_type >::datatype_size();
+                    let modulo_original_size = size_from_environment;
+                    let modulo_remainder = size_from_environment % modulo_type_size;
+                    if modulo_remainder != 0 {
+                        return Err(DataTypeReaderError::DirectoryEntrySize(
+                            modulo_original_size,
+                            modulo_type_size,
+                            modulo_remainder));
+                    }
+                    let size_from_environment = size_from_environment / modulo_type_size;
+                }
+            }
         };
 
         // Generating field reading
         let fc = match fap.size {
-            SizeParsed::None => quote!{
+            SizeParsed::None => quote! {
                 #field_offset
                 let #field_identifier = <#field_type as DataTypeRead>::read(datareader)?;
                 #field_offset_after
                 #field_environment
             },
-            SizeParsed::Int(lit_int) => quote!{
+            SizeParsed::Int(lit_int) => quote! {
                 let size_from_environment: usize = #lit_int;
                 let mut #field_identifier: #field_type = Vec::with_capacity(size_from_environment);
                 #field_offset
@@ -555,14 +800,26 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
                 #field_offset_after
                 #field_environment
             },
-            SizeParsed::Str(lit_str) => quote!{
+            SizeParsed::Str(lit_str) => quote! {
                 let size_from_environment: usize = datareader.get_env_error(#lit_str)? .into();
                 let mut #field_identifier: #field_type = Vec::with_capacity(size_from_environment);
+                #field_size_recalc
                 #field_offset
                 datareader.read_exact_generic_v2(&mut #field_identifier)?;
                 #field_offset_after
                 #field_environment
             },
+            SizeParsed::Auto => {
+                let f_n = format!("{}_size", field_name);
+                quote! {
+                let size_from_environment: usize = datareader.get_env_error(#f_n)? .into();
+                #field_size_recalc
+                let mut #field_identifier: #field_type = Vec::with_capacity(size_from_environment);
+                #field_offset
+                datareader.read_exact_generic_v2(&mut #field_identifier)?;
+                #field_offset_after
+                #field_environment }
+            }
         };
 
         // let fc = match f.identifier { quote!{
@@ -570,17 +827,24 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
         //     let #field_identifier = <#field_type as DataTypeRead>::read(datareader)?;
         // }.to_token_stream();}
 
-        let fa = quote!{
+        let fa = quote! {
             #field_name: #field_identifier,
-        }.to_token_stream();
-        // println!("\t\tfa: {}", fa);
-        // println!("\t\tfc: {}", fc);
+        }
+        .to_token_stream();
+        let fs = quote! {
+            size = size + < #field_type as DataTypeSize>::datatype_size();
+        };
         field_creation.push(fc);
         field_assignment.push(fa);
-        // println!("\tfield_creation: {:?}", field_creation);
-        // println!("\tfield_assignment: {:?}", field_assignment);
+        field_size.push(fs);
 
-        let _ = field_error.into_iter().map(|f| field_errors.push(f));
+        for f in field_size.into_iter() {
+            field_sizes.push(f);
+        }
+
+        for f in field_error.into_iter() {
+            field_errors.push(f);
+        }
 
         for f in field_creation.into_iter() {
             field_creations.push(f);
@@ -602,31 +866,49 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
     // println!("field_assignments: {:?}", field_assignments);
     // for f in field_errors {}
     // let field_errors = field_errors.iter().map(|a| a).collect();
-    let (struct_impl_generics, struct_type_generics, struct_where_clause) = struct_information.generics.split_for_impl();
+    let (struct_impl_generics, struct_type_generics, struct_where_clause) =
+        struct_information.generics.split_for_impl();
 
     let si_identifier = {
         let ident = struct_information.identifier.clone();
-        quote!{ #ident }
+        quote! { #ident }
     };
 
     let struct_name = match struct_information.attributes.prefix {
         Some(p) => {
             // let prefix = format_ident!("{}", p.value());
-            quote!{ #prefix::#p }},
-        None => quote!{#si_identifier},
+            quote! { #prefix::#p }
+        }
+        None => quote! {#si_identifier},
     };
 
     let has_data = match struct_information.is_generic {
-        false => quote!{ (self.clone())},
-        true => quote!{},
+        false => quote! { (self.clone())},
+        true => quote! {},
     };
 
     let datatype_overwrite = match struct_information.attributes.datatype {
-        StructDataType::None => quote!{ DataType :: #datatype #has_data },
-        StructDataType::String(ident) => quote!{ DataType :: #ident },
-        StructDataType::Ident(ident) => quote!{ DataType :: #ident },
+        StructDataType::None => quote! { DataType :: #datatype #has_data },
+        StructDataType::String(ident) => quote! { DataType :: #ident },
+        StructDataType::Ident(ident) => quote! { DataType :: #ident },
         // None => quote!{ DataType :: #datatype #has_data },
     };
+
+    let datatype_size = match struct_information.attributes.ommit_datatype_size {
+        true => quote! {},
+        false => {
+            quote! {
+                impl #struct_impl_generics DataTypeSize for #si_identifier #struct_type_generics #struct_where_clause {
+                    fn datatype_size() -> usize {
+                        let mut size: usize = 0;
+                        #(#field_sizes)*
+                        size
+                    }
+                }
+            }
+        }
+    };
+
     let gen = quote! {
         impl #struct_impl_generics DataTypeRead for #si_identifier #struct_type_generics #struct_where_clause {
             fn read(datareader: &mut DataTypeReader) -> Result<Self, DataTypeReaderError> {
@@ -645,525 +927,14 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
             fn to_datatype(&self) -> DataType {
                 #datatype_overwrite
             }
+
         }
+        #datatype_size
     };
 
     // println!("{}", struct_name);
-    if struct_name.to_string() == "SizedVectorNameTest" {
+    if struct_name.to_string() == "BoundingboxVertex" {
         println!("{}", gen);
     }
-    gen.into()
-}
-
-
-#[derive(Debug)]
-struct DataTypeTypeStructInfo {
-    pub name: syn::Ident,
-    pub generic: bool,
-}
-
-#[derive(Default, Debug)]
-enum SizeFrom {
-    #[default]
-    None,
-}
-
-#[derive(Default, Debug)]
-enum OffsetFrom {
-    #[default]
-    None,
-}
-
-#[derive(Default, Debug)]
-enum SizeOffsetFrom {
-    #[default]
-    None,
-}
-
-#[derive(Default, Debug)]
-enum SizeOffsetFromTypes {
-    #[default]
-    None,
-    Size(SizeFrom),
-    Offset(OffsetFrom),
-    SizeOffset(SizeOffsetFrom),
-}
-
-#[derive(Default, Debug)]
-enum SetEnvironment {
-    #[default]
-    None,
-    Auto,
-    DirectoryEntry,
-    String(String)
-}
-
-#[derive(Default, Debug)]
-struct SetSizeFromDirectoryEntry {
-    pub active: bool,
-    pub name: String,
-}
-
-#[derive(Default, Debug)]
-enum SizeFromEnvironmentType {
-    #[default]
-    None,
-    String(String),
-    Int(usize),
-    DirectoryEntry(Option<String>)
-}
-
-#[derive(Default, Debug)]
-struct SizeFromEnvironment {
-    pub active: bool,
-    pub parse_as_string: bool,
-    pub from: SizeFromEnvironmentType,
-}
-
-struct FieldEntry {
-    pub t: Type,
-    pub name: String,
-    pub generic_field_type: String,
-    pub identifier: syn::Ident,
-    pub identifier_formated: syn::Ident,
-}
-
-/// derive macro for DataTypeRead
-///
-/// available attributes:
-///   string : the element is to be read as a string if no size attribute is set it will read till
-///   a 0 byte is encountered. if size is a
-pub fn datatyperead_derive(input: TokenStream) -> TokenStream {
-    // Parse the input tokens into a syntax tree
-    let ast = parse_macro_input!(input as DeriveInput);
-
-    // Extract the name of the struct
-    let struct_name = &ast.ident;
-    let mut dtsi = DataTypeTypeStructInfo{ name: ast.ident.clone(), generic: false };
-
-
-    if let Some(param) = ast.generics.params.first() {
-        match param {
-            syn::GenericParam::Type(type_param) => {
-                dtsi.generic = true;
-            },
-            syn::GenericParam::Lifetime(lifetime_def) => {},
-            syn::GenericParam::Const(const_param) => {},
-        }
-    };
-    // if let syn::Type::Path(path) = ast     // Extract field names and types
-    let fields = if let syn::Data::Struct(data_struct) = &ast.data {
-        if let syn::Fields::Named(fields) = &data_struct.fields {
-            fields
-                .named
-                .iter()
-                .map(|f| {
-                    let ft = &f.ty;
-                    let identifier = f.ident.clone().unwrap();
-                    let quoted_type = quote! {#ft};
-                    let identifier_formated= format_ident!("{}", format!("{}_{}", identifier , quoted_type).replace(&[ '<', '>', ' ', ':' ][..], "_"));
-                    let mut current_field = FieldEntry{
-                        t: f.ty.clone(),
-                        name: f.ident.clone().unwrap().to_string(),
-                        generic_field_type: "".to_string(),
-                        identifier,
-                        identifier_formated,
-                    };
-
-                    // extract generic type
-                    if let Type::Path(path) = ft {
-                        for segment in &path.path.segments {
-                            if let arguments = &segment.arguments {
-                                if let syn::PathArguments::AngleBracketed(args) = arguments {
-                                    for arg in &args.args {
-                                        if let syn::GenericArgument::Type(t) = arg {
-                                            if let syn::Type::Path(p) = t {
-                                                for seg in &p.path.segments {
-                                                    if let Some(s) = seg.ident.span().source_text() {
-                                                        current_field.generic_field_type.push_str(&s as &str);
-                                                    }
-                                                }
-                                            }
-
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    let mut size_from_environment = SizeFromEnvironment::default();
-                    // check if we have datatype read attributes
-                    // if string and size is set reading will stop at the first \0
-                    let tag_value = get_tag_values(&f.attrs, "datatyperead");
-
-                    size_from_environment.active =
-                        tag_value.contains_key("string") ||
-                        tag_value.contains_key("size") ||
-                        tag_value.contains_key("size_from_directory_entry");
-
-                    let mut set_size_from_environment = SetSizeFromDirectoryEntry::default();
-                    set_size_from_environment.active = tag_value.contains_key("environment");
-                    let set_environment = match tag_value.get("environment") {
-                        Some(v) => match v {
-                            syn::Lit::Verbatim(literal) => todo!(),
-                            syn::Lit::ByteStr(lit_byte_str) => todo!(),
-                            syn::Lit::Byte(lit_byte) => todo!(),
-                            syn::Lit::Char(lit_char) => todo!(),
-                            syn::Lit::Int(lit_int) => todo!(),
-                            syn::Lit::Float(lit_float) => todo!(),
-                            syn::Lit::Str(lit_str) => SetEnvironment::String(lit_str.value()),
-                            syn::Lit::Bool(lit_bool) => SetEnvironment::Auto,
-                        },
-                        None => SetEnvironment::None,
-                    };
-
-                    size_from_environment.parse_as_string = tag_value.contains_key("string");
-
-                    if let Some(v) = tag_value.get("size_from_directory_entry") {
-                        match  v {
-                            syn::Lit::Str(lit_str) => panic!("Str"),
-                            syn::Lit::ByteStr(lit_byte_str) => panic!("ByteStr"),
-                            syn::Lit::Byte(lit_byte) => panic!("Byte"),
-                            syn::Lit::Char(lit_char) => panic!("Char"),
-                            syn::Lit::Int(lit_int) => panic!("Int"),
-                            syn::Lit::Float(lit_float) => panic!("Float"),
-                            syn::Lit::Bool(lit_bool) => {
-                                size_from_environment.from = SizeFromEnvironmentType::DirectoryEntry(None);
-                            },
-                            syn::Lit::Verbatim(literal) => panic!("Verbatim"),
-                            // syn::Lit::Str(value) => {
-                            //     size_from_environment.from = SizeFromEnvironmentType::DirectoryEntry(value.value());
-                            // },
-                            // _ =>  {
-                            //     panic!("we only support strings for now")
-                            // }
-                        }
-                    }
-
-                    let allowed_types = vec!["size_from", "offset_from", "size_offset_from"];
-                    let mut types = vec![];
-                    for t in allowed_types {
-                        if tag_value.contains_key(t) {
-                            types.push(t);
-                        }
-                    }
-                    if types.len() > 1 {
-                        panic!("only one *_from parameter allowed. found ({})", types.join(","));
-                    }
-
-                    let mut size_offset_from = SizeOffsetFromTypes::None;
-                    if types.len() == 1 {
-                        if let Some(v) = tag_value.get(types[0]) {
-                            match types[0]{
-                                "size_offset_from" => {
-                                    size_offset_from = SizeOffsetFromTypes::SizeOffset(SizeOffsetFrom::None);
-                                    match v {
-                                        syn::Lit::Str(lit_str) => panic!("Str"),
-                                        syn::Lit::ByteStr(lit_byte_str) => panic!("ByteStr"),
-                                        syn::Lit::Byte(lit_byte) => panic!("Byte"),
-                                        syn::Lit::Char(lit_char) => panic!("Char"),
-                                        syn::Lit::Int(lit_int) => panic!("Int"),
-                                        syn::Lit::Float(lit_float) => panic!("Float"),
-                                        syn::Lit::Bool(lit_bool) => panic!("Bool"),
-                                        syn::Lit::Verbatim(literal) => panic!("Verbatim"),
-                                    }
-                                },
-                                "size_from" => {
-                                    size_offset_from = SizeOffsetFromTypes::Size(SizeFrom::None);
-                                    match v {
-                                        syn::Lit::Str(lit_str) => panic!("Str"),
-                                        syn::Lit::ByteStr(lit_byte_str) => panic!("ByteStr"),
-                                        syn::Lit::Byte(lit_byte) => panic!("Byte"),
-                                        syn::Lit::Char(lit_char) => panic!("Char"),
-                                        syn::Lit::Int(lit_int) => panic!("Int"),
-                                        syn::Lit::Float(lit_float) => panic!("Float"),
-                                        syn::Lit::Bool(lit_bool) => panic!("Bool"),
-                                        syn::Lit::Verbatim(literal) => panic!("Verbatim"),
-                                    }
-                                },
-                                "offset" => {
-                                    size_offset_from = SizeOffsetFromTypes::Offset(OffsetFrom::None);
-                                    match v {
-                                        syn::Lit::Str(lit_str) => panic!("Str"),
-                                        syn::Lit::ByteStr(lit_byte_str) => panic!("ByteStr"),
-                                        syn::Lit::Byte(lit_byte) => panic!("Byte"),
-                                        syn::Lit::Char(lit_char) => panic!("Char"),
-                                        syn::Lit::Int(lit_int) => panic!("Int"),
-                                        syn::Lit::Float(lit_float) => panic!("Float"),
-                                        syn::Lit::Bool(lit_bool) => panic!("Bool"),
-                                        syn::Lit::Verbatim(literal) => panic!("Verbatim"),
-                                    }
-                                },
-
-                                _ => panic!("{} should not be here", types[0]),
-                            }
-
-                        }
-                    }
-
-                    let mut size_offset_from = SizeOffsetFromTypes::default();
-                    if let Some(v) = tag_value.get("size_offset_from") {
-                        match  v {
-                            syn::Lit::Str(lit_str) => panic!("Str"),
-                            syn::Lit::ByteStr(lit_byte_str) => panic!("ByteStr"),
-                            syn::Lit::Byte(lit_byte) => panic!("Byte"),
-                            syn::Lit::Char(lit_char) => panic!("Char"),
-                            syn::Lit::Int(lit_int) => panic!("Int"),
-                            syn::Lit::Float(lit_float) => panic!("Float"),
-                            syn::Lit::Bool(lit_bool) => {
-                                // size_from_environment.from = SizeFromEnvironmentType::DirectoryEntry(None);
-                                panic!("bool");
-                            },
-                            syn::Lit::Verbatim(literal) => panic!("Verbatim"),
-                        }
-                    }
-
-                    if let Some(v) = tag_value.get("size") {
-                        size_from_environment.active = true;
-                        match v {
-                            syn::Lit::Str(lit_str) => {
-                                size_from_environment.from = SizeFromEnvironmentType::String(lit_str.value());
-                            },
-                            syn::Lit::ByteStr(lit_byte_str) => todo!(),
-                            syn::Lit::Byte(lit_byte) => todo!(),
-                            syn::Lit::Char(lit_char) => todo!(),
-                            syn::Lit::Int(lit_int) => 
-                            {
-                                if let Ok(parsed_value) = lit_int.base10_parse::<usize>() {
-                                    size_from_environment.from = SizeFromEnvironmentType::Int(parsed_value);
-                                } else {
-                                    panic!(
-                                    "datatypereader attribute size's value couldnt be converted to usize"
-                                );
-                                };
-                            },
-                            syn::Lit::Float(lit_float) => todo!(),
-                            syn::Lit::Bool(lit_bool) => todo!(),
-                            syn::Lit::Verbatim(literal) => todo!(),
-                        }
-                    }
-
-                    let field_type = &current_field.t;
-                    let field_type_string = format!("{}", current_field.identifier);
-                    let field_identifier = &current_field.identifier_formated;
-
-                    if set_size_from_environment.active {
-                        set_size_from_environment.name = field_type_string.clone();
-                    }
-
-                    let set_size_code = match set_size_from_environment.active {
-                        true => {
-                            let no = format!("{}_offset", field_type_string);
-                            let ns = format!("{}_size", field_type_string);
-                            let r = quote!{
-                                let s = #field_identifier.offset as i64;
-                                datareader.set_env(#no,s);
-                                let s = #field_identifier.size as i64;
-                                datareader.set_env(#ns, s); 
-                            };
-                            r
-
-                        },
-                        false => quote!{},
-                    };
-
-                    // println!("field_type: {}", quote!{#field_type});
-                    let set_size_code = match set_environment {
-                        SetEnvironment::None => quote!{},
-                        SetEnvironment::Auto => {
-                            let fts = quote!{#field_type}.to_string();
-                            match fts.as_str() {
-                                "DirectoryEntry" => {
-                                    let no = format!("{}_offset", field_type_string);
-                                    let ns = format!("{}_size", field_type_string);
-                                    quote!{
-                                        let s = #field_identifier.offset as i64;
-                                        datareader.set_env(#no,s);
-                                        let s = #field_identifier.size as i64;
-                                        datareader.set_env(#ns, s); 
-                                    }
-                                },
-                                _ => {
-                                    quote!{
-                                        datareader.set_env(#field_type_string, #field_identifier as i64);
-                                    }
-                                },
-                            }
-
-                        },
-                        SetEnvironment::DirectoryEntry => todo!(),
-                        SetEnvironment::String(name) => {
-                            quote!{
-                                datareader.set_env(#name, #field_identifier as i64);
-                            }
-                        },
-                    };
-                    // println!("+++ set_size_code:");
-                    // println!("{}", set_size_code);
-                    // println!("--- set_size_code:");
-
-                    let read =
-                    match size_from_environment.from {
-                        SizeFromEnvironmentType::None => 
-                        quote! {
-                            trace_annotate!(datareader, #field_type_string);
-                            let #field_identifier = <#field_type as DataTypeRead>::read(datareader)?;
-                            #set_size_code
-                        } ,
-                        SizeFromEnvironmentType::String(size_env) => {
-                            let read_type = format_ident!("read_exact_generic_v2");
-                            // let size_env = format!(r#""{}""#, size_env);
-                            quote! {
-                                trace_annotate!(datareader, #field_type_string);
-                                let size: usize = match datareader.get_env(#size_env) {
-                                    Some(value) => {
-                                        value.into()
-                                    }
-                                    None => {
-                                        return Err(
-                                            DataTypeReaderError::EnvironmentVariableNotSet(
-                                                #size_env.to_string(),
-                                                stringify!(#struct_name).to_string()));
-                                    }
-                                };
-                                let mut #field_identifier: #field_type = Vec::with_capacity(size);
-                                datareader. #read_type (&mut #field_identifier)?;
-                            }
-                        },
-                        SizeFromEnvironmentType::Int(size) => {
-                            let read_type = if size_from_environment.parse_as_string {
-                                format_ident!("read_exact_generic_string")
-                            } else {
-                                format_ident!("read_exact_generic")
-                            };
-                            quote! {
-                                trace_annotate!(datareader, #field_type_string);
-                                let mut #field_identifier: #field_type = Vec::with_capacity(#size);
-                                datareader. #read_type (&mut #field_identifier)?;
-                            }
-                        },
-                        SizeFromEnvironmentType::DirectoryEntry(name)=> {
-
-                            let field_type_string = format!("{}", current_field.identifier);
-                            let env_size = format!("{}_size", field_type_string);
-                            let env_offset = format!("{}_offset", field_type_string);
-                            let read_type = format_ident!("read_exact_generic_v2");
-                            let generic_field_type = format_ident!("{}", current_field.generic_field_type);
-                            quote! {
-                                trace_annotate!(datareader, #field_type_string);
-                                let size: usize = match datareader.get_env(#env_size) {
-                                    Some(value) => {
-                                        value.into()
-                                    }
-                                    None => {
-                                        return Err(
-                                            DataTypeReaderError::EnvironmentVariableNotSet(
-                                                stringify!(#env_size).to_string(),
-                                                stringify!(#struct_name).to_string()));
-                                    }
-                                };
-
-                                let offset: usize = match datareader.get_env(#env_offset) {
-                                    Some(value) => {
-                                        value.into()
-                                    }
-                                    None => {
-                                        return Err(
-                                            DataTypeReaderError::EnvironmentVariableNotSet(
-                                                stringify!(#env_offset).to_string(),
-                                                stringify!(#struct_name).to_string()));
-                                    }
-                                };
-                                let type_size = std::mem::size_of::< #generic_field_type >();
-                                let size_modulo = size % type_size;
-                                if size_modulo != 0 {
-                                    return Err(DataTypeReaderError::DirectoryEntrySize(
-                                        size,
-                                        type_size,
-                                        size_modulo));
-                                }
-                                let capacity = size / type_size;
-                                let mut #field_identifier: #field_type = Vec::with_capacity(capacity);
-
-                                datareader.set_position(offset as u64);
-                                datareader. #read_type (&mut #field_identifier)?;
-                            }
-                        }
-                    };
-
-                    let qfi = current_field.identifier;
-                    let id= current_field.identifier_formated;
-                    let s = quote! {
-                        #qfi : #id,
-                        };
-                    (read, s)
-                })
-                .collect::<Vec<_>>()
-        } else {
-            panic!("DataTypeRead can only be derived for structs with named fields");
-        }
-    } else {
-        panic!("DataTypeRead can only be derived for structs");
-    };
-
-    // Extract generic parameters
-    let generics = &ast.generics;
-    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-
-    let field_creation: Vec<_> = fields.iter().map(|(a, _)| a).collect();
-    let field_assignment: Vec<_> = fields.iter().map(|(_, b)| b).collect();
-
-    let (_, tag_value) = check_tag_value(&ast.attrs, "datatyperead");
-    let generic_dt = if dtsi.generic { "GENERIC" } else { "" };
-
-    let mut datatype = match tag_value.get("prefix") {
-        Some(p) => {
-            let prefix = if let syn::Lit::Str(p) = p {
-                
-                p.value()
-            } else {
-                panic!("datatypereader attribute prefix's value needs to be a String");
-            };
-            let i = format_ident!(
-                "{}{}{}",
-                prefix.to_uppercase(),
-                struct_name.to_string().to_uppercase(),
-                generic_dt
-            );
-            quote! { DataType::#i}
-        }
-        None => {
-            let i = format_ident!("{}{}", struct_name.to_string().to_uppercase(), generic_dt);
-            quote! { DataType::#i}
-        }
-    };
-
-    if !dtsi.generic {
-        datatype = quote! { #datatype(self.clone()) };
-    }
-
-    // Generate the implementation
-    let gen = quote! {
-        impl #impl_generics DataTypeRead for #struct_name #ty_generics #where_clause {
-            fn read(datareader: &mut DataTypeReader) -> Result<Self, DataTypeReaderError> {
-                trace_start!(datareader, stringify!( #struct_name));
-                #(#field_creation)*
-
-                let s = Self {
-                    #(#field_assignment)*
-                };
-                trace_stop!(datareader, s, #struct_name);
-                Ok(s)
-            }
-            fn to_datatype(&self) -> DataType {
-                paste! {
-                    #datatype
-                }
-            }
-        }
-    };
-
-    // Return the generated implementation as a TokenStream
     gen.into()
 }

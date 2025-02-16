@@ -5,7 +5,7 @@ use protocol_macros::DataTypeRead;
 use serde::Serialize;
 
 use crate::datatypes::reader::{
-    DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeReaderError,
+    DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeReaderError, DataTypeSize,
 };
 use crate::trace::{trace_annotate, trace_start, trace_stop};
 use protocol_macros::DataTypeBoundCheckDerive;
