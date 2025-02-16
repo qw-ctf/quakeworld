@@ -2,12 +2,18 @@ use proc_macro::TokenStream;
 
 mod datatypeboundcheck;
 mod datatyperead;
+mod datatypesize;
 mod helpers;
 mod parsemessage;
 
+#[proc_macro_derive(DataTypeSize, attributes(datatyperead))]
+pub fn datatype_size(input: TokenStream) -> TokenStream {
+    datatypesize::datatypesize_derive(input)
+}
+
 #[proc_macro_derive(DataTypeRead, attributes(datatyperead))]
 pub fn datatype_read(input: TokenStream) -> TokenStream {
-    datatyperead::datatyperead_derive(input)
+    datatyperead::datatyperead_derive_2(input)
 }
 
 #[proc_macro_derive(DataTypeBoundCheckDerive, attributes(check_bounds))]

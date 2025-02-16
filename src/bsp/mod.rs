@@ -1,7 +1,9 @@
 use crate::datatypes::bsp;
+use crate::datatypes::common::DirectoryEntry;
 use crate::datatypes::reader::{
-    DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeReaderError,
+    DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeReaderError, DataTypeSize,
 };
+use protocol_macros::DataTypeRead;
 use serde::Serialize;
 use thiserror::Error;
 
@@ -13,21 +15,18 @@ pub enum Error {
     #[error("io {0}")]
     Io(std::io::Error),
     #[error("datatypereader error: {0}")]
-    DataTypeReader(DataTypeReaderError),
+    DataTypeReaderError(DataTypeReaderError),
 }
 
 impl From<DataTypeReaderError> for Error {
     fn from(err: DataTypeReaderError) -> Error {
-        Error::DataTypeReader(err)
+        Error::DataTypeReaderError(err)
     }
 }
 
-#[derive(Serialize, Clone, Debug)]
-pub struct Bsp {
-    header: bsp::Header,
-}
-
 pub type Result<T> = core::result::Result<T, Error>;
+
+pub type Bsp = crate::datatypes::common::Bsp;
 
 impl Bsp {
     pub fn parse(
@@ -39,9 +38,54 @@ impl Bsp {
             #[cfg(feature = "trace")]
             trace,
         );
-        let header = <bsp::Header as DataTypeRead>::read(&mut datatypereader)?;
-        header.check_bounds(&mut datatypereader)?;
+        // read the header
+        let bsp = <Bsp as DataTypeRead>::read(&mut datatypereader)?;
 
-        Ok(Bsp { header })
+        // println!("something: {:?}", bsp.textures);
+        // let texture_data = <crate::datatypes::common::TextureHeader
+
+        // println!("texture_header: {:?}", texture_header);
+        // let texture_header_offset = datatypereader_texture.position();
+        // let mut texture_infos: Vec<crate::datatypes::common::TextureInfo> = vec![];
+        // for pos in texture_header.offsets {
+        //     datatypereader_texture.set_position(pos as u64);
+        //     let t = <crate::datatypes::common::TextureInfo>::read(&mut datatypereader_texture)?;
+        //     texture_infos.push(t);
+        // }
+        //
+        // let mut textures: Vec<crate::datatypes::common::Texture> = vec![];
+        // for texture_info in texture_infos {
+        //     let mut t = crate::datatypes::common::Texture::default();
+        //     t.name = String::from_utf8(texture_info.name).unwrap();
+        //     t.width = texture_info.width;
+        //     t.height = texture_info.height;
+        //     let offset = texture_header_offset as u32 + texture_info.offset1;
+        //     let size = t.width * t.height;
+        //     let d = DirectoryEntry { offset, size };
+        //     t.data = datatypereader_texture.read_data_from_directory_entry(d)?;
+        //     for (i, off) in vec![
+        //         (2, texture_info.offset2),
+        //         (4, texture_info.offset4),
+        //         (8, texture_info.offset8),
+        //     ] {
+        //         let size = size / i;
+        //         let height = t.height / i;
+        //         let width = t.width / i;
+        //         let offset = texture_header_offset as u32 + off;
+        //         let d = DirectoryEntry { offset, size };
+        //         let data = datatypereader_texture.read_data_from_directory_entry(d)?;
+        //         t.mips.push(crate::datatypes::common::MipTexture {
+        //             width,
+        //             height,
+        //             data,
+        //         });
+        //     }
+        //     textures.push(t);
+        // }
+        // println!("{:?}", textures);
+        // // println!("{:?}", header);
+        // // header.check_bounds(&mut datatypereader)?;
+
+        Ok(Bsp::default())
     }
 }

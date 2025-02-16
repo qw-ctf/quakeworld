@@ -97,7 +97,7 @@ pub fn check_tag_value(attrs: &[Attribute], tag: &str) -> (bool, HashMap<String,
                                     }
                                 }
                             },
-                            syn::NestedMeta::Lit(lit) => println!("lit: {:?}", lit),
+                            syn::NestedMeta::Lit(_lit) => {} //println!("lit: {:?}", lit),
                         }
                         // match nested_meta.clone() {
                         //     syn::NestedMeta::Meta(meta) => println!("\tmeta: {:?}", meta),
@@ -130,4 +130,29 @@ pub fn check_tag(attrs: &[Attribute], tag: &str) -> bool {
         }
     }
     false
+}
+
+pub fn get_tag_values(attrs: &[Attribute], tag: &str) -> HashMap<String, syn::Lit> {
+    let mut s: HashMap<String, syn::Lit> = HashMap::new();
+    for attr in attrs {
+        if attr.path.is_ident(tag) {
+            match attr.parse_meta() {
+                Ok(meta) => match meta {
+                    syn::Meta::Path(path) => println!("we got a path {:?}", path),
+                    syn::Meta::List(meta_list) => {
+                        for nested_meta in meta_list.nested {
+                            match nested_meta {
+                                syn::NestedMeta::Meta(meta) => println!("nested_list: {:?}", meta),
+                                syn::NestedMeta::Lit(lit) => println!("literal: {:?}", lit),
+                            };
+                        }
+                        // println!("we got a list {:?}", meta_list);
+                    }
+                    syn::Meta::NameValue(meta_name_value) => println!("we got a named value"),
+                },
+                Err(e) => panic!("{}", e),
+            }
+        }
+    }
+    s
 }

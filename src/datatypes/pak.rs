@@ -9,6 +9,9 @@ use protocol_macros::DataTypeBoundCheckDerive;
 
 use crate::datatypes::common::{DataType, DirectoryEntry};
 use crate::trace::{trace_annotate, trace_start, trace_stop};
+
+use crate::pak;
+
 /// PAK related structs
 /// PAK Header
 type Version = u32;
@@ -25,7 +28,7 @@ pub struct Header {
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead, DataTypeBoundCheckDerive)]
 #[datatyperead(prefix = "pak")]
 pub struct File {
-    #[datatyperead(size = 56, string)]
+    #[datatyperead(size_from = 56, string)]
     pub name: Vec<u8>,
     pub offset: u32,
     pub size: u32,

@@ -28,6 +28,10 @@ pub enum DataTypeReaderError {
     NotImplemented,
     #[error("environment variable ({0}) not set for ({1})")]
     EnvironmentVariableNotSet(String, String),
+    #[error("environment variable ({0})")]
+    EnvironmentVariableNotFound(String),
+    #[error("DirectoryEntry size mismatch ({0}) ({1}) ({2})")]
+    DirectoryEntrySize(usize, usize, usize),
 }
 // DataTypeReader: implements a generic parser for structs
 pub struct DataTypeReader<'a> {
@@ -98,8 +102,53 @@ impl DataTypeReader<'_> {
     pub fn get_env(&mut self, name: impl Into<String>) -> Option<DataTypeReaderEnv> {
         self.env.get(&name.into()).cloned()
     }
+
+    // pub fn set_env_error<T: IntoDataTypeReaderEnv>(&mut self, name: impl Into<String>, value: T) {
+    //     self.env.insert(name.into(), value.into());
+    // }
+    pub fn get_env_error(
+        &mut self,
+        name: impl Into<String>,
+    ) -> Result<DataTypeReaderEnv, DataTypeReaderError> {
+        let name = name.into();
+        if let Some(v) = self.env.get(&name) {
+            return Ok(v.clone());
+        }
+        return Err(DataTypeReaderError::EnvironmentVariableNotFound(
+            name.clone(),
+        ));
+    }
+
     pub fn position(&self) -> u64 {
         self.cursor.position()
+    }
+
+    pub fn set_position(&mut self, pos: u64) {
+        self.cursor.set_position(pos);
+    }
+
+    pub fn read_data_from_directory_entry(
+        &mut self,
+        directory_entry: super::common::DirectoryEntry,
+    ) -> Result<Vec<u8>, DataTypeReaderError> {
+        let mut buf: Vec<u8> = Vec::with_capacity(directory_entry.size as usize);
+        self.set_position(directory_entry.offset as u64);
+        self.read_exact(&mut buf)?;
+        Ok(buf)
+    }
+
+    pub fn read_exact_generic_v2<U: DataTypeRead>(
+        &mut self,
+        buf: &mut Vec<U>,
+    ) -> Result<(), DataTypeReaderError> {
+        let n = buf.capacity();
+        trace_start!(self, format!("Vec<T>[{}]", n));
+        for _ in 0..n {
+            let b = <U as DataTypeRead>::read(self)?;
+            buf.push(b);
+        }
+        trace_stop!(self, DataType::GENERICVECTOR(n));
+        Ok(())
     }
 }
 
@@ -108,6 +157,8 @@ pub enum DataTypeReaderEnv {
     #[default]
     None,
     Int(i64),
+    UInt(u64),
+    Float(f64),
     String(String),
 }
 
@@ -117,6 +168,8 @@ impl From<DataTypeReaderEnv> for usize {
             DataTypeReaderEnv::None => panic!("hits cant be happening"),
             DataTypeReaderEnv::Int(i) => i as usize,
             DataTypeReaderEnv::String(_) => panic!("hits cant be happening"),
+            DataTypeReaderEnv::UInt(u) => u as usize,
+            DataTypeReaderEnv::Float(_) => panic!("we need to handle this better"),
         }
     }
 }
@@ -130,12 +183,71 @@ impl IntoDataTypeReaderEnv for String {
         DataTypeReaderEnv::String(self.clone())
     }
 }
+//
+// impl IntoDataTypeReaderEnv for i64 {
+//     fn into(self) -> DataTypeReaderEnv {
+//         DataTypeReaderEnv::Int(self)
+//     }
+// }
+//
+// impl IntoDataTypeReaderEnv for i32 {
+//     fn into(self) -> DataTypeReaderEnv {
+//         DataTypeReaderEnv::Int(self)
+//     }
+// }
+//
+// impl IntoDataTypeReaderEnv for i16 {
+//     fn into(self) -> DataTypeReaderEnv {
+//         DataTypeReaderEnv::Int(self)
+//     }
+// }
+//
+// impl IntoDataTypeReaderEnv for i8 {
+//     fn into(self) -> DataTypeReaderEnv {
+//         DataTypeReaderEnv::Int(self as i64)
+//     }
+// }
+//
+// impl IntoDataTypeReaderEnv for u32 {
+//     fn into(self) -> DataTypeReaderEnv {
+//         DataTypeReaderEnv::Int(self as u32)
+//     }
+// }
+//
+// impl IntoDataTypeReaderEnv for u32 {
+//     fn into(self) -> DataTypeReaderEnv {
+//         DataTypeReaderEnv::Int(self as u32)
+//     }
+// }
+//
+// impl IntoDataTypeReaderEnv for u16 {
+//     fn into(self) -> DataTypeReaderEnv {
+//         DataTypeReaderEnv::Int(self as u16)
+//     }
+// }
+//
+// impl IntoDataTypeReaderEnv for u8 {
+//     fn into(self) -> DataTypeReaderEnv {
+//         DataTypeReaderEnv::Int(self as u64)
+//     }
+// }
 
-impl IntoDataTypeReaderEnv for i64 {
-    fn into(self) -> DataTypeReaderEnv {
-        DataTypeReaderEnv::Int(self)
+macro_rules! IntoDataTypeReaderEnvGenerate {
+    ($first:expr, $second:expr, $($rest:expr),*) => {
+    $(
+    paste!{
+        impl IntoDataTypeReaderEnv for $rest {
+            fn into(self) -> DataTypeReaderEnv {
+                DataTypeReaderEnv::$second(self as $first)
+            }
+        }
+    })*
     }
 }
+
+IntoDataTypeReaderEnvGenerate!(u64, UInt, u8, u16, u32, u64);
+IntoDataTypeReaderEnvGenerate!(i64, Int, i8, i16, i32, i64);
+IntoDataTypeReaderEnvGenerate!(f64, Float, f32, f64);
 
 impl DataTypeReader<'_> {
     pub fn read_exact_generic<T: DataTypeRead>(
@@ -161,6 +273,13 @@ pub trait DataTypeRead: Sized {
     fn to_datatype(&self) -> DataType {
         DataType::None
     }
+    fn environment(&self, datatypereader: &mut DataTypeReader, name: impl Into<String>) {
+        panic!("environment has not been implemented for this type");
+    }
+}
+
+pub trait DataTypeSize: Sized {
+    fn datatypereader_size(&self) -> usize;
 }
 
 impl DataTypeRead for Vec<Vertex> {}
@@ -211,42 +330,46 @@ macro_rules! datatypereader_generate_base_type {
         $(
         paste! {
         impl DataTypeRead for $ty {
-        fn  [< read >] (datareader: &mut DataTypeReader,
-        ) ->  Result<$ty, DataTypeReaderError> {
-        const TYPE_SIZE:usize = std::mem::size_of::<$ty>();
-        let current_position: u64 = datareader.cursor.position();
-        trace_start!(datareader, stringify!($ty));
-        let len = datareader.cursor.get_ref().len() as u64;
-        if (current_position + TYPE_SIZE as u64) > len {
-        return Err(DataTypeReaderError::ReadSizeError(current_position, len, TYPE_SIZE as u64));
-        }
-        let mut a: [u8; TYPE_SIZE] = [0; TYPE_SIZE];
-        match datareader.cursor.read_exact(&mut a) {
-        Err(_) => {
-        return Err(DataTypeReaderError::ReadError)
-        }
-        Ok(_) => {},
-        };
+            fn  [< read >] (datareader: &mut DataTypeReader,) ->  Result<$ty, DataTypeReaderError> {
+                const TYPE_SIZE:usize = std::mem::size_of::<$ty>();
+                let current_position: u64 = datareader.cursor.position();
+                trace_start!(datareader, stringify!($ty));
+                let len = datareader.cursor.get_ref().len() as u64;
+                if (current_position + TYPE_SIZE as u64) > len {
+                    return Err(DataTypeReaderError::ReadSizeError(current_position, len, TYPE_SIZE as u64));
+                }
+                let mut a: [u8; TYPE_SIZE] = [0; TYPE_SIZE];
+                match datareader.cursor.read_exact(&mut a) {
+                    Err(_) => {
+                        return Err(DataTypeReaderError::ReadError)
+                    }
+                    Ok(_) => {},
+                };
 
-        let v;
-        v = $ty::from_le_bytes(a);
-        trace_stop!(datareader, v, $ty);
-        Ok(v)
+                let v;
+                v = $ty::from_le_bytes(a);
+                trace_stop!(datareader, v, $ty);
+                Ok(v)
+            }
+
+            fn to_datatype (&self) -> DataType {
+                DataType::[< $ty:upper >](self.clone())
+            }
+
+            fn environment(&self, datatypereader: &mut DataTypeReader, name: impl Into<String>) {
+                let name = name.into();
+                datatypereader.set_env(name, self.clone());
+            }
         }
-        fn to_datatype (&self) -> DataType {
-            DataType::[< $ty:upper >](self.clone())
+        })*
         }
-        }
-        }
-        )*
     }
-}
 
 #[allow(unused)]
 macro_rules! datatypereader_generate_sized {
-    ($(($ty:tt, $size:expr, $default: expr, $typename: expr)),*) => {
-        $(
-        datatypereader_generate_sized_dispatch!($ty, $size, $default, $typename);
+        ($(($ty:tt, $size:expr, $default: expr, $typename: expr)),*) => {
+            $(
+            datatypereader_generate_sized_dispatch!($ty, $size, $default, $typename);
         )*
     };
 }

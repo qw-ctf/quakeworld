@@ -38,11 +38,15 @@ fn parse_file(filename: String, bspname: String) -> Result<bool, Box<dyn Error>>
     #[cfg(feature = "trace")]
     let mut tr = Trace::new();
     let b = Bsp::parse(
-        d,
+        d.clone(),
         #[cfg(feature = "trace")]
         Some(&mut tr),
     )?;
-    println!("{:?}", b);
+    // let o = b.header.entities.offset as usize;
+    // let l = (b.header.entities.offset + b.header.entities.size) as usize;
+    // let entities = d[o..l].to_vec();
+    // let s = String::from_utf8(entities).unwrap();
+    // println!("{}", s);
     Ok(true)
 }
 

@@ -14,7 +14,21 @@ A collection of quakeworld related libraries.
 [lib]
 
 [features]
-default = ["mvd", "utils", "protocol", "state", "network", "connection", "crc", "pak", "mdl", "lmp", "bsp", "qtv", "vfs"]
+default = [
+  "mvd",
+  "utils",
+  "protocol",
+  "state",
+  "network",
+  "connection",
+  "crc",
+  "pak",
+  "mdl",
+  "lmp",
+  "bsp",
+  "qtv",
+  "vfs",
+]
 connection = ["protocol", "state", "network", "crc", "ascii_strings"]
 state = ["protocol", "utils"]
 mvd = ["utils", "protocol"]
@@ -30,10 +44,10 @@ lmp = []
 bsp = []
 qtv = []
 vfs = []
-example-ratatui = [ "ratatui", "crossterm", "color-eyre", "anyhow", "palette" ]
+example-ratatui = ["ratatui", "crossterm", "color-eyre", "anyhow", "palette"]
 
 [dependencies]
-protocol-macros = { version="0.0.2", path = "./protocol-macros", package="quakeworld-protocol-macros", optional=true }
+protocol-macros = { version = "0.0.2", path = "./protocol-macros", package = "quakeworld-protocol-macros", optional = true }
 thiserror = "1.0.26"
 num_enum = "0.2.3"
 byteorder = "1.4.3"
@@ -56,6 +70,7 @@ anyhow = { version = "1.0.81", optional = true }
 palette = { version = "0.7.5", optional = true }
 uuid = { version = "1.13.1", features = ["v4"] }
 time = { version = "0.3.37", features = ["formatting"] }
+proc-macro2 = "1.0.93"
 # ratatui = { optional = true, features = ["crossterm"] }
 # crossterm = { optional = true }
 

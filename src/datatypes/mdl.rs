@@ -34,9 +34,9 @@ pub struct Header {
 pub struct Frame {
     pub frame_type: u32,
     pub bounding_box: BoundingBox<Vertex>,
-    #[datatyperead(size = 16)]
+    #[datatyperead(size_from = 16, string)]
     pub name: Vec<u8>,
-    #[datatyperead(size = "vertex_count")]
+    #[datatyperead(size_from = "vertex_count")]
     pub vertex: Vec<Vertex>,
 }
 
@@ -44,7 +44,7 @@ pub struct Frame {
 #[datatyperead(prefix = "mdl")]
 pub struct Skin {
     pub time: f32,
-    #[datatyperead(size = "skin_size")]
+    #[datatyperead(size_from = "skin_size")]
     pub data: Vec<u8>,
 }
 
