@@ -174,6 +174,18 @@ impl From<DataTypeReaderEnv> for usize {
     }
 }
 
+impl From<DataTypeReaderEnv> for u64 {
+    fn from(value: DataTypeReaderEnv) -> u64 {
+        match value {
+            DataTypeReaderEnv::Int(_)
+            | DataTypeReaderEnv::Float(_)
+            | DataTypeReaderEnv::String(_)
+            | DataTypeReaderEnv::None => panic!("hits cant be happening"),
+            DataTypeReaderEnv::UInt(u) => u as u64,
+        }
+    }
+}
+
 pub trait IntoDataTypeReaderEnv {
     fn into(self) -> DataTypeReaderEnv;
 }
@@ -183,54 +195,6 @@ impl IntoDataTypeReaderEnv for String {
         DataTypeReaderEnv::String(self.clone())
     }
 }
-//
-// impl IntoDataTypeReaderEnv for i64 {
-//     fn into(self) -> DataTypeReaderEnv {
-//         DataTypeReaderEnv::Int(self)
-//     }
-// }
-//
-// impl IntoDataTypeReaderEnv for i32 {
-//     fn into(self) -> DataTypeReaderEnv {
-//         DataTypeReaderEnv::Int(self)
-//     }
-// }
-//
-// impl IntoDataTypeReaderEnv for i16 {
-//     fn into(self) -> DataTypeReaderEnv {
-//         DataTypeReaderEnv::Int(self)
-//     }
-// }
-//
-// impl IntoDataTypeReaderEnv for i8 {
-//     fn into(self) -> DataTypeReaderEnv {
-//         DataTypeReaderEnv::Int(self as i64)
-//     }
-// }
-//
-// impl IntoDataTypeReaderEnv for u32 {
-//     fn into(self) -> DataTypeReaderEnv {
-//         DataTypeReaderEnv::Int(self as u32)
-//     }
-// }
-//
-// impl IntoDataTypeReaderEnv for u32 {
-//     fn into(self) -> DataTypeReaderEnv {
-//         DataTypeReaderEnv::Int(self as u32)
-//     }
-// }
-//
-// impl IntoDataTypeReaderEnv for u16 {
-//     fn into(self) -> DataTypeReaderEnv {
-//         DataTypeReaderEnv::Int(self as u16)
-//     }
-// }
-//
-// impl IntoDataTypeReaderEnv for u8 {
-//     fn into(self) -> DataTypeReaderEnv {
-//         DataTypeReaderEnv::Int(self as u64)
-//     }
-// }
 
 macro_rules! IntoDataTypeReaderEnvGenerate {
     ($first:expr, $second:expr, $($rest:expr),*) => {

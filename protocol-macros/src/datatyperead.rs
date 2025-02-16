@@ -30,15 +30,18 @@ enum OffsetParsed {
 
 impl From<&SizeOffset> for OffsetParsed {
     fn from(value: &SizeOffset) -> Self {
-        let t = match value {
+        match value {
             SizeOffset::None| SizeOffset::SizeInt(_) |SizeOffset::SizeStr(_) => OffsetParsed::None,
             SizeOffset::OffsetInt(lit_int) => OffsetParsed::Int(lit_int.clone()),
             SizeOffset::OffsetStr(lit_str) => OffsetParsed::Str(lit_str.clone()),
             SizeOffset::SizeOffsetStrStr(lit_str, _)|  SizeOffset::SizeOffsetStrInt(lit_str, _) => OffsetParsed::Str(lit_str.clone()),
             SizeOffset::SizeOffsetIntStr(lit_int, _) | SizeOffset::SizeOffsetIntInt(lit_int, _) => OffsetParsed::Int(lit_int.clone()),
-            SizeOffset::SizeOffsetStr(lit_str) => OffsetParsed::Str(lit_str.clone()),
-        };
-        t
+            SizeOffset::SizeOffsetStr(lit_str) => {
+                    let name_offset = format!("{}_offset", lit_str.value());
+                    let name_offset = syn::LitStr::new(&name_offset, lit_str.span());
+                OffsetParsed::Str(name_offset)
+            },
+        }
     }
 }
 
@@ -52,15 +55,17 @@ enum SizeParsed {
 
 impl From<&SizeOffset> for SizeParsed {
     fn from(value: &SizeOffset) -> Self {
-        let t = match value {
+        match value {
             SizeOffset::None| SizeOffset::OffsetInt(_) |SizeOffset::OffsetStr(_) => SizeParsed::None,
             SizeOffset::SizeInt(lit_int) => SizeParsed::Int(lit_int.clone()),
             SizeOffset::SizeStr(lit_str) => SizeParsed::Str(lit_str.clone()),
             SizeOffset::SizeOffsetStrStr(_, lit_str) | SizeOffset::SizeOffsetIntStr(_, lit_str) => SizeParsed::Str(lit_str.clone()),
             SizeOffset::SizeOffsetIntInt(_, lit_int) | SizeOffset::SizeOffsetStrInt(_, lit_int) => SizeParsed::Int(lit_int.clone()),
-            SizeOffset::SizeOffsetStr(lit_str) => SizeParsed::Str(lit_str.clone()),
-        };
-        t
+            SizeOffset::SizeOffsetStr(lit_str) => {
+                let name_size= format!("{}_size", lit_str.value());
+                let name_size= syn::LitStr::new(&name_size, lit_str.span());
+                SizeParsed::Str(name_size)},
+        }
     }
 }
 
@@ -501,22 +506,62 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
             true => quote!{ read_exact_generic_string },
             false => quote!{ read_exact_generic_v2 },
         };
-        // println!("s")
+
+        let field_environment = match fap.environment {
+            Environment::None => quote!{},
+            Environment::Auto => quote!{
+                #field_identifier . environment( datareader , stringify!(#field_name));
+            },
+            Environment::String(lit_str) => quote!{
+                #field_identifier . environment( datareader , #lit_str);
+            },
+        };
+
+        let mut field_offset_after = quote!{};
+        let field_offset = match fap.offset {
+            OffsetParsed::None => quote!{},
+            OffsetParsed::Int(lit_int) => {
+                field_offset_after = quote!{
+                    datareader.set_position(old_offset);
+                };
+                quote!{
+                    let old_offset = datareader.position();
+                    datareader.set_position(#lit_int);
+                }},
+            OffsetParsed::Str(lit_str) => {
+                field_offset_after = quote!{
+                    datareader.set_position(old_offset);
+                };
+                quote!{
+                    let old_offset = datareader.position();
+                    let current_field_offset: u64 = datareader.get_env_error(#lit_str)?.into();
+                    datareader.set_position(current_field_offset);
+                }},
+        };
+
         // Generating field reading
         let fc = match fap.size {
             SizeParsed::None => quote!{
+                #field_offset
                 let #field_identifier = <#field_type as DataTypeRead>::read(datareader)?;
+                #field_offset_after
+                #field_environment
             },
             SizeParsed::Int(lit_int) => quote!{
                 let size_from_environment: usize = #lit_int;
                 let mut #field_identifier: #field_type = Vec::with_capacity(size_from_environment);
+                #field_offset
                 datareader. #read_exect_type (&mut #field_identifier)?;
-                // datareader. #read_type (&mut #field_identifier)?;
+                #field_offset_after
+                #field_environment
             },
             SizeParsed::Str(lit_str) => quote!{
                 let size_from_environment: usize = datareader.get_env_error(#lit_str)? .into();
                 let mut #field_identifier: #field_type = Vec::with_capacity(size_from_environment);
+                #field_offset
                 datareader.read_exact_generic_v2(&mut #field_identifier)?;
+                #field_offset_after
+                #field_environment
             },
         };
 

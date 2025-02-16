@@ -3,11 +3,12 @@ use paste::paste;
 use serde::Serialize;
 
 use std::ops::Index;
+use std::sync::Arc;
 
-use protocol_macros::DataTypeRead;
+use protocol_macros::{DataTypeBoundCheckDerive, DataTypeRead, DataTypeSize};
 
 use crate::datatypes::reader::{
-    DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeReaderError,
+    DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeReaderError, DataTypeSize,
 };
 
 use crate::trace::{trace_annotate, trace_start, trace_stop};
@@ -29,6 +30,12 @@ where
     pub x: T,
     pub y: T,
     pub z: T,
+}
+
+impl<T: std::clone::Clone + DataTypeRead> DataTypeSize for Vector3<T> {
+    fn datatypereader_size(&self) -> usize {
+        return std::mem::size_of::<T>() * 3;
+    }
 }
 
 impl<T> Index<usize> for Vector3<T>
@@ -60,7 +67,7 @@ impl AsciiString for Vec<u8> {
 
 /// Bounding box
 #[derive(Serialize, Clone, Debug, Copy, Default, DataTypeRead)]
-#[datatyperead(types("Vertex", "u8"))]
+// #[datatyperead(types("Vertex", "u8"))]
 pub struct BoundingBox<T: DataTypeRead + 'static>
 where
     T: Clone,
@@ -92,6 +99,7 @@ pub enum DataType {
     PAKHEADER(crate::datatypes::pak::Header),
     PAKFILE(crate::datatypes::pak::File),
     BSPHEADER(bsp::Header),
+    BSP(Bsp),
     DIRECTORYENTRY(DirectoryEntry),
     MDLSKIN(mdl::Skin),
     MDLFRAME(mdl::Frame),
@@ -105,29 +113,11 @@ pub enum DataType {
     QTV(crate::qtv::QtvType),
     VECTOR3GENERIC,
     BOUNDINGBOXGENERIC,
-    // these are just for testing
-    TESTSIZEDVECTORSIZEDSTRING(TestSizedVectorSizedString),
-    TESTSIZEDVECTORSIZED(TestSizedVectorSized),
-    // TESTSIZEDVECTORSTRING(TestSizedVectorString),
-    TESTSIZEDVECTORNAME(TestSizedVectorName),
-}
-
-#[derive(Serialize, Clone, Debug, DataTypeRead)]
-pub struct TestSizedVectorSizedString {
-    #[datatyperead(size = 16, string)]
-    pub data: Vec<u8>,
-}
-
-#[derive(Serialize, Clone, Debug, DataTypeRead)]
-pub struct TestSizedVectorSized {
-    #[datatyperead(size = 8, string)]
-    pub data: Vec<u8>,
-}
-
-#[derive(Serialize, Clone, Debug, DataTypeRead)]
-pub struct TestSizedVectorName {
-    #[datatyperead(size = "environment_size")]
-    pub data: Vec<u8>,
+    PLANE(Plane),
+    TEXTUREHEADER(TextureHeader),
+    TEXTUREINFO(TextureInfo),
+    TEXTURE(Texture),
+    Throwaway,
 }
 
 impl DataType {
@@ -138,12 +128,20 @@ impl DataType {
 }
 
 /// Directory entry: describes the position and size of a chunk of data inside a BSP File
-#[derive(Serialize, Clone, Debug, Copy, DataTypeRead)]
+#[derive(Serialize, Clone, Debug, Copy, DataTypeRead, Default)]
 pub struct DirectoryEntry {
     /// Offset from the sart of the file
     pub offset: u32,
     /// Size of the chunk
     pub size: u32,
+}
+
+impl DirectoryEntry {
+    pub fn environment(&self, datatypereader: &mut DataTypeReader, name: impl Into<String>) {
+        let name = name.into();
+        datatypereader.set_env(format!("{}_size", name), self.size);
+        datatypereader.set_env(format!("{}_offset", name), self.offset);
+    }
 }
 
 impl DataTypeBoundCheck for DirectoryEntry {
@@ -187,6 +185,60 @@ pub struct Triangle {
 pub struct Vertex {
     pub v: Vector3<u8>,
     pub normal_index: u8,
+}
+
+#[derive(Serialize, Clone, Debug, Copy, DataTypeRead, Default)]
+pub struct Plane {
+    pub normal: Vector3<f32>,
+    pub distance: f32,
+    pub r#type: i32,
+}
+
+#[derive(Serialize, Clone, Debug, DataTypeRead, Default)]
+pub struct TextureHeader {
+    #[datatyperead(environment = "count")]
+    pub count: i32, // texture count
+    #[datatyperead(size_from = "count")]
+    pub offsets: Vec<i32>,
+}
+
+#[derive(Serialize, Clone, Debug, DataTypeRead, Default)]
+pub struct TextureInfo {
+    #[datatyperead(size_from = 16, string)]
+    pub name: Vec<u8>,
+    pub width: u32,   // width of picture, must be a multiple of ,
+    pub height: u32,  // height of picture, must be a multiple of 8
+    pub offset1: u32, // offset to u_char Pix[width   * height]
+    pub offset2: u32, // offset to u_char Pix[width/2 * height/2]
+    pub offset4: u32, // offset to u_char Pix[width/4 * height/4]
+    pub offset8: u32, // offset to u_char Pix[width/8 * height/8]
+}
+
+#[derive(Serialize, Clone, Debug, Default)]
+pub struct MipTexture {
+    pub width: u32,
+    pub height: u32,
+    pub data: Vec<u8>,
+}
+
+#[derive(Serialize, Clone, Debug, Default)]
+pub struct Texture {
+    pub name: String,
+    pub width: u32,
+    pub height: u32,
+    pub data: Vec<u8>,
+    pub mips: Vec<MipTexture>,
+}
+
+#[derive(Serialize, Clone, Debug, DataTypeRead, Default)]
+pub struct Bsp {
+    pub header: bsp::Header,
+    #[datatyperead(size_offset_from = "environment", size_from = 14)]
+    pub planes: Vec<Plane>,
+    // #[datatyperead(size=once)]
+    // pub textures: TextureHeader,
+    // #[datatyperead(size_from_directory_entry)]
+    // pub textures: Vec<Texture>,
 }
 
 // #[derive(Serialize, Clone, Debug, DataTypeRead)]
