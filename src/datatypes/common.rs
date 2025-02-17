@@ -216,22 +216,16 @@ pub struct TextureHeader {
 }
 
 #[derive(Serialize, Clone, Debug, DataTypeRead, Default)]
-// #[datatyperead(replace = (read, texture_info_read))]
-#[datatyperead(ommit_func = read)]
+// #[datatyperead()]
 pub struct TextureInfo {
     #[datatyperead(size_from = 16, string)]
     pub name: Vec<u8>,
-    pub width: u32, // width of picture, must be a multiple of ,
-    // #[datatyperead(run_after=texture_info_calc_size)]
+    pub width: u32,   // width of picture, must be a multiple of ,
     pub height: u32,  // height of picture, must be a multiple of 8
     pub offset1: u32, // offset to u_char Pix[width   * height]
     pub offset2: u32, // offset to u_char Pix[width/2 * height/2]
     pub offset4: u32, // offset to u_char Pix[width/4 * height/4]
     pub offset8: u32, // offset to u_char Pix[width/8 * height/8]
-}
-
-fn texture_info_read(_datatypereader: &mut DataTypeReader) -> Result<bool, DataTypeReaderError> {
-    panic!("its happening in here!")
 }
 
 #[derive(Serialize, Clone, Debug, Default)]

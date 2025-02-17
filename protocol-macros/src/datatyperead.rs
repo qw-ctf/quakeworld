@@ -34,6 +34,15 @@ pub struct StructAttr {
     pub ommit_trait: OmmitableTrait,
 }
 
+macro_rules! return_syn_error_parser_apply_function {
+    ($name:expr) => {
+        return Err(syn::Error::new(
+            $name.span(),
+            format!("`{}` attribute is not supported", $name),
+        ))
+    };
+}
+
 impl ParserApplyFunction for StructAttr {
     fn apply_parsed_attribute(&mut self, attribute: &AttributeParse) -> syn::Result<()> {
         match attribute.name.as_str() {
@@ -41,7 +50,10 @@ impl ParserApplyFunction for StructAttr {
             "datatype" => datatype_apply_to_struct(attribute, self)?,
             "ommit_trait" => ommit_trait_apply_to_struct(attribute, self)?,
             _ => {
-                panic!("not yet implemented!")
+                return Err(syn::Error::new(
+                    attribute.name_ident.span(),
+                    format!("`{}` attribute is not supported", attribute.name),
+                ));
             }
         }
         Ok(())
