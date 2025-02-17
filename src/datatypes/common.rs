@@ -23,7 +23,7 @@ pub trait AsciiString {
 
 /// A vector or position
 #[derive(Serialize, Clone, Debug, Copy, DataTypeRead, Default)]
-#[datatyperead(ommit_func = datatype_size)]
+#[datatyperead(ommit_trait = DataTypeSize)]
 pub struct Vector3<T: DataTypeRead + 'static>
 where
     T: Clone,
@@ -80,7 +80,7 @@ impl AsciiString for Vec<u8> {
 
 /// Bounding box
 #[derive(Serialize, Clone, Debug, Copy, Default, DataTypeRead)]
-// #[datatyperead(ommit_func=datatype_size)]
+// #[datatyperead(ommit_func)]
 pub struct BoundingBox<T: DataTypeRead + DataTypeSize + 'static>
 where
     T: Clone,
@@ -209,22 +209,29 @@ pub struct Plane {
 
 #[derive(Serialize, Clone, Debug, DataTypeRead, Default)]
 pub struct TextureHeader {
-    #[datatyperead(environment)]
+    #[datatyperead(environment = "texture_header_count")]
     pub count: i32, // texture count
-    #[datatyperead(size_from = "count")]
+    #[datatyperead(size_from = "texture_header_count")]
     pub offsets: Vec<i32>,
 }
 
 #[derive(Serialize, Clone, Debug, DataTypeRead, Default)]
+// #[datatyperead(replace = (read, texture_info_read))]
+#[datatyperead(ommit_func = read)]
 pub struct TextureInfo {
     #[datatyperead(size_from = 16, string)]
     pub name: Vec<u8>,
-    pub width: u32,   // width of picture, must be a multiple of ,
+    pub width: u32, // width of picture, must be a multiple of ,
+    // #[datatyperead(run_after=texture_info_calc_size)]
     pub height: u32,  // height of picture, must be a multiple of 8
     pub offset1: u32, // offset to u_char Pix[width   * height]
     pub offset2: u32, // offset to u_char Pix[width/2 * height/2]
     pub offset4: u32, // offset to u_char Pix[width/4 * height/4]
     pub offset8: u32, // offset to u_char Pix[width/8 * height/8]
+}
+
+fn texture_info_read(_datatypereader: &mut DataTypeReader) -> Result<bool, DataTypeReaderError> {
+    panic!("its happening in here!")
 }
 
 #[derive(Serialize, Clone, Debug, Default)]

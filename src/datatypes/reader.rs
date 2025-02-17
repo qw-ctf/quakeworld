@@ -233,12 +233,13 @@ pub trait DataTypeRead: Sized {
     fn read(_datatypereader: &mut DataTypeReader) -> Result<Self, DataTypeReaderError> {
         // @TODO: not sure if we should panic here
         Err(DataTypeReaderError::NotImplemented)
+        // compile_error!("you need to implement the read function");
     }
     fn to_datatype(&self) -> DataType {
         DataType::None
     }
     fn environment(&self, datatypereader: &mut DataTypeReader, name: impl Into<String>) {
-        panic!("environment has not been implemented for this type");
+        // compile_error!("you need to implement the environment function");
     }
 }
 

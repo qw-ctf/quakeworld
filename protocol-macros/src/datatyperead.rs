@@ -1,9 +1,15 @@
+use std::rc::Rc;
+
+mod argument_parser;
+
+use argument_parser::*;
+
 use syn::{
     braced, parenthesized,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     spanned::Spanned,
-    token, Attribute, Expr, PathSegment, Token,
+    token, Attribute, AttributeArgs, Expr, PathSegment, Token,
 };
 
 use proc_macro::{Delimiter, Ident, Span, TokenStream};
@@ -20,6 +26,39 @@ use syn::parse::Parser;
 * offset_from = int // set the offset to the int
 * offset_from = String // pull the offset from the environment
 */
+
+#[derive(Debug, Default, Clone)]
+pub struct StructAttr {
+    pub prefix: Option<syn::LitStr>, // prefix for the struct
+    pub datatype: StructDataType,    // datatype overwrite for the struct
+    pub ommit_trait: OmmitableTrait,
+}
+
+impl ParserApplyFunction for StructAttr {
+    fn apply_parsed_attribute(&mut self, attribute: &AttributeParse) -> syn::Result<()> {
+        match attribute.name.as_str() {
+            "prefix" => prefix_apply_to_struct(attribute, self)?,
+            "datatype" => datatype_apply_to_struct(attribute, self)?,
+            "ommit_trait" => ommit_trait_apply_to_struct(attribute, self)?,
+            _ => {
+                panic!("not yet implemented!")
+            }
+        }
+        Ok(())
+    }
+}
+
+macro_rules! attribute_value_error {
+    ($input:ident, $type_name:ident) => {
+        if ! $input .peek(Token![=]) {
+        return Err(syn::Error::new(
+        $type_name .span(),
+        format!("`{}` attribute does need a value", $type_name),
+        ));
+        }
+        let _: Option<Token![=]> = $input .parse()?;
+    }
+}
 
 #[derive(Default, PartialEq, Eq)]
 enum OffsetParsed {
@@ -105,117 +144,328 @@ struct FieldAttributesParsed {
     pub environment: Environment,
 }
 
-#[derive(Debug, Clone, Default)]
-enum StructDataType {
-    #[default]
-    None,
-    String(syn::LitStr),
-    Ident(syn::Ident),
+fn parse_attribute_type_blank(input: &mut ParseStream, name: syn::Ident) -> syn::Result<bool> {
+    // println!(
+    //     "we try and parse a blank {} {} {}",
+    //     input.peek(Token![,]),
+    //     !input.peek(token::Paren),
+    //     input.peek(token::Eq)
+    // );
+    if input.peek(token::Eq) || input.peek(token::Paren) {
+        // println!("{:?}", input);
+        // println!("{}", name);
+        return Err(syn::Error::new(
+            name.span(),
+            format!("`{}` does not take values", name),
+        ));
+    }
+    // println!("we parsed blank for: {}", name);
+    Ok(true)
 }
 
-#[derive(Debug, Default, Clone)]
-struct StructAttr {
-    pub prefix: Option<syn::LitStr>, // prefix for the struct
-    pub datatype: StructDataType,    // datatype overwrite for the struct
-    pub ommit_datatype_size: bool,
+fn parse_attribute_type_vector(
+    input: &mut ParseStream,
+    allowed: Vec<AttributeTypeAllowed>,
+    name: syn::Ident,
+) -> syn::Result<bool> {
+    Ok(true)
+}
+
+fn parse_attribute_type_single(
+    input: &mut ParseStream,
+    allowed: Vec<AttributeTypeAllowed>,
+    name: syn::Ident,
+) -> syn::Result<bool> {
+    Ok(true)
+}
+
+impl AttributeType {
+    fn parse(&self, input: &mut ParseStream, name: syn::Ident) -> syn::Result<bool> {
+        println!("we parse this in here");
+        let t = match self {
+            AttributeType::Blank => parse_attribute_type_blank(input, name)?,
+            AttributeType::Single(attribute_type_alloweds) => {
+                parse_attribute_type_single(input, (*attribute_type_alloweds).clone(), name)?
+            }
+            AttributeType::Vector(attribute_type_alloweds) => {
+                parse_attribute_type_vector(input, (*attribute_type_alloweds).clone(), name)?
+            }
+        };
+        Ok(t)
+    }
+}
+
+macro_rules! generate_attribute_options {
+    ($(($key:expr, ($($inner:expr),*))),* $(,)?) => {
+        {
+
+            let mut results: Vec<AttributeParse> = Vec::new();
+            $(
+                let mut v = AttributeParse{ name: $key.into(), types: vec![]};
+                $(
+                    v.types.push($inner);
+                )*
+                results.push(v);
+            )*
+        results
+        }
+    };
+}
+
+macro_rules! return_syn_error {
+    ($name:expr, $errortype:expr ) => {
+        return Err(syn::Error::new(
+            $name.span(),
+            format!(
+                "`{}` attribute does not support the `{}` value",
+                $name, $errortype
+            ),
+        ))
+    };
+}
+
+fn prefix_apply_to_struct(
+    attribute: &AttributeParse,
+    struct_attributes: &mut StructAttr,
+) -> syn::Result<()> {
+    // let attr_ident = attribute.name_ident.clone().unwrap();
+    match &attribute.parsed_value {
+        AttributeTypeParsed::None => {
+            return Ok(());
+        }
+        AttributeTypeParsed::Blank => return_syn_error!(attribute.name_ident, "Blank"),
+        AttributeTypeParsed::Single(attribute_value) => match attribute_value {
+            AttributeValue::Int(lit_int) => return_syn_error!(attribute.name_ident, "Single Int"),
+            AttributeValue::Str(lit_str) => {
+                struct_attributes.prefix = Some(lit_str.clone());
+            }
+            AttributeValue::Ident(ident) => return_syn_error!(attribute.name_ident, "Single Type"),
+        },
+        AttributeTypeParsed::Vector(attribute_values) => {
+            return_syn_error!(attribute.name_ident, "Vector")
+        }
+    }
+    Ok(())
+}
+
+fn datatype_apply_to_struct(
+    attribute: &AttributeParse,
+    struct_attributes: &mut StructAttr,
+) -> syn::Result<()> {
+    // let attr_ident = attribute.name_ident.clone().unwrap();
+    match &attribute.parsed_value {
+        AttributeTypeParsed::None => {
+            // return_syn_error!(attribute.name_ident, "None")
+            return Ok(());
+        }
+        AttributeTypeParsed::Blank => return_syn_error!(attribute.name_ident, "Blank"),
+        AttributeTypeParsed::Single(attribute_value) => match attribute_value {
+            AttributeValue::Int(lit_int) => return_syn_error!(attribute.name_ident, "Single Int"),
+            AttributeValue::Str(lit_str) => {
+                return_syn_error!(attribute.name_ident, "Single Type")
+            }
+            AttributeValue::Ident(ident) => {
+                // TODO: apply this
+                // struct_attributes.datatype = ident.clone()
+                struct_attributes.datatype = StructDataType::Ident(ident.clone());
+            }
+        },
+        AttributeTypeParsed::Vector(attribute_values) => {
+            return_syn_error!(attribute.name_ident, "Vector")
+        }
+    }
+    Ok(())
+}
+
+fn ommit_trait_apply_to_struct(
+    attribute: &AttributeParse,
+    struct_attributes: &mut StructAttr,
+) -> syn::Result<()> {
+    match &attribute.parsed_value {
+        AttributeTypeParsed::None => {
+            return Ok(());
+            // return_syn_error!(attribute.name_ident, "None")
+        }
+        AttributeTypeParsed::Blank => return_syn_error!(attribute.name_ident, "Blank"),
+        AttributeTypeParsed::Single(attribute_value) => match attribute_value {
+            AttributeValue::Int(lit_int) => return_syn_error!(attribute.name_ident, "Single Int"),
+            AttributeValue::Str(lit_str) => {
+                return_syn_error!(attribute.name_ident, "Single Type")
+            }
+            AttributeValue::Ident(ident) => {
+                // TODO: apply this
+                // struct_attributes.datatype = ident.clone()
+                // struct_attributes.datatype = StructDataType::Ident(ident.clone());
+                let ident = ident.to_string();
+                match ident.as_str() {
+                    "DataTypeSize" => struct_attributes.ommit_trait.size = true,
+                    "DataTypeRead" => struct_attributes.ommit_trait.read = true,
+                    _ => {
+                        return_syn_error!(attribute.name_ident, ident);
+                    }
+                }
+            }
+        },
+        AttributeTypeParsed::Vector(attribute_values) => {
+            return_syn_error!(attribute.name_ident, "Vector")
+        }
+    }
+    Ok(())
 }
 
 impl Parse for StructAttr {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut struct_attributes = StructAttr::default();
 
-        loop {
-            if input.is_empty() {
-                break;
-            }
-            if input.peek(Token![,]) {
-                let _: Token![,] = input.parse()?;
-            }
-            if input.is_empty() {
-                break;
-            }
+        let mut attribute_parser = AttributeParser::default();
 
-            let type_name: syn::Ident = input.parse()?;
-            match type_name.to_string().as_str() {
-                "prefix" => {
-                    if input.peek(Token![=]) {
-                        let _: Option<Token![=]> = input.parse()?;
-                        if input.peek(syn::LitStr) {
-                            let s: syn::LitStr = input.parse()?;
-                            struct_attributes.prefix = Some(s);
-                            continue;
-                        }
-                        return Err(syn::Error::new(
-                            type_name.span(),
-                            format!("`{}` attribute does not support the value", type_name),
-                        ));
-                    } else {
-                        return Err(syn::Error::new(
-                            type_name.span(),
-                            format!("`{}` attribute does not support the value", type_name),
-                        ));
-                    }
+        // prefix
+        let mut a = AttributeParse::new("prefix");
+        // only allows a single Str
+        a.add_type(AttributeType::Single(vec![AttributeTypeAllowed::Str]));
+        // a.apply_to_struct = Some(prefix_apply_to_struct);
+        attribute_parser.add_attribute(a);
+
+        // datatype
+        let mut a = AttributeParse::new("datatype");
+        // only allows a single Str
+        a.add_type(AttributeType::Single(vec![AttributeTypeAllowed::Ident]));
+        // a.apply_to_struct = Some(datatype_apply_to_struct);
+        attribute_parser.add_attribute(a);
+
+        // ommit_trait
+        let mut a = AttributeParse::new("ommit_trait");
+        // only allows a single Str
+        a.add_type(AttributeType::Single(vec![AttributeTypeAllowed::Ident]));
+        // a.apply_to_struct = Some(ommit_trait_apply_to_struct);
+        attribute_parser.add_attribute(a);
+
+        // ommit_func
+        // let mut a = AttributeParse::new("ommit_func");
+        // // only allows a single Str
+        // a.add_type(AttributeType::Blank);
+        // attribute_parser.add_attribute(a);
+
+        let mut i = input.clone();
+        attribute_parser.parse_attributes(&mut i)?;
+        // attribute_parser.apply_to_struct(&mut struct_attributes)?;
+        // match attribute_parser.apply_to_struct(&mut struct_attributes) {
+        //     Ok(_) => {}
+        //     Err(e) => {
+        //         println!("we crash here? {}", e);
+        //         return Err(e);
+        //     }
+        // };
+
+        for attr in &attribute_parser.attributes {
+            struct_attributes.apply_parsed_attribute(attr)?;
+        }
+
+        if false {
+            loop {
+                if input.is_empty() {
+                    break;
                 }
-                "datatype" => {
-                    if input.peek(Token![=]) {
-                        let _: Option<Token![=]> = input.parse()?;
-                        if input.peek(syn::LitStr) {
-                            let s: syn::LitStr = input.parse()?;
-                            struct_attributes.datatype = StructDataType::String(s.clone());
-                            continue;
-                        }
-
-                        if input.peek(syn::Ident) {
-                            let s: syn::Ident = input.parse()?;
-                            struct_attributes.datatype = StructDataType::Ident(s.clone());
-                            continue;
-                        }
-
-                        return Err(syn::Error::new(
-                            type_name.span(),
-                            format!("`{}` attribute does not support the value", type_name),
-                        ));
-                    } else {
-                        return Err(syn::Error::new(
-                            type_name.span(),
-                            format!("`{}` attribute does not support the value", type_name),
-                        ));
-                    }
+                if input.peek(Token![,]) {
+                    let _: Token![,] = input.parse()?;
                 }
-                "ommit_func" => {
-                    if !input.peek(Token![=]) {
-                        return Err(syn::Error::new(
-                            type_name.span(),
-                            format!("`{}` attribute does need a value", type_name),
-                        ));
-                    }
-                    let _: Option<Token![=]> = input.parse()?;
-                    if !input.peek(syn::Ident) {
-                        return Err(syn::Error::new(
-                            type_name.span(),
-                            format!("`{}` attribute value needs to be Ident", type_name),
-                        ));
-                    }
+                if input.is_empty() {
+                    break;
+                }
 
-                    let s: syn::Ident = input.parse()?;
-                    if let "datatype_size" = s.to_string().as_str() {
-                        struct_attributes.ommit_datatype_size = true;
+                let type_name: syn::Ident = input.parse()?;
+                match type_name.to_string().as_str() {
+                    "prefix" => {
+                        if input.peek(Token![=]) {
+                            let _: Option<Token![=]> = input.parse()?;
+                            if input.peek(syn::LitStr) {
+                                let s: syn::LitStr = input.parse()?;
+                                struct_attributes.prefix = Some(s);
+                                continue;
+                            }
+                            return Err(syn::Error::new(
+                                type_name.span(),
+                                format!("`{}` attribute does not support the value", type_name),
+                            ));
+                        } else {
+                            return Err(syn::Error::new(
+                                type_name.span(),
+                                format!("`{}` attribute does not support the value", type_name),
+                            ));
+                        }
+                    }
+                    "datatype" => {
+                        if input.peek(Token![=]) {
+                            let _: Option<Token![=]> = input.parse()?;
+                            if input.peek(syn::LitStr) {
+                                let s: syn::LitStr = input.parse()?;
+                                struct_attributes.datatype = StructDataType::String(s.clone());
+                                continue;
+                            }
+
+                            if input.peek(syn::Ident) {
+                                let s: syn::Ident = input.parse()?;
+                                struct_attributes.datatype = StructDataType::Ident(s.clone());
+                                continue;
+                            }
+
+                            return Err(syn::Error::new(
+                                type_name.span(),
+                                format!("`{}` attribute does not support the value", type_name),
+                            ));
+                        } else {
+                            return Err(syn::Error::new(
+                                type_name.span(),
+                                format!("`{}` attribute does not support the value", type_name),
+                            ));
+                        }
+                    }
+                    "ommit_trait" => {
+                        attribute_value_error!(input, type_name);
+                        if !input.peek(syn::Ident) {
+                            return Err(syn::Error::new(
+                                type_name.span(),
+                                format!("`{}` attribute value needs to be Ident", type_name),
+                            ));
+                        }
+
+                        let s: syn::Ident = input.parse()?;
+
+                        match s.to_string().as_str() {
+                            "DataTypeSize" => {
+                                struct_attributes.ommit_trait.size = true;
+                            }
+                            "DataTypeRead" => {
+                                struct_attributes.ommit_trait.read = true;
+                            }
+                            _ => {
+                                return Err(syn::Error::new(
+                                    type_name.span(),
+                                    format!(
+                                        "`{}` attribute value `{}` not supported",
+                                        type_name, s
+                                    ),
+                                ));
+                            }
+                        }
                         continue;
                     }
-
-                    return Err(syn::Error::new(
-                        type_name.span(),
-                        format!("`{}` attribute value `{}` not supported", type_name, s),
-                    ));
-                }
-                _ => {
-                    return Err(syn::Error::new(
-                        type_name.span(),
-                        format!("`{}` attribute not supported", type_name),
-                    ))
+                    "replace" => {
+                        attribute_value_error!(input, type_name);
+                    }
+                    _ => {
+                        return Err(syn::Error::new(
+                            type_name.span(),
+                            format!("`{}` attribute not supported", type_name),
+                        ))
+                    }
                 }
             }
         }
+        println!(
+            "-------> the struct attr we return: {:?}",
+            struct_attributes
+        );
         Ok(struct_attributes)
     }
 }
@@ -525,6 +775,7 @@ struct StructInformation {
 
 pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
+
     // check if we are implementing on a struct
     let data_struct = match input.data {
         syn::Data::Struct(data_struct) => data_struct,
@@ -554,9 +805,14 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
         let attr_span = attr.span();
         let a = attr.parse_args_with(Punctuated::<StructAttr, Token![,]>::parse_terminated);
         if let Ok(sa) = a {
-            struct_attrib = sa[0].clone()
+            {
+                struct_attrib = sa[0].clone();
+                println!("\tfindme ---> {:?}\n\t --> {}", struct_attrib, input.ident);
+            }
         };
     }
+
+    // println!("findme ---> {:?}", struct_attrib);
 
     if input.ident.clone() == "SizedVectorNameTest" {
         println!(
@@ -575,9 +831,9 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
         fields: vec![],
         attributes: struct_attrib,
     };
-    // println!("{}", input.ident);
+    println!("{}", input.ident);
     // println!("{}", input.generics.params.to_token_stream());
-    // println!("{}", struct_information);
+    println!("{:?}", struct_information);
     for field in data_struct.fields.iter() {
         // println!("{:?}", field.ty);
         // match &field.ty {
@@ -874,7 +1130,7 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
         quote! { #ident }
     };
 
-    let struct_name = match struct_information.attributes.prefix {
+    let struct_name = match struct_information.attributes.prefix.clone() {
         Some(p) => {
             // let prefix = format_ident!("{}", p.value());
             quote! { #prefix::#p }
@@ -889,12 +1145,14 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
 
     let datatype_overwrite = match struct_information.attributes.datatype {
         StructDataType::None => quote! { DataType :: #datatype #has_data },
-        StructDataType::String(ident) => quote! { DataType :: #ident },
-        StructDataType::Ident(ident) => quote! { DataType :: #ident },
-        // None => quote!{ DataType :: #datatype #has_data },
+        StructDataType::String(ref ident) => quote! { DataType :: #ident },
+        StructDataType::Ident(ref ident) => {
+            let ident = ident.clone();
+            quote! { DataType :: #ident }
+        } // None => quote!{ DataType :: #datatype #has_data },
     };
 
-    let datatype_size = match struct_information.attributes.ommit_datatype_size {
+    let size_trait = match struct_information.attributes.ommit_trait.size {
         true => quote! {},
         false => {
             quote! {
@@ -909,32 +1167,40 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
         }
     };
 
-    let gen = quote! {
+    let read_trait = quote! {
         impl #struct_impl_generics DataTypeRead for #si_identifier #struct_type_generics #struct_where_clause {
             fn read(datareader: &mut DataTypeReader) -> Result<Self, DataTypeReaderError> {
                 trace_start!(datareader, stringify!( #si_identifier));
 
                 #(#field_errors)*
-                #(#field_creations)*
+                    #(#field_creations)*
 
-                let s = Self {
-                    #(#field_assignments)*
-                };
+                    let s = Self {
+                        #(#field_assignments)*
+                    };
                 // trace_stop!(datareader, s, #struct_name);
                 Ok(s)
+
             }
 
             fn to_datatype(&self) -> DataType {
                 #datatype_overwrite
             }
-
         }
-        #datatype_size
+    };
+    let read_trait = match struct_information.attributes.ommit_trait.read {
+        true => quote! {},
+        false => read_trait,
     };
 
-    // println!("{}", struct_name);
-    if struct_name.to_string() == "BoundingboxVertex" {
-        println!("{}", gen);
+    let gen = quote! {
+        #read_trait
+        #size_trait
+    };
+
+    if struct_name.to_string() == "Vector3" {
+        // println!("{} -> {:?}", struct_name, struct_information);
+        // panic!();
     }
     gen.into()
 }

@@ -27,20 +27,38 @@ impl From<DataTypeReaderError> for Error {
 pub type Result<T> = core::result::Result<T, Error>;
 
 pub type Bsp = crate::datatypes::common::Bsp;
+pub type Header = crate::datatypes::bsp::Header;
 
 impl Bsp {
     pub fn parse(
         data: Vec<u8>,
         #[cfg(feature = "trace")] trace: Option<&mut Trace>,
     ) -> Result<Self> {
-        let mut datatypereader = DataTypeReader::new(
+        let mut dtr = DataTypeReader::new(
             data,
             #[cfg(feature = "trace")]
             trace,
         );
         // read the header
-        let bsp = <Bsp as DataTypeRead>::read(&mut datatypereader)?;
-        println!("{:?}", bsp.textures);
+        let bsp_header = <Header as DataTypeRead>::read(&mut dtr)?;
+
+        let texture_data = dtr.read_data_from_directory_entry(bsp_header.textures)?; //red(&mut datatypereader)?;
+                                                                                     //
+        let mut dtr_texture = DataTypeReader::new(
+            texture_data,
+            #[cfg(feature = "trace")]
+            trace,
+        );
+
+        let texture_header =
+            <crate::datatypes::common::TextureHeader as DataTypeRead>::read(&mut dtr_texture)?;
+        println!("{:?}", texture_header);
+
+        for offset in texture_header.offsets {
+            dtr_texture.set_position(offset as u64);
+            let t = <crate::datatypes::common::TextureInfo>::read(&mut dtr_texture)?;
+            println!("texture: {:?}", t);
+        }
 
         // println!("something: {:?}", bsp.textures);
         // let texture_data = <crate::datatypes::common::TextureHeader

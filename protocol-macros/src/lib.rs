@@ -1,3 +1,4 @@
+#![allow(warnings)]
 use proc_macro::TokenStream;
 
 mod datatypeboundcheck;
