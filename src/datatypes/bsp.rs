@@ -3,9 +3,7 @@ use protocol_macros::DataTypeRead;
 /// based on: https://www.gamers.org/dEngine/quake/spec/quake-spec34/qkspec_4.htm
 use serde::Serialize;
 
-use crate::datatypes::reader::{
-    DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeReaderError, DataTypeSize,
-};
+use super::reader::{DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeSize, Error};
 use crate::trace::trace_start;
 use protocol_macros::DataTypeBoundCheckDerive;
 

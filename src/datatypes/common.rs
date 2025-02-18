@@ -5,8 +5,8 @@ use std::ops::Index;
 
 use protocol_macros::DataTypeRead;
 
-use crate::datatypes::reader::{
-    DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeReaderError, DataTypeSize,
+use super::reader::{
+    DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeSize, Error, Result,
 };
 
 use crate::trace::trace_start;
@@ -156,10 +156,10 @@ impl DirectoryEntry {
 }
 
 impl DataTypeBoundCheck for DirectoryEntry {
-    fn check_bounds(&self, datatypereader: &mut DataTypeReader) -> Result<(), DataTypeReaderError> {
+    fn check_bounds(&self, datatypereader: &mut DataTypeReader) -> Result<()> {
         let size = datatypereader.data.len() as u32;
         if self.offset + self.size > size {
-            return Err(DataTypeReaderError::BoundCheckError(
+            return Err(Error::BoundCheckError(
                 self.offset.into(),
                 self.size.into(),
                 (self.offset + self.size - size).into(),
@@ -171,7 +171,7 @@ impl DataTypeBoundCheck for DirectoryEntry {
 }
 
 impl<T: DataTypeBoundCheck> DataTypeBoundCheck for Vec<T> {
-    fn check_bounds(&self, datatypereader: &mut DataTypeReader) -> Result<(), DataTypeReaderError> {
+    fn check_bounds(&self, datatypereader: &mut DataTypeReader) -> Result<()> {
         for e in self {
             e.check_bounds(datatypereader)?
         }

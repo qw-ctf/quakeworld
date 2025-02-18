@@ -1188,9 +1188,11 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
         }
     };
 
+    let datatypes_reader_path = quote! {crate::datatypes::reader};
+
     let read_trait = quote! {
-        impl #struct_impl_generics DataTypeRead for #si_identifier #struct_type_generics #struct_where_clause {
-            fn read(datareader: &mut DataTypeReader) -> Result<Self, DataTypeReaderError> {
+        impl #struct_impl_generics #datatypes_reader_path::DataTypeRead for #si_identifier #struct_type_generics #struct_where_clause {
+            fn read(datareader: &mut #datatypes_reader_path::DataTypeReader) -> #datatypes_reader_path::Result <Self> {
                 trace_start!(datareader, stringify!( #si_identifier));
 
                     #(#field_creations)*
@@ -1203,7 +1205,7 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
 
             }
 
-            fn to_datatype(&self) -> DataType {
+            fn to_datatype(&self) -> #datatypes_reader_path::DataType {
                 #datatype_overwrite
             }
         }

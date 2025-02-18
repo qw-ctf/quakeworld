@@ -17,7 +17,8 @@ pub fn read(file: &File) -> Result<VfsRawData> {
     Ok(buffer)
 }
 
-pub fn list(file: &File, path: &VfsQueryDirectory, hash: &VfsHash) -> Result<VfsList> {
+// TODO: check why path is unused
+pub fn list(file: &File, _path: &VfsQueryDirectory, hash: &VfsHash) -> Result<VfsList> {
     let mut entries = vec![];
 
     if let Ok(metadata) = std::fs::metadata(file) {

@@ -6,34 +6,12 @@ use crate::trace::Trace;
 use crate::datatypes::common::{TextureCoordinate, Triangle};
 use crate::datatypes::mdl;
 use crate::datatypes::reader;
-use crate::datatypes::reader::DataTypeReaderError;
+// use crate::datatypes::reader::Error;
 
 use serde::Serialize;
-use thiserror::Error;
 
-#[derive(Error, Debug)]
-pub enum MdlError {
-    #[error("read error")]
-    ReadError,
-    #[error("parse error: {0}")]
-    ParseError(String),
-    #[error("io error {0}")]
-    IoError(std::io::Error),
-    #[error("{0}")]
-    DataTypeReaderError(DataTypeReaderError),
-}
-
-impl From<DataTypeReaderError> for MdlError {
-    fn from(err: DataTypeReaderError) -> MdlError {
-        MdlError::DataTypeReaderError(err)
-    }
-}
-
-impl From<std::io::Error> for MdlError {
-    fn from(err: std::io::Error) -> MdlError {
-        MdlError::IoError(err)
-    }
-}
+mod error;
+pub use error::{Error, Result};
 
 static HEADER_MAGIC: u32 = 1330660425;
 //
@@ -117,7 +95,7 @@ impl Mdl {
     pub fn parse(
         data: Vec<u8>,
         #[cfg(feature = "trace")] trace: Option<&mut Trace>,
-    ) -> Result<Mdl, MdlError> {
+    ) -> Result<Mdl> {
         let mut datatypereader = reader::DataTypeReader::new(
             data,
             #[cfg(feature = "trace")]
@@ -127,7 +105,7 @@ impl Mdl {
         let header = <mdl::Header as reader::DataTypeRead>::read(&mut datatypereader)?;
 
         if header.magic != HEADER_MAGIC {
-            return Err(MdlError::ParseError(format!(
+            return Err(Error::Parse(format!(
                 "header magic number mismatch: expected({}), got({})",
                 HEADER_MAGIC, header.magic
             )));

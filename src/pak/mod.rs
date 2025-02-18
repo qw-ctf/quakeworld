@@ -6,9 +6,7 @@ use protocol_macros::DataTypeBoundCheckDerive;
 use serde::Serialize;
 
 use crate::datatypes::pak;
-use crate::datatypes::reader::{
-    DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeReaderError,
-};
+use crate::datatypes::reader::{DataTypeBoundCheck, DataTypeRead, DataTypeReader};
 
 mod error;
 pub use error::{Error, Result};

@@ -35,10 +35,11 @@ pub fn datatype_bound_check_derive(input: TokenStream) -> TokenStream {
         panic!("DataTypeRead can only be derived for structs");
     };
 
+    let datatypes_reader_path = quote! {crate::datatypes::reader};
     // Generate the implementation
     let gen = quote! {
-        impl DataTypeBoundCheck for #struct_name {
-            fn check_bounds(&self, datareader: &mut DataTypeReader) -> core::result::Result<(), DataTypeReaderError> {
+        impl #datatypes_reader_path::DataTypeBoundCheck for #struct_name {
+            fn check_bounds(&self, datareader: &mut #datatypes_reader_path::DataTypeReader) -> #datatypes_reader_path::Result<()> {
                 #(#fields)*
                 Ok(())
             }

@@ -3,8 +3,8 @@ use protocol_macros::DataTypeRead;
 /// based on: https://www.gamers.org/dEngine/quake/spec/quake-spec34/qkspec_4.htm
 use serde::Serialize;
 
-use crate::datatypes::common::{BoundingBox, DataType, Vector3, Vertex};
-use crate::datatypes::reader::{DataTypeRead, DataTypeReader, DataTypeReaderError, DataTypeSize};
+use super::common::{BoundingBox, DataType, Vector3, Vertex};
+use super::reader::{DataTypeRead, DataTypeReader, DataTypeSize, Error, Result};
 use crate::trace::trace_start;
 
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
@@ -52,7 +52,7 @@ pub struct Skin {
 //     fn read_special(
 //         datatypereader: &mut DataTypeReader,
 //         vertex_count: u32,
-//     ) -> Result<Self, DataTypeReaderError> {
+//     ) -> Result<Self, Error> {
 //         let frame_type = <u32 as DataTypeRead>::read(datatypereader)?;
 //         let bounding_box = <BoundingBox<Vertex> as DataTypeRead>::read(datatypereader)?;
 //         let name = <MdlFrameName as DataTypeRead>::read(datatypereader)?;

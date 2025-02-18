@@ -1,8 +1,8 @@
 use thiserror::Error;
 
-use crate::datatypes::reader::DataTypeReaderError;
-
 pub type Result<T> = core::result::Result<T, Error>;
+
+use crate::datatypes::reader::Error as ReaderError;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -18,8 +18,8 @@ pub enum Error {
     MaxNameLength(usize, usize),
     #[error("write length mismatch expected: {0}, got: {1}")]
     WriteLength(usize, usize),
-    #[error("datareadererror: {0}")]
-    DataTypeReaderError(DataTypeReaderError),
+    #[error("reader error: {0}")]
+    Reader(ReaderError),
 }
 
 impl From<std::io::Error> for Error {
@@ -28,9 +28,9 @@ impl From<std::io::Error> for Error {
     }
 }
 
-impl From<DataTypeReaderError> for Error {
-    fn from(err: DataTypeReaderError) -> Error {
-        Error::DataTypeReaderError(err)
+impl From<ReaderError> for Error {
+    fn from(err: ReaderError) -> Error {
+        Error::Reader(err)
     }
 }
 

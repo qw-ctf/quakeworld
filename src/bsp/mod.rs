@@ -1,29 +1,13 @@
-use crate::datatypes::reader::{
-    DataTypeRead, DataTypeReader, DataTypeReaderError,
-};
-use thiserror::Error;
+use crate::datatypes::reader::{DataTypeRead, DataTypeReader};
 
 #[cfg(feature = "trace")]
 use crate::trace::Trace;
 
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("io {0}")]
-    Io(std::io::Error),
-    #[error("datatypereader error: {0}")]
-    DataTypeReaderError(DataTypeReaderError),
-}
-
-impl From<DataTypeReaderError> for Error {
-    fn from(err: DataTypeReaderError) -> Error {
-        Error::DataTypeReaderError(err)
-    }
-}
-
-pub type Result<T> = core::result::Result<T, Error>;
-
 pub type Bsp = crate::datatypes::common::Bsp;
 pub type Header = crate::datatypes::bsp::Header;
+
+mod error;
+pub use error::{Error, Result};
 
 impl Bsp {
     pub fn parse(
