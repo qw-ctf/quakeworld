@@ -30,12 +30,14 @@ pub struct VfsList {
     pub entries: Vec<VfsEntry>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct VfsFlattenedListEntry {
     pub nodes: Vec<VfsHash>,
     pub entry: VfsEntry,
 }
 
+#[allow(dead_code)]
 impl VfsFlattenedListEntry {
     pub fn flatten(lists: Vec<VfsList>) -> Vec<VfsFlattenedListEntry> {
         let mut hash_map: HashMap<String, VfsFlattenedListEntry> = HashMap::new();
@@ -56,6 +58,7 @@ impl VfsFlattenedListEntry {
     }
 }
 
+#[allow(dead_code)]
 impl VfsInternalNode {
     pub fn new_from_pak(pak: crate::pak::Pak, meta: VfsMetaData) -> Self {
         let mut files = vec![];

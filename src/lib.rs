@@ -1,5 +1,3 @@
-#![allow(warnings)]
-
 //! library for doing quakeworld things
 #[macro_use]
 extern crate lazy_static;

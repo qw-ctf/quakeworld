@@ -1,37 +1,18 @@
 use serde::Serialize;
 use std::{convert::Infallible, fmt::Display, io::Write, path::Path};
-use thiserror::Error;
 use time::OffsetDateTime;
 
+mod internal_node;
 use internal_node::VfsList;
-
-pub mod internal_node;
 
 pub mod path;
 use path::VfsPath;
 
-pub mod meta;
+mod meta;
 use meta::VfsMetaData;
 
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("read error")]
-    ParseError,
-    #[error("node not found")]
-    NodeNotFoundError,
-    #[error("io error: {0}")]
-    Io(#[from] std::io::Error),
-    #[error("node ({0}) not found")]
-    NodeHashNotFoun(String),
-    #[error("file ({0}) not found")]
-    FileNotFound(VfsQueryFile),
-    #[error("pak error: {0}")]
-    PakError(#[from] crate::pak::Error),
-    #[error("infallible: {0}")]
-    InfallibleError(#[from] Infallible),
-}
-
-pub type Result<T> = core::result::Result<T, Error>;
+mod error;
+pub use error::{Error, Result};
 
 #[derive(Serialize, Debug, Clone)]
 pub struct FileEntry<'a> {
@@ -39,16 +20,12 @@ pub struct FileEntry<'a> {
     pub location: &'a Path,
 }
 
-#[derive(Serialize, Debug, Default, Clone)]
-pub struct Entry {}
-
 pub type VfsHash = String;
 
 #[derive(Default, Debug, Clone)]
 pub struct VfsEntryFile {
     pub path: VfsPath,
     pub meta: VfsMetaData,
-    // pub nodes: Vec<VfsHash>,
 }
 impl From<VfsEntryFile> for VfsQueryFile {
     fn from(val: VfsEntryFile) -> Self {
@@ -116,6 +93,8 @@ pub enum VfsEntry {
     File(VfsEntryFile),
     Directory(VfsEntryDirectory),
 }
+
+#[allow(dead_code)]
 impl VfsEntry {
     fn path(&self) -> VfsPath {
         match self {

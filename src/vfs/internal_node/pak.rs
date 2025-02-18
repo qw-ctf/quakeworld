@@ -17,6 +17,7 @@ pub struct PakAbstractionFile {
     pub meta: VfsMetaData,
 }
 
+#[allow(unused)]
 #[derive(Debug, Default, Clone)]
 pub struct PakAbstraction {
     pub pak: pak::Pak,
