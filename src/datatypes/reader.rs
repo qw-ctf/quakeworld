@@ -10,7 +10,6 @@ use crate::datatypes::common::DataType;
 use crate::trace::Trace;
 use crate::trace::{trace_start, trace_stop};
 
-use super::common::Vertex;
 
 #[derive(Error, Debug)]
 pub enum DataTypeReaderError {
@@ -114,9 +113,9 @@ impl DataTypeReader<'_> {
         if let Some(v) = self.env.get(&name) {
             return Ok(v.clone());
         }
-        return Err(DataTypeReaderError::EnvironmentVariableNotFound(
+        Err(DataTypeReaderError::EnvironmentVariableNotFound(
             name.clone(),
-        ));
+        ))
     }
 
     pub fn position(&self) -> u64 {
@@ -181,7 +180,7 @@ impl From<DataTypeReaderEnv> for u64 {
             | DataTypeReaderEnv::Float(_)
             | DataTypeReaderEnv::String(_)
             | DataTypeReaderEnv::None => panic!("hits cant be happening"),
-            DataTypeReaderEnv::UInt(u) => u as u64,
+            DataTypeReaderEnv::UInt(u) => u,
         }
     }
 }

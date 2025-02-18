@@ -1,17 +1,15 @@
-use paste::paste;
 /// Common structs shared between different formats
 use serde::Serialize;
 
 use std::ops::Index;
-use std::sync::Arc;
 
-use protocol_macros::{DataTypeBoundCheckDerive, DataTypeRead, DataTypeSize};
+use protocol_macros::DataTypeRead;
 
 use crate::datatypes::reader::{
     DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeReaderError, DataTypeSize,
 };
 
-use crate::trace::{trace_annotate, trace_start, trace_stop};
+use crate::trace::trace_start;
 
 use super::bsp;
 use super::mdl;
@@ -35,7 +33,7 @@ where
 
 impl<T: std::clone::Clone + DataTypeRead> DataTypeSize for Vector3<T> {
     fn datatype_size() -> usize {
-        return std::mem::size_of::<T>() * 3;
+        std::mem::size_of::<T>() * 3
     }
 }
 

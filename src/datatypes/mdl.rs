@@ -1,4 +1,3 @@
-use paste::paste;
 use protocol_macros::DataTypeRead;
 /// Structs needed to read the Quakeworld data formats
 /// based on: https://www.gamers.org/dEngine/quake/spec/quake-spec34/qkspec_4.htm
@@ -6,7 +5,7 @@ use serde::Serialize;
 
 use crate::datatypes::common::{BoundingBox, DataType, Vector3, Vertex};
 use crate::datatypes::reader::{DataTypeRead, DataTypeReader, DataTypeReaderError, DataTypeSize};
-use crate::trace::{trace_annotate, trace_start, trace_stop};
+use crate::trace::trace_start;
 
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
 #[datatyperead(prefix = "mdl")]

@@ -1,16 +1,14 @@
 use crate::datatypes::reader::{
     DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeReaderError, DataTypeSize,
 };
-use paste::paste;
 use protocol_macros::DataTypeRead;
 use serde::Serialize;
 
 use protocol_macros::DataTypeBoundCheckDerive;
 
 use crate::datatypes::common::{DataType, DirectoryEntry};
-use crate::trace::{trace_annotate, trace_start, trace_stop};
+use crate::trace::trace_start;
 
-use crate::pak;
 
 /// PAK related structs
 /// PAK Header
