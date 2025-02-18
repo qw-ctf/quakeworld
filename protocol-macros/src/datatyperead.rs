@@ -1,7 +1,8 @@
 use std::rc::Rc;
 
-mod argument_parser;
+mod field_options;
 
+mod argument_parser;
 use argument_parser::*;
 
 use syn::{
@@ -19,19 +20,11 @@ use syn::{parse_macro_input, DeriveInput, Type};
 use crate::helpers::*;
 use syn::parse::Parser;
 
-/*
-* we need to support:
-* size_from = int // set the size to the int
-* size_from = String // pull the size from the environment
-* offset_from = int // set the offset to the int
-* offset_from = String // pull the offset from the environment
-*/
-
 #[derive(Debug, Default, Clone)]
 pub struct StructAttr {
     pub prefix: Option<syn::LitStr>, // prefix for the struct
     pub datatype: StructDataType,    // datatype overwrite for the struct
-    pub ommit_trait: OmmitableTrait,
+    pub ommit_trait: OmmitableTrait, // can ommit either DataTypeRead or DatatypeSize
 }
 
 macro_rules! return_syn_error_parser_apply_function {
@@ -157,21 +150,12 @@ struct FieldAttributesParsed {
 }
 
 fn parse_attribute_type_blank(input: &mut ParseStream, name: syn::Ident) -> syn::Result<bool> {
-    // println!(
-    //     "we try and parse a blank {} {} {}",
-    //     input.peek(Token![,]),
-    //     !input.peek(token::Paren),
-    //     input.peek(token::Eq)
-    // );
     if input.peek(token::Eq) || input.peek(token::Paren) {
-        // println!("{:?}", input);
-        // println!("{}", name);
         return Err(syn::Error::new(
             name.span(),
             format!("`{}` does not take values", name),
         ));
     }
-    // println!("we parsed blank for: {}", name);
     Ok(true)
 }
 
@@ -193,7 +177,6 @@ fn parse_attribute_type_single(
 
 impl AttributeType {
     fn parse(&self, input: &mut ParseStream, name: syn::Ident) -> syn::Result<bool> {
-        println!("we parse this in here");
         let t = match self {
             AttributeType::Blank => parse_attribute_type_blank(input, name)?,
             AttributeType::Single(attribute_type_alloweds) => {
@@ -333,6 +316,7 @@ impl Parse for StructAttr {
 
         // prefix
         let mut a = AttributeParse::new("prefix");
+        a.name_ident = format_ident!("prefix");
         // only allows a single Str
         a.add_type(AttributeType::Single(vec![AttributeTypeAllowed::Str]));
         // a.apply_to_struct = Some(prefix_apply_to_struct);
@@ -340,6 +324,7 @@ impl Parse for StructAttr {
 
         // datatype
         let mut a = AttributeParse::new("datatype");
+        a.name_ident = format_ident!("datatype");
         // only allows a single Str
         a.add_type(AttributeType::Single(vec![AttributeTypeAllowed::Ident]));
         // a.apply_to_struct = Some(datatype_apply_to_struct);
@@ -347,6 +332,7 @@ impl Parse for StructAttr {
 
         // ommit_trait
         let mut a = AttributeParse::new("ommit_trait");
+        a.name_ident = format_ident!("ommit_trait");
         // only allows a single Str
         a.add_type(AttributeType::Single(vec![AttributeTypeAllowed::Ident]));
         // a.apply_to_struct = Some(ommit_trait_apply_to_struct);
@@ -358,16 +344,8 @@ impl Parse for StructAttr {
         // a.add_type(AttributeType::Blank);
         // attribute_parser.add_attribute(a);
 
-        let mut i = input.clone();
-        attribute_parser.parse_attributes(&mut i)?;
-        // attribute_parser.apply_to_struct(&mut struct_attributes)?;
-        // match attribute_parser.apply_to_struct(&mut struct_attributes) {
-        //     Ok(_) => {}
-        //     Err(e) => {
-        //         println!("we crash here? {}", e);
-        //         return Err(e);
-        //     }
-        // };
+        // let mut i = input.clone();
+        attribute_parser.parse_attributes(&input)?;
 
         for attr in &attribute_parser.attributes {
             struct_attributes.apply_parsed_attribute(attr)?;
@@ -474,10 +452,6 @@ impl Parse for StructAttr {
                 }
             }
         }
-        println!(
-            "-------> the struct attr we return: {:?}",
-            struct_attributes
-        );
         Ok(struct_attributes)
     }
 }
@@ -506,6 +480,7 @@ enum Environment {
     None,
     Auto,
     String(syn::LitStr),
+    Ident(syn::Ident),
 }
 
 #[derive(Debug, Clone)]
@@ -516,177 +491,323 @@ enum FieldAttribute {
     SizeRecalc(SizeRecalc),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 struct FieldAttr {
     pub attributes: Vec<FieldAttribute>,
+    pub set_size: SizeOffset,
+    pub set_offset: SizeOffset,
+    pub environment: Environment,
+    pub string: bool,
+    pub size_recalc: SizeRecalc,
+}
+
+impl ParserApplyFunction for FieldAttr {
+    fn apply_parsed_attribute(&mut self, attribute: &AttributeParse) -> syn::Result<()> {
+        match attribute.name.as_str() {
+            "environment" => field_options::apply_environment(self, attribute)?,
+            "size_offset_from" => field_options::apply_size_offset_from(self, attribute)?,
+            "size_from" => field_options::apply_size_from(self, attribute)?,
+            "offset_from" => field_options::apply_offset_from(self, attribute)?,
+            "size" => field_options::apply_size(self, attribute)?,
+            "string" => field_options::apply_string(self, attribute)?,
+            _ => {
+                return Err(syn::Error::new(
+                    attribute.name_ident.span(),
+                    format!("`{}` attribute is not supported", attribute.name),
+                ));
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Parse for FieldAttr {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut field_attributes: Vec<FieldAttribute> = Vec::new();
-        loop {
-            if input.is_empty() {
-                break;
-            }
-            if input.peek(Token![,]) {
-                let _: Token![,] = input.parse()?;
-            }
-            if input.is_empty() {
-                break;
-            }
-            let type_name: syn::Ident = input.parse()?;
-            match type_name.to_string().as_str() {
-                "environment" => {
-                    if input.peek(Token![=]) {
-                        let _: Option<Token![=]> = input.parse()?;
-                        if input.peek(syn::LitStr) {
-                            let s: syn::LitStr = input.parse()?;
-                            field_attributes
-                                .push(FieldAttribute::EnvironmentSet(Environment::String(s)));
-                            continue;
-                        }
-                        return Err(syn::Error::new(
-                            type_name.span(),
-                            format!("`{}` attribute does not support the value", type_name),
-                        ));
-                    } else {
-                        field_attributes.push(FieldAttribute::EnvironmentSet(Environment::Auto));
-                        continue;
-                    }
-                }
-                "string" => {
-                    field_attributes.push(FieldAttribute::String);
-                }
-                "size_from" => {
-                    if input.peek(Token![=]) {
-                        let _: Option<Token![=]> = input.parse()?;
-                        if input.peek(syn::LitInt) {
-                            let i: syn::LitInt = input.parse()?;
-                            field_attributes
-                                .push(FieldAttribute::SizeOffset(SizeOffset::SizeInt(i)));
-                            continue;
-                        }
-                        if input.peek(syn::LitStr) {
-                            let s: syn::LitStr = input.parse()?;
-                            field_attributes
-                                .push(FieldAttribute::SizeOffset(SizeOffset::SizeStr(s)));
-                            continue;
-                        }
+        let mut field_attributes = FieldAttr::default();
 
-                        if input.peek(syn::Ident) {
-                            let i: syn::Ident = input.parse()?;
-                            // field_attributes.push(
-                            //     FieldAttribute::SizeOffset(
-                            //         SizeOffset::SizeStr(s)));
-                            continue;
-                        }
-                        return Err(syn::Error::new(
-                            type_name.span(),
-                            format!("`{}` attribute does not support the value", type_name),
-                        ));
-                    } else if input.is_empty() || input.peek(Token![,]) {
-                        field_attributes.push(FieldAttribute::SizeOffset(SizeOffset::SizeAuto));
-                    } else {
-                        return Err(syn::Error::new(
-                            type_name.span(),
-                            format!("`{}` attribute needs a = value", type_name),
-                        ));
-                    }
+        let mut attribute_parser = AttributeParser::default();
+        // environment
+        let mut a = AttributeParse::new("environment");
+        a.name_ident = format_ident!("environment");
+        // only allows a single Str|Ident
+        a.add_type(AttributeType::Single(vec![
+            AttributeTypeAllowed::Str,
+            AttributeTypeAllowed::Ident,
+        ]));
+        // and a Blank
+        a.add_type(AttributeType::Blank);
+        attribute_parser.add_attribute(a);
+
+        // string
+        let mut a = AttributeParse::new("string");
+        a.name_ident = format_ident!("string");
+        // only allow it to be present
+        a.add_type(AttributeType::Blank);
+        attribute_parser.add_attribute(a);
+
+        // size_from
+        let mut a = AttributeParse::new("size_from");
+        a.name_ident = format_ident!("size_from");
+        // allow single Str|Int|Ident
+        a.add_type(AttributeType::Single(vec![
+            AttributeTypeAllowed::Str,
+            AttributeTypeAllowed::Int,
+            AttributeTypeAllowed::Ident,
+        ]));
+        // and blank
+        a.add_type(AttributeType::Blank);
+        attribute_parser.add_attribute(a);
+
+        // offset_from
+        let mut a = AttributeParse::new("offset_from");
+        a.name_ident = format_ident!("offset_from");
+        // allow single Str|Int|Ident
+        a.add_type(AttributeType::Single(vec![
+            AttributeTypeAllowed::Str,
+            AttributeTypeAllowed::Int,
+            AttributeTypeAllowed::Ident,
+        ]));
+        // and blank
+        a.add_type(AttributeType::Blank);
+        attribute_parser.add_attribute(a);
+
+        // size_offset_from
+        let mut a = AttributeParse::new("size_offset_from");
+        a.name_ident = format_ident!("size_offset_from");
+        // allow Vector Str|Int|Ident
+        a.add_type(AttributeType::Vector(vec![
+            AttributeTypeAllowed::Ident,
+            AttributeTypeAllowed::Str,
+            AttributeTypeAllowed::Int,
+        ]));
+        // and Single Str|Int|Ident
+        a.add_type(AttributeType::Single(vec![
+            AttributeTypeAllowed::Ident,
+            AttributeTypeAllowed::Str,
+            AttributeTypeAllowed::Int,
+        ]));
+        // and a Blank
+        a.add_type(AttributeType::Blank);
+        attribute_parser.add_attribute(a);
+
+        // size
+        let mut a = AttributeParse::new("size");
+        a.name_ident = format_ident!("size");
+        // and Single Ident
+        a.add_type(AttributeType::Single(vec![AttributeTypeAllowed::Ident]));
+        attribute_parser.add_attribute(a);
+
+        attribute_parser.parse_attributes(&input)?;
+
+        for attr in &attribute_parser.attributes {
+            field_attributes.apply_parsed_attribute(attr)?;
+        }
+
+        if false {
+            loop {
+                if input.is_empty() {
+                    break;
                 }
-                "offset_from" => {
-                    if input.peek(Token![=]) {
-                        let _: Option<Token![=]> = input.parse()?;
-                        if input.peek(syn::LitInt) {
-                            let i: syn::LitInt = input.parse()?;
-                            field_attributes
-                                .push(FieldAttribute::SizeOffset(SizeOffset::OffsetInt(i)));
-                            continue;
-                        }
-                        if input.peek(syn::LitStr) {
-                            let s: syn::LitStr = input.parse()?;
-                            field_attributes
-                                .push(FieldAttribute::SizeOffset(SizeOffset::OffsetStr(s)));
-                            continue;
-                        }
-                        return Err(syn::Error::new(
-                            type_name.span(),
-                            format!("`{}` attribute does not support the value", type_name),
-                        ));
-                    } else if input.is_empty() || input.peek(Token![,]) {
-                        field_attributes.push(FieldAttribute::SizeOffset(SizeOffset::OffsetAuto));
-                    } else {
-                        return Err(syn::Error::new(
-                            type_name.span(),
-                            format!("`{}` attribute needs a = value", type_name),
-                        ));
-                    }
+                if input.peek(Token![,]) {
+                    let _: Token![,] = input.parse()?;
                 }
-                "size_offset_from" => {
-                    if input.peek(Token![=]) {
-                        let _: Option<Token![=]> = input.parse()?;
-                        if input.peek(token::Paren) {
-                            // we are in parenthesis
-                            let content;
-                            let _ = parenthesized!(content in input);
-                            if content.peek(syn::LitInt) {
-                                let first_field_int: syn::LitInt = content.parse()?;
-                                let _: Token![,] = content.parse()?;
+                if input.is_empty() {
+                    break;
+                }
+                let type_name: syn::Ident = input.parse()?;
+                match type_name.to_string().as_str() {
+                    "environment" => {
+                        if input.peek(Token![=]) {
+                            let _: Option<Token![=]> = input.parse()?;
+                            if input.peek(syn::LitStr) {
+                                let s: syn::LitStr = input.parse()?;
+                                field_attributes
+                                    .attributes
+                                    .push(FieldAttribute::EnvironmentSet(Environment::String(s)));
+                                continue;
+                            }
+                            return Err(syn::Error::new(
+                                type_name.span(),
+                                format!("`{}` attribute does not support the value", type_name),
+                            ));
+                        } else {
+                            field_attributes
+                                .attributes
+                                .push(FieldAttribute::EnvironmentSet(Environment::Auto));
+                            continue;
+                        }
+                    }
+                    "string" => {
+                        field_attributes.attributes.push(FieldAttribute::String);
+                    }
+                    "size_from" => {
+                        if input.peek(Token![=]) {
+                            let _: Option<Token![=]> = input.parse()?;
+                            if input.peek(syn::LitInt) {
+                                let i: syn::LitInt = input.parse()?;
+                                field_attributes
+                                    .attributes
+                                    .push(FieldAttribute::SizeOffset(SizeOffset::SizeInt(i)));
+                                continue;
+                            }
+                            if input.peek(syn::LitStr) {
+                                let s: syn::LitStr = input.parse()?;
+                                field_attributes
+                                    .attributes
+                                    .push(FieldAttribute::SizeOffset(SizeOffset::SizeStr(s)));
+                                continue;
+                            }
+
+                            if input.peek(syn::Ident) {
+                                let i: syn::Ident = input.parse()?;
+                                // field_attributes.push(
+                                //     FieldAttribute::SizeOffset(
+                                //         SizeOffset::SizeStr(s)));
+                                continue;
+                            }
+                            return Err(syn::Error::new(
+                                type_name.span(),
+                                format!("`{}` attribute does not support the value", type_name),
+                            ));
+                        } else if input.is_empty() || input.peek(Token![,]) {
+                            field_attributes
+                                .attributes
+                                .push(FieldAttribute::SizeOffset(SizeOffset::SizeAuto));
+                        } else {
+                            return Err(syn::Error::new(
+                                type_name.span(),
+                                format!("`{}` attribute needs a = value", type_name),
+                            ));
+                        }
+                    }
+                    "offset_from" => {
+                        if input.peek(Token![=]) {
+                            let _: Option<Token![=]> = input.parse()?;
+                            if input.peek(syn::LitInt) {
+                                let i: syn::LitInt = input.parse()?;
+                                field_attributes
+                                    .attributes
+                                    .push(FieldAttribute::SizeOffset(SizeOffset::OffsetInt(i)));
+                                continue;
+                            }
+                            if input.peek(syn::LitStr) {
+                                let s: syn::LitStr = input.parse()?;
+                                field_attributes
+                                    .attributes
+                                    .push(FieldAttribute::SizeOffset(SizeOffset::OffsetStr(s)));
+                                continue;
+                            }
+                            return Err(syn::Error::new(
+                                type_name.span(),
+                                format!("`{}` attribute does not support the value", type_name),
+                            ));
+                        } else if input.is_empty() || input.peek(Token![,]) {
+                            field_attributes
+                                .attributes
+                                .push(FieldAttribute::SizeOffset(SizeOffset::OffsetAuto));
+                        } else {
+                            return Err(syn::Error::new(
+                                type_name.span(),
+                                format!("`{}` attribute needs a = value", type_name),
+                            ));
+                        }
+                    }
+                    "size_offset_from" => {
+                        if input.peek(Token![=]) {
+                            let _: Option<Token![=]> = input.parse()?;
+                            if input.peek(token::Paren) {
+                                // we are in parenthesis
+                                let content;
+                                let _ = parenthesized!(content in input);
                                 if content.peek(syn::LitInt) {
-                                    let second_field_int: syn::LitInt = content.parse()?;
-                                    field_attributes.push(FieldAttribute::SizeOffset(
-                                        SizeOffset::SizeOffsetIntInt(
-                                            first_field_int,
-                                            second_field_int,
+                                    let first_field_int: syn::LitInt = content.parse()?;
+                                    let _: Token![,] = content.parse()?;
+                                    if content.peek(syn::LitInt) {
+                                        let second_field_int: syn::LitInt = content.parse()?;
+                                        field_attributes.attributes.push(
+                                            FieldAttribute::SizeOffset(
+                                                SizeOffset::SizeOffsetIntInt(
+                                                    first_field_int,
+                                                    second_field_int,
+                                                ),
+                                            ),
+                                        );
+                                        continue;
+                                    }
+                                    if content.peek(syn::LitStr) {
+                                        let second_field_str: syn::LitStr = content.parse()?;
+                                        field_attributes.attributes.push(
+                                            FieldAttribute::SizeOffset(
+                                                SizeOffset::SizeOffsetIntStr(
+                                                    first_field_int,
+                                                    second_field_str,
+                                                ),
+                                            ),
+                                        );
+                                        continue;
+                                    }
+                                    return Err(syn::Error::new(
+                                        type_name.span(),
+                                        format!(
+                                            "`{}` attribute first value supplied is wrong",
+                                            type_name
                                         ),
                                     ));
-                                    continue;
-                                }
-                                if content.peek(syn::LitStr) {
-                                    let second_field_str: syn::LitStr = content.parse()?;
-                                    field_attributes.push(FieldAttribute::SizeOffset(
-                                        SizeOffset::SizeOffsetIntStr(
-                                            first_field_int,
-                                            second_field_str,
+                                } else if content.peek(syn::LitStr) {
+                                    let first_field_str: syn::LitStr = content.parse()?;
+                                    if content.peek(syn::LitInt) {
+                                        let second_field_int: syn::LitInt = content.parse()?;
+                                        field_attributes.attributes.push(
+                                            FieldAttribute::SizeOffset(
+                                                SizeOffset::SizeOffsetStrInt(
+                                                    first_field_str,
+                                                    second_field_int,
+                                                ),
+                                            ),
+                                        );
+                                        continue;
+                                    }
+                                    if content.peek(syn::LitStr) {
+                                        let second_field_str: syn::LitStr = content.parse()?;
+                                        field_attributes.attributes.push(
+                                            FieldAttribute::SizeOffset(
+                                                SizeOffset::SizeOffsetStrStr(
+                                                    first_field_str,
+                                                    second_field_str,
+                                                ),
+                                            ),
+                                        );
+                                        continue;
+                                    }
+                                    return Err(syn::Error::new(
+                                        type_name.span(),
+                                        format!(
+                                            "`{}` attribute second value supplied is wrong",
+                                            type_name
                                         ),
                                     ));
-                                    continue;
                                 }
                                 return Err(syn::Error::new(
                                     type_name.span(),
                                     format!(
-                                        "`{}` attribute first value supplied is wrong",
+                                        "`{}` attribute does not support the value supplied",
                                         type_name
                                     ),
                                 ));
-                            } else if content.peek(syn::LitStr) {
-                                let first_field_str: syn::LitStr = content.parse()?;
-                                if content.peek(syn::LitInt) {
-                                    let second_field_int: syn::LitInt = content.parse()?;
-                                    field_attributes.push(FieldAttribute::SizeOffset(
-                                        SizeOffset::SizeOffsetStrInt(
-                                            first_field_str,
-                                            second_field_int,
-                                        ),
-                                    ));
-                                    continue;
-                                }
-                                if content.peek(syn::LitStr) {
-                                    let second_field_str: syn::LitStr = content.parse()?;
-                                    field_attributes.push(FieldAttribute::SizeOffset(
-                                        SizeOffset::SizeOffsetStrStr(
-                                            first_field_str,
-                                            second_field_str,
-                                        ),
-                                    ));
-                                    continue;
-                                }
+                            } else if input.peek(syn::LitInt) {
                                 return Err(syn::Error::new(
                                     type_name.span(),
                                     format!(
-                                        "`{}` attribute second value supplied is wrong",
+                                        "`{}` attribute does not support the value supplied",
                                         type_name
                                     ),
                                 ));
+                            } else if input.peek(syn::LitStr) {
+                                let s = input.parse()?;
+                                field_attributes
+                                    .attributes
+                                    .push(FieldAttribute::SizeOffset(SizeOffset::SizeOffsetStr(s)));
+                                continue;
                             }
                             return Err(syn::Error::new(
                                 type_name.span(),
@@ -695,77 +816,56 @@ impl Parse for FieldAttr {
                                     type_name
                                 ),
                             ));
-                        } else if input.peek(syn::LitInt) {
+                        } else if input.peek(Token![,]) || input.is_empty() {
+                            field_attributes
+                                .attributes
+                                .push(FieldAttribute::SizeOffset(SizeOffset::SizeOffsetAuto));
+                            continue;
+                        } else {
                             return Err(syn::Error::new(
                                 type_name.span(),
-                                format!(
-                                    "`{}` attribute does not support the value supplied",
-                                    type_name
-                                ),
+                                format!("`{}` attribute needs a = value", type_name),
                             ));
-                        } else if input.peek(syn::LitStr) {
-                            let s = input.parse()?;
-                            field_attributes
-                                .push(FieldAttribute::SizeOffset(SizeOffset::SizeOffsetStr(s)));
-                            continue;
                         }
-                        return Err(syn::Error::new(
-                            type_name.span(),
-                            format!(
-                                "`{}` attribute does not support the value supplied",
-                                type_name
-                            ),
-                        ));
-                    } else if input.peek(Token![,]) || input.is_empty() {
-                        field_attributes
-                            .push(FieldAttribute::SizeOffset(SizeOffset::SizeOffsetAuto));
-                        continue;
-                    } else {
-                        return Err(syn::Error::new(
-                            type_name.span(),
-                            format!("`{}` attribute needs a = value", type_name),
-                        ));
                     }
-                }
-                "size" => {
-                    if !input.peek(Token![=]) {
+                    "size" => {
+                        if !input.peek(Token![=]) {
+                            return Err(syn::Error::new(
+                                type_name.span(),
+                                format!("`{}` attribute needs a = value", type_name),
+                            ));
+                        }
+                        let _: Option<Token![=]> = input.parse()?;
+                        if !input.peek(syn::Ident) {
+                            return Err(syn::Error::new(
+                                type_name.span(),
+                                format!("`{}` only accepts literals", type_name),
+                            ));
+                        }
+                        let ident: syn::Ident = input.parse()?;
+                        let s = ident.to_string();
+                        if let "modulo_self_environment" = s.as_str() {
+                            field_attributes.attributes.push(FieldAttribute::SizeRecalc(
+                                SizeRecalc::ModuloSelfEnvironment,
+                            ));
+                            continue;
+                        } else {
+                            return Err(syn::Error::new(
+                                type_name.span(),
+                                format!("`{}` not a valid `{}` option", s, type_name),
+                            ));
+                        }
+                    }
+                    _ => {
                         return Err(syn::Error::new(
                             type_name.span(),
-                            format!("`{}` attribute needs a = value", type_name),
-                        ));
+                            format!("`{}` attribute not supported", type_name),
+                        ))
                     }
-                    let _: Option<Token![=]> = input.parse()?;
-                    if !input.peek(syn::Ident) {
-                        return Err(syn::Error::new(
-                            type_name.span(),
-                            format!("`{}` only accepts literals", type_name),
-                        ));
-                    }
-                    let ident: syn::Ident = input.parse()?;
-                    let s = ident.to_string();
-                    if let "modulo_self_environment" = s.as_str() {
-                        field_attributes.push(FieldAttribute::SizeRecalc(
-                            SizeRecalc::ModuloSelfEnvironment,
-                        ));
-                        continue;
-                    } else {
-                        return Err(syn::Error::new(
-                            type_name.span(),
-                            format!("`{}` not a valid `{}` option", s, type_name),
-                        ));
-                    }
-                }
-                _ => {
-                    return Err(syn::Error::new(
-                        type_name.span(),
-                        format!("`{}` attribute not supported", type_name),
-                    ))
                 }
             }
         }
-        Ok(FieldAttr {
-            attributes: field_attributes,
-        })
+        Ok(field_attributes)
     }
 }
 
@@ -773,7 +873,7 @@ impl Parse for FieldAttr {
 struct FieldInformation {
     pub identifier: syn::Ident,
     pub ty: syn::Type,
-    pub attributes: Vec<FieldAttribute>,
+    pub attributes: FieldAttr,
 }
 
 #[derive(Debug)]
@@ -812,26 +912,14 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
         if !attr.path.is_ident("datatyperead") {
             continue;
         }
-        // println!("{:?}", attr);
 
         let attr_span = attr.span();
         let a = attr.parse_args_with(Punctuated::<StructAttr, Token![,]>::parse_terminated);
         if let Ok(sa) = a {
             {
                 struct_attrib = sa[0].clone();
-                println!("\tfindme ---> {:?}\n\t --> {}", struct_attrib, input.ident);
             }
         };
-    }
-
-    // println!("findme ---> {:?}", struct_attrib);
-
-    if input.ident.clone() == "SizedVectorNameTest" {
-        println!(
-            "we are here right: {:?} {}",
-            input.generics.params.first(),
-            input.generics.params.first().is_some()
-        );
     }
 
     let is_generic = input.generics.params.first().is_some();
@@ -843,31 +931,7 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
         fields: vec![],
         attributes: struct_attrib,
     };
-    println!("{}", input.ident);
-    // println!("{}", input.generics.params.to_token_stream());
-    println!("{:?}", struct_information);
     for field in data_struct.fields.iter() {
-        // println!("{:?}", field.ty);
-        // match &field.ty {
-        //     Type::Array(type_array) => {}
-        //     Type::BareFn(type_bare_fn) => {}
-        //     Type::Group(type_group) => {}
-        //     Type::ImplTrait(type_impl_trait) => {}
-        //     Type::Infer(type_infer) => {}
-        //     Type::Macro(type_macro) => {}
-        //     Type::Never(type_never) => {}
-        //     Type::Paren(type_paren) => {}
-        //     Type::Path(type_path) => {
-        //         // println!("{:?}", type_path);
-        //     }
-        //     Type::Ptr(type_ptr) => {}
-        //     Type::Reference(type_reference) => {}
-        //     Type::Slice(type_slice) => {}
-        //     Type::TraitObject(type_trait_object) => {}
-        //     Type::Tuple(type_tuple) => {}
-        //     Type::Verbatim(token_stream) => {}
-        //     _ => {}
-        // };
         let field_span = field.span();
         let field_ident =
             match &field.ident {
@@ -881,7 +945,7 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
 
         let field_ty = field.ty.clone();
 
-        let mut field_attributes: Vec<FieldAttribute> = vec![];
+        let mut field_attributes = FieldAttr::default();
 
         for attr in &field.attrs {
             if !attr.path.is_ident("datatyperead") {
@@ -889,11 +953,13 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
             }
             let attr_span = attr.span();
             let a = attr.parse_args_with(Punctuated::<FieldAttr, Token![,]>::parse_terminated);
+
             match a {
                 Ok(a) => {
-                    for attribute in a[0].attributes.clone() {
-                        field_attributes.push(attribute);
-                    }
+                    field_attributes = a[0].clone();
+                    // for attribute in a[0].attributes.clone() {
+                    //     field_attributes.push(attribute);
+                    // }
                 }
                 Err(e) => {
                     let b = format!("{}", e);
@@ -911,18 +977,18 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
             attributes: field_attributes,
         });
     }
-    // println!("we here?: {:?}", struct_information);
 
     let prefix = match &struct_information.attributes.prefix {
         Some(e) => e.value().clone().to_uppercase(),
         None => "".to_string(),
     };
+
     let struct_name = struct_information
         .identifier
         .clone()
         .to_string()
         .to_uppercase();
-    // let (_, generic_types, _) = struct_information.generics.split_for_impl();
+
     let datatype = match struct_information.generics.params.first() {
         Some(_) => format_ident!("{}{}GENERIC", prefix, struct_name),
         None => format_ident!("{}{}", prefix, struct_name),
@@ -930,65 +996,23 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
 
     let mut field_creations: Vec<_> = vec![];
     let mut field_assignments: Vec<_> = vec![];
-    let mut field_errors: Vec<_> = vec![];
     let mut field_sizes: Vec<_> = vec![];
 
     struct_information.fields.iter().for_each(|f| {
         let mut field_creation: Vec<_> = vec![];
         let mut field_size: Vec<_> = vec![];
         let mut field_assignment: Vec<_> = vec![];
-        let mut field_error: Vec<_> = vec![];
 
-        // println!("parsing field: {}", f.identifier);
-
-        // yes i am aware
-        let mut fap = FieldAttributesParsed::default();
-
-        // let mut field_attributes: Vec<TokenStream> = vec![];
-        for attribute in &f.attributes {
-            match attribute {
-                FieldAttribute::SizeOffset(size_offset) => {
-                    let s: SizeParsed = size_offset.into();
-                    if fap.size != SizeParsed::None && s != SizeParsed::None {
-                        field_error.push(quote_spanned! {
-                            f.identifier.span() =>
-                            compile_error!("Size set twice");
-                        });
-                    } else if fap.size == SizeParsed::None {
-                        fap.size = s;
-                    }
-
-                    let o: OffsetParsed = size_offset.into();
-                    if fap.offset != OffsetParsed::None && o != OffsetParsed::None {
-                        field_error.push(quote_spanned! {
-                            f.identifier.span() =>
-                            compile_error!("Offset set twice");
-                        });
-                    } else if fap.offset == OffsetParsed::None {
-                        fap.offset = o;
-                    }
-                }
-                FieldAttribute::EnvironmentSet(environment) => {
-                    fap.environment = environment.clone()
-                }
-                FieldAttribute::String => fap.treat_as_string = true,
-                FieldAttribute::SizeRecalc(size_recalc) => {
-                    fap.size_recalc = size_recalc.clone();
-                }
-            }
-        }
         let field_name = f.identifier.clone();
         let field_identifier = format_ident!("{}_identifier", f.identifier.clone());
         let field_type = f.ty.clone();
-        // let newline = format_ident!("\n");
-        // let newline = Char::from_u8(10).unwrao();
 
-        let read_exect_type = match fap.treat_as_string {
+        let read_exect_type = match f.attributes.string {
             true => quote! { read_exact_generic_string },
             false => quote! { read_exact_generic_v2 },
         };
 
-        let field_environment = match fap.environment {
+        let field_environment = match &f.attributes.environment {
             Environment::None => quote! {},
             Environment::Auto => quote! {
                 #field_identifier . environment( datareader , stringify!(#field_name));
@@ -996,10 +1020,14 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
             Environment::String(lit_str) => quote! {
                 #field_identifier . environment( datareader , #lit_str);
             },
+            Environment::Ident(ident) => {
+                quote! {}
+            }
         };
 
         let mut field_offset_after = quote! {};
-        let field_offset = match fap.offset {
+        let offset_parsed: OffsetParsed = (&f.attributes.set_offset).into();
+        let field_offset = match offset_parsed {
             OffsetParsed::None => quote! {},
             OffsetParsed::Int(lit_int) => {
                 field_offset_after = quote! {
@@ -1033,7 +1061,7 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
             }
         };
 
-        let field_size_recalc = match fap.size_recalc {
+        let field_size_recalc = match f.attributes.size_recalc {
             SizeRecalc::None => quote!(),
             SizeRecalc::ModuloSelfEnvironment => {
                 quote! {
@@ -1053,7 +1081,8 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
         };
 
         // Generating field reading
-        let fc = match fap.size {
+        let sp: SizeParsed = (&f.attributes.set_size).into();
+        let fc = match sp {
             SizeParsed::None => quote! {
                 #field_offset
                 let #field_identifier = <#field_type as DataTypeRead>::read(datareader)?;
@@ -1090,11 +1119,6 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
             }
         };
 
-        // let fc = match f.identifier { quote!{
-        //     // let #field_identifier: #field_type = datareader.read()?;
-        //     let #field_identifier = <#field_type as DataTypeRead>::read(datareader)?;
-        // }.to_token_stream();}
-
         let fa = quote! {
             #field_name: #field_identifier,
         }
@@ -1110,10 +1134,6 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
             field_sizes.push(f);
         }
 
-        for f in field_error.into_iter() {
-            field_errors.push(f);
-        }
-
         for f in field_creation.into_iter() {
             field_creations.push(f);
         }
@@ -1121,19 +1141,8 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
         for f in field_assignment.into_iter() {
             field_assignments.push(f);
         }
-        // let _ = field_creation.into_iter().map(|f| field_creations.push(f));
-        // field_creations.push(field_creation.into_iter().collect());
-        // field_assignments.push(field_assignment.into_iter().collect());
-        // let _ = field_assignment.into_iter().map(|f| field_assignments.push(f));
-
-        // println!("\tfield_creations: {:?}", field_creations);
-        // println!("\tfield_assignments: {:?}", field_assignments);
     });
 
-    // println!("field_creations: {:?}", field_creations);
-    // println!("field_assignments: {:?}", field_assignments);
-    // for f in field_errors {}
-    // let field_errors = field_errors.iter().map(|a| a).collect();
     let (struct_impl_generics, struct_type_generics, struct_where_clause) =
         struct_information.generics.split_for_impl();
 
@@ -1184,7 +1193,6 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
             fn read(datareader: &mut DataTypeReader) -> Result<Self, DataTypeReaderError> {
                 trace_start!(datareader, stringify!( #si_identifier));
 
-                #(#field_errors)*
                     #(#field_creations)*
 
                     let s = Self {
@@ -1210,9 +1218,5 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
         #size_trait
     };
 
-    if struct_name.to_string() == "Vector3" {
-        // println!("{} -> {:?}", struct_name, struct_information);
-        // panic!();
-    }
     gen.into()
 }

@@ -139,7 +139,7 @@ impl AttributeParse {
         // self.types.push(add_value);
     }
 
-    pub fn parse(&mut self, input: &mut ParseStream, name: syn::Ident) -> syn::Result<bool> {
+    pub fn parse(&mut self, input: &ParseStream, name: syn::Ident) -> syn::Result<bool> {
         // check if its an value
         if input.peek(Token![=]) {
             let _: Token![=] = input.parse()?;
@@ -162,7 +162,6 @@ impl AttributeParse {
                         ));
                     }
                 };
-                println!("\t\tits a single!");
 
                 let mut found = false;
                 for ty in single {
@@ -170,7 +169,6 @@ impl AttributeParse {
                         AttributeTypeAllowed::Int => {
                             if input.peek(syn::LitInt) {
                                 let i: syn::LitInt = input.parse()?;
-                                println!("\t\t\twe matched an Int: {}", i);
                                 found = true;
                                 self.parsed_value = AttributeTypeParsed::Single(i.into());
                             }
@@ -178,7 +176,6 @@ impl AttributeParse {
                         AttributeTypeAllowed::Str => {
                             if input.peek(syn::LitStr) {
                                 let s: syn::LitStr = input.parse()?;
-                                println!("\t\t\twe matched an single Str: {:?}", s);
                                 found = true;
                                 self.parsed_value = AttributeTypeParsed::Single(s.into());
                             }
@@ -186,14 +183,12 @@ impl AttributeParse {
                         AttributeTypeAllowed::Ident => {
                             if input.peek(syn::Ident) {
                                 let t: syn::Ident = input.parse()?;
-                                println!("\t\t\twe matched an Ident: {}", t);
                                 found = true;
                                 self.parsed_value = AttributeTypeParsed::Single(t.into());
                             }
                         }
                     };
                     if found {
-                        println!("\t\t\twe return");
                         return Ok(true);
                     }
                 }
@@ -221,7 +216,6 @@ impl AttributeParse {
                         AttributeTypeAllowed::Int => {
                             if content.peek(syn::LitInt) {
                                 let i: syn::LitInt = content.parse()?;
-                                println!("we matched an Int: {}", i);
                                 found = true;
                                 parsed_values.push(i.into());
                             }
@@ -229,7 +223,6 @@ impl AttributeParse {
                         AttributeTypeAllowed::Str => {
                             if content.peek(syn::LitStr) {
                                 let s: syn::LitStr = content.parse()?;
-                                println!("we matched an Str: {:?}", s);
                                 found = true;
                                 parsed_values.push(s.into());
                             }
@@ -237,7 +230,6 @@ impl AttributeParse {
                         AttributeTypeAllowed::Ident => {
                             if content.peek(syn::Ident) {
                                 let t: syn::Ident = content.parse()?;
-                                println!("we matched an Ident: {}", t);
                                 found = true;
                                 parsed_values.push(t.into());
                             }
@@ -284,7 +276,7 @@ impl AttributeParser {
         self.attributes.push(attribute);
     }
 
-    pub fn parse_attributes(&mut self, input: &mut ParseStream) -> syn::Result<bool> {
+    pub fn parse_attributes(&mut self, input: &ParseStream) -> syn::Result<bool> {
         // return Ok(true);
         loop {
             if input.is_empty() {
@@ -303,15 +295,11 @@ impl AttributeParser {
             let ident: syn::Ident = input.parse()?;
             let found = false;
 
-            println!("parsing ---> {}", ident);
             for attribute in &mut self.attributes {
                 let ident_name = ident.clone().to_string();
                 let i = ident.clone();
+                attribute.name_ident = ident.clone();
                 if attribute.name == ident_name {
-                    println!(
-                        "       ---> {} {}\n\t{:?}",
-                        ident, attribute.name, attribute.types
-                    );
                     attribute.name_ident = ident.clone();
                     if attribute.parse(input, i)? {
                         break;
@@ -325,10 +313,15 @@ impl AttributeParser {
             if input.is_empty() {
                 break;
             }
-            println!("???");
+
+            // we can have multiple attribute types
+            if input.peek(Token![,]) {
+                continue;
+            }
+
             return Err(syn::Error::new(
                 input.span(),
-                format!("`{}` not a valid option", ident),
+                format!("`{}` not a valid option/option not implemented", ident),
             ));
         }
         Ok(true)
@@ -396,5 +389,5 @@ pub trait ParserApply {
 }
 
 pub trait ParserApplyFunction: Debug {
-    fn apply_parsed_attribute(&mut self, attribute_parser: &AttributeParse) -> syn::Result<()>;
+    fn apply_parsed_attribute(&mut self, attribute: &AttributeParse) -> syn::Result<()>;
 }
