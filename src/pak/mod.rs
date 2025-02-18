@@ -4,57 +4,17 @@ use std::io::SeekFrom;
 
 use protocol_macros::DataTypeBoundCheckDerive;
 use serde::Serialize;
-use thiserror::Error;
 
 use crate::datatypes::pak;
 use crate::datatypes::reader::{
     DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeReaderError,
 };
 
+mod error;
+pub use error::{Error, Result};
+
 #[cfg(feature = "trace")]
 use crate::trace::Trace;
-
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("header mismath: {0} != {1}")]
-    HeaderMismatch(u32, u32),
-    #[error("io {0}")]
-    Io(std::io::Error),
-    #[error("from utf8 {0}")]
-    UtfConversion(std::string::FromUtf8Error),
-    #[error("try from int {0}")]
-    IntConversion(std::num::TryFromIntError),
-    #[error("supplied file name is longer than {0} > {1}")]
-    MaxNameLength(usize, usize),
-    #[error("write length mismatch expected: {0}, got: {1}")]
-    WriteLength(usize, usize),
-    #[error("datareadererror: {0}")]
-    DataTypeReaderError(DataTypeReaderError),
-}
-
-impl From<std::io::Error> for Error {
-    fn from(err: std::io::Error) -> Error {
-        Error::Io(err)
-    }
-}
-
-impl From<DataTypeReaderError> for Error {
-    fn from(err: DataTypeReaderError) -> Error {
-        Error::DataTypeReaderError(err)
-    }
-}
-
-impl From<std::string::FromUtf8Error> for Error {
-    fn from(err: std::string::FromUtf8Error) -> Error {
-        Error::UtfConversion(err)
-    }
-}
-
-impl From<std::num::TryFromIntError> for Error {
-    fn from(err: std::num::TryFromIntError) -> Error {
-        Error::IntConversion(err)
-    }
-}
 
 static HEADER: u32 = 0x4b434150; // PACK
 pub const MAX_NAME_LENGTH: usize = 55;
@@ -69,8 +29,6 @@ pub struct Pak {
     #[check_bounds]
     pub files: Vec<pak::File>,
 }
-
-type Result<T> = core::result::Result<T, Error>;
 
 impl Pak {
     pub fn load(
@@ -147,6 +105,7 @@ struct PakWriterFile {
     data: Vec<u8>,
 }
 
+#[allow(dead_code)]
 impl PakWriterFile {
     pub fn name_as_string(&self) -> String {
         // @FIXME:  handle this unwrap and all the other crap
