@@ -1,10 +1,6 @@
-use crate::datatypes::bsp;
-use crate::datatypes::common::DirectoryEntry;
 use crate::datatypes::reader::{
-    DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeReaderError, DataTypeSize,
+    DataTypeRead, DataTypeReader, DataTypeReaderError,
 };
-use protocol_macros::DataTypeRead;
-use serde::Serialize;
 use thiserror::Error;
 
 #[cfg(feature = "trace")]
