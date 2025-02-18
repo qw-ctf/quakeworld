@@ -1,3 +1,4 @@
+#![allow(warnings)]
 use std::fs::File;
 
 use quakeworld::datatypes::common::AsciiString;
@@ -192,7 +193,11 @@ pub fn environment_directory_entry_size_offset(
     let directory_entry =
         match <EnvironmentDirectoryEntryBoth as DataTypeRead>::read(&mut datatypereader) {
             Ok(v) => v,
-            Err(e) => return Err(e),
+            Err(e) => {
+                println!("---------->we are here?");
+                println!("{:?}", datatypereader.env);
+                return Err(e);
+            }
         };
     assert_eq!(directory_entry.entry.size, size_expected as u32);
     assert_eq!(directory_entry.entry.offset, offset_expected as u32);

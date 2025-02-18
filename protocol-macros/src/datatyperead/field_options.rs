@@ -157,8 +157,8 @@ pub fn apply_size_offset_from(
                     );
                 }
                 super::argument_parser::AttributeValue::Str(lit_str) => {
-                    field.set_size = SizeOffset::SizeStr(lit_str.clone());
-                    field.set_offset = SizeOffset::OffsetStr(lit_str.clone());
+                    field.set_size = SizeOffset::SizeOffsetStr(lit_str.clone());
+                    field.set_offset = SizeOffset::SizeOffsetStr(lit_str.clone());
                     return Ok(());
                 }
             };
