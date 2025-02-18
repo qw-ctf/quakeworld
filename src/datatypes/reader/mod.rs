@@ -16,13 +16,19 @@ mod environment;
 pub use environment::{Environment, IntoEnvironment};
 
 // DataTypeReader: implements a generic parser for structs
+#[cfg(not(feature = "trace"))]
 pub struct DataTypeReader<'a> {
     pub data: Vec<u8>,
     pub cursor: Cursor<Vec<u8>>,
-    #[cfg(feature = "trace")]
+    pub env: HashMap<String, Environment>,
+    trace_stub: Option<&'a bool>,
+}
+
+#[cfg(feature = "trace")]
+pub struct DataTypeReader<'a> {
+    pub data: Vec<u8>,
+    pub cursor: Cursor<Vec<u8>>,
     pub trace: Option<&'a mut Trace>,
-    #[cfg(not(feature = "trace"))]
-    fix_me: &'a bool,
     pub env: HashMap<String, Environment>,
 }
 
@@ -34,7 +40,7 @@ impl DataTypeReader<'_> {
             #[cfg(feature = "trace")]
             trace,
             #[cfg(not(feature = "trace"))]
-            fix_me: &false,
+            trace_stub: None,
             env: HashMap::new(),
         }
     }
