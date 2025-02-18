@@ -6,10 +6,10 @@ use std::fs::File;
 use quakeworld::datatypes::common::AsciiString;
 use quakeworld::pak::Pak;
 use quakeworld::utils::perf::Perf;
-use quakeworld::vfs::internal_node::VfsFlattenedListEntry;
+use quakeworld::vfs::VfsFlattenedListEntry;
 use quakeworld::vfs::{
-    internal_node::VfsInternalNode, meta::VfsMetaData, path::VfsPath, Vfs, VfsEntryDirectory,
-    VfsEntryFile, VfsNode, VfsQueryDirectory, VfsQueryFile,
+    path::VfsPath, Vfs, VfsEntryDirectory, VfsEntryFile, VfsInternalNode, VfsList, VfsMetaData,
+    VfsNode, VfsQueryDirectory, VfsQueryFile,
 };
 
 macro_rules! check_file {
@@ -79,6 +79,7 @@ pub fn directory_integration() -> Result<(), quakeworld::vfs::Error> {
 
     // check directory querying
     let directory_entry = VfsQueryDirectory::new("some".try_into()?, None);
+    let de_path = directory_entry.clone();
     let lists = vfs.list(directory_entry)?;
     assert_eq!(lists.len(), 1);
     let list = &lists[0];
@@ -243,7 +244,7 @@ pub fn hash_integration() -> Result<(), quakeworld::vfs::Error> {
     .iter()
     .enumerate()
     {
-        let entry = &list[i];
+        let entry: &VfsList = &list[i];
         assert_eq!(entry.node_hash, *hash);
         let entry = &entry.entries[0];
         check_file!(entry, "testfile.dat", 8);

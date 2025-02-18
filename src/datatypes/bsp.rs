@@ -4,7 +4,7 @@ use protocol_macros::DataTypeRead;
 use serde::Serialize;
 
 use super::reader::{DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeSize, Error};
-use crate::trace::trace_start;
+use crate::trace::{trace_start, trace_stop};
 use protocol_macros::DataTypeBoundCheckDerive;
 
 use crate::datatypes::common::{DataType, DirectoryEntry};
@@ -13,7 +13,7 @@ use crate::datatypes::common::{DataType, DirectoryEntry};
 /// BSP Header
 ///https://www.gamers.org/dEngine/quake/spec/quake-spec34/qkspec_4.htm
 #[derive(Serialize, Clone, Debug, Copy, DataTypeRead, DataTypeBoundCheckDerive, Default)]
-#[datatyperead(prefix = "bsp")]
+#[datatyperead(prefix = "bsp", internal)]
 pub struct Header {
     /// Model version
     pub version: u32,

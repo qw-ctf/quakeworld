@@ -1,26 +1,24 @@
+//! [description]
+//! datatypes::reader tests
+
 #![allow(warnings)]
 use std::fs::File;
 
 use quakeworld::datatypes::common::AsciiString;
 use quakeworld::pak::Pak;
 use quakeworld::utils::perf::Perf;
-use quakeworld::vfs::internal_node::VfsFlattenedListEntry;
 use quakeworld::vfs::{
-    internal_node::VfsInternalNode, path::VfsPath, Vfs, VfsEntryDirectory, VfsEntryFile, VfsNode,
-    VfsQueryDirectory, VfsQueryFile,
+    path::VfsPath, Vfs, VfsEntryDirectory, VfsEntryFile, VfsNode, VfsQueryDirectory, VfsQueryFile,
 };
 
 use paste::paste;
 
-use quakeworld::trace_start;
+use quakeworld::{trace_start, trace_stop};
 
-use protocol_macros::DataTypeRead;
-use quakeworld::datatypes::reader::{
-    DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeReaderError, DataTypeSize,
-};
+use quakeworld::datatypes::reader::{DataTypeBoundCheck, DataTypeRead, DataTypeReader};
 use serde::Serialize;
 
-use protocol_macros::DataTypeBoundCheckDerive;
+use protocol_macros::DataTypeRead;
 
 use quakeworld::datatypes::common::DataType;
 
@@ -110,7 +108,7 @@ pub fn sized_vector_sized_named_from_environment() -> Result<(), quakeworld::vfs
     let sized_vector = match <SizedVectorName as DataTypeRead>::read(&mut datatypereader) {
         Ok(v) => panic!("we should have errord' here"),
         Err(e) => {
-            if let DataTypeReaderError::EnvironmentVariableNotFound(v) = e {
+            if let quakeworld::datatypes::reader::Error::EnvironmentVariableNotFound(v) = e {
                 assert_eq!(v, "environment_size");
             } else {
                 panic!("encountered wrong error: {}", e);
@@ -141,7 +139,7 @@ pub struct EnvironmentDirectoryEntry {
 
 #[test]
 pub fn environment_directory_entry_size_sequential(
-) -> Result<(), quakeworld::datatypes::reader::DataTypeReaderError> {
+) -> Result<(), quakeworld::datatypes::reader::Error> {
     let original_data: Vec<u8> = vec![0, 1, 2, 3, 4, 5, 6, 7];
     let raw_data = generate_data!(vec![9, 0, 0, 0, 8, 0, 0, 0], &mut original_data.clone());
 
@@ -177,8 +175,8 @@ pub struct EnvironmentDirectoryEntryBoth {
 }
 
 #[test]
-pub fn environment_directory_entry_size_offset(
-) -> Result<(), quakeworld::datatypes::reader::DataTypeReaderError> {
+pub fn environment_directory_entry_size_offset() -> Result<(), quakeworld::datatypes::reader::Error>
+{
     let original_data: Vec<u8> = vec![0, 1, 2, 3, 4, 5, 6, 7];
     let size_expected = original_data.len();
     let mut raw_data = generate_data!(vec![16, 0, 0, 0, 8, 0, 0, 0], b"DEADBEEF".to_vec());
@@ -225,7 +223,7 @@ pub struct EnvironmentDirectoryEntryComplex {
 
 #[test]
 pub fn environment_directory_entry_size_offset_complex(
-) -> Result<(), quakeworld::datatypes::reader::DataTypeReaderError> {
+) -> Result<(), quakeworld::datatypes::reader::Error> {
     let sizeof_directory_entry: u8 =
         std::mem::size_of::<quakeworld::datatypes::common::DirectoryEntry>()
             .try_into()

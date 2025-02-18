@@ -6,6 +6,8 @@ extern crate quote;
 extern crate simple_error;
 extern crate unstringify;
 
+use crate as quakeworld;
+
 pub mod datatypes;
 #[macro_use]
 pub mod trace;

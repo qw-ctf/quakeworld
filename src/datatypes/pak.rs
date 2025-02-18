@@ -7,13 +7,13 @@ use serde::Serialize;
 use protocol_macros::DataTypeBoundCheckDerive;
 
 use super::common::{DataType, DirectoryEntry};
-use crate::trace::trace_start;
+use crate::trace::{trace_start, trace_stop};
 
 /// PAK related structs
 /// PAK Header
 type Version = u32;
 #[derive(Serialize, Clone, Debug, Copy, DataTypeRead, DataTypeBoundCheckDerive)]
-#[datatyperead(prefix = "pak")]
+#[datatyperead(prefix = "pak", internal)]
 pub struct Header {
     /// Pak version
     pub version: Version,
@@ -23,7 +23,7 @@ pub struct Header {
 }
 
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead, DataTypeBoundCheckDerive)]
-#[datatyperead(prefix = "pak")]
+#[datatyperead(prefix = "pak", internal)]
 pub struct File {
     #[datatyperead(size_from = 56, string)]
     pub name: Vec<u8>,

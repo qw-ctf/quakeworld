@@ -9,7 +9,7 @@ use super::reader::{
     DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeSize, Error, Result,
 };
 
-use crate::trace::trace_start;
+use crate::trace::{trace_start, trace_stop};
 
 use super::bsp;
 use super::mdl;
@@ -21,7 +21,7 @@ pub trait AsciiString {
 
 /// A vector or position
 #[derive(Serialize, Clone, Debug, Copy, DataTypeRead, Default)]
-#[datatyperead(ommit_trait = DataTypeSize)]
+#[datatyperead(ommit_trait = DataTypeSize, internal)]
 pub struct Vector3<T: DataTypeRead + 'static>
 where
     T: Clone,
@@ -78,7 +78,7 @@ impl AsciiString for Vec<u8> {
 
 /// Bounding box
 #[derive(Serialize, Clone, Debug, Copy, Default, DataTypeRead)]
-// #[datatyperead(ommit_func)]
+#[datatyperead(internal)]
 pub struct BoundingBox<T: DataTypeRead + DataTypeSize + 'static>
 where
     T: Clone,
@@ -140,6 +140,7 @@ impl DataType {
 
 /// Directory entry: describes the position and size of a chunk of data inside a BSP File
 #[derive(Serialize, Clone, Debug, Copy, DataTypeRead, Default)]
+#[datatyperead(internal)]
 pub struct DirectoryEntry {
     /// Offset from the sart of the file
     pub offset: u32,
@@ -180,6 +181,7 @@ impl<T: DataTypeBoundCheck> DataTypeBoundCheck for Vec<T> {
 }
 
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
+#[datatyperead(internal)]
 pub struct TextureCoordinate {
     pub onseam: i32,
     pub s: i32,
@@ -187,18 +189,21 @@ pub struct TextureCoordinate {
 }
 
 #[derive(Serialize, Clone, Debug, Copy, DataTypeRead, Default)]
+#[datatyperead(internal)]
 pub struct Triangle {
     pub faces_front: u32,
     pub vertex: Vector3<i32>,
 }
 
 #[derive(Serialize, Clone, Debug, Copy, DataTypeRead, Default)]
+#[datatyperead(internal)]
 pub struct Vertex {
     pub v: Vector3<u8>,
     pub normal_index: u8,
 }
 
 #[derive(Serialize, Clone, Debug, Copy, DataTypeRead, Default)]
+#[datatyperead(internal)]
 pub struct Plane {
     pub normal: Vector3<f32>,
     pub distance: f32,
@@ -206,6 +211,7 @@ pub struct Plane {
 }
 
 #[derive(Serialize, Clone, Debug, DataTypeRead, Default)]
+#[datatyperead(internal)]
 pub struct TextureHeader {
     #[datatyperead(environment = "texture_header_count")]
     pub count: i32, // texture count
@@ -214,7 +220,7 @@ pub struct TextureHeader {
 }
 
 #[derive(Serialize, Clone, Debug, DataTypeRead, Default)]
-// #[datatyperead()]
+#[datatyperead(internal)]
 pub struct TextureInfo {
     #[datatyperead(size_from = 16, string)]
     pub name: Vec<u8>,
@@ -243,6 +249,7 @@ pub struct Texture {
 }
 
 #[derive(Serialize, Clone, Debug, DataTypeRead, Default)]
+#[datatyperead(internal)]
 pub struct Bsp {
     pub header: bsp::Header,
     #[datatyperead(size_offset_from, size=modulo_self_environment)]

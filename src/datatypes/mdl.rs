@@ -5,10 +5,10 @@ use serde::Serialize;
 
 use super::common::{BoundingBox, DataType, Vector3, Vertex};
 use super::reader::{DataTypeRead, DataTypeReader, DataTypeSize, Error, Result};
-use crate::trace::trace_start;
+use crate::trace::{trace_start, trace_stop};
 
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
-#[datatyperead(prefix = "mdl")]
+#[datatyperead(prefix = "mdl", internal)]
 pub struct Header {
     pub magic: u32,
     pub version: u32,
@@ -29,7 +29,7 @@ pub struct Header {
 }
 
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
-#[datatyperead(prefix = "mdl")]
+#[datatyperead(prefix = "mdl", internal)]
 pub struct Frame {
     pub frame_type: u32,
     pub bounding_box: BoundingBox<Vertex>,
@@ -40,7 +40,7 @@ pub struct Frame {
 }
 
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
-#[datatyperead(prefix = "mdl")]
+#[datatyperead(prefix = "mdl", internal)]
 pub struct Skin {
     pub time: f32,
     #[datatyperead(size_from = "skin_size")]

@@ -3,13 +3,13 @@ use std::{convert::Infallible, fmt::Display, io::Write, path::Path};
 use time::OffsetDateTime;
 
 mod internal_node;
-use internal_node::VfsList;
+pub use internal_node::{VfsFlattenedListEntry, VfsInternalNode, VfsList};
 
 pub mod path;
 use path::VfsPath;
 
 mod meta;
-use meta::VfsMetaData;
+pub use meta::VfsMetaData;
 
 mod error;
 pub use error::{Error, Result};

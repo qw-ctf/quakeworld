@@ -277,7 +277,6 @@ impl AttributeParser {
     }
 
     pub fn parse_attributes(&mut self, input: &ParseStream) -> syn::Result<bool> {
-        // return Ok(true);
         loop {
             if input.is_empty() {
                 break;

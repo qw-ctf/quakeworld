@@ -1,3 +1,4 @@
+use crate::datatypes::reader;
 use crate::datatypes::reader::{DataTypeRead, DataTypeReader};
 
 #[cfg(feature = "trace")]
@@ -20,7 +21,7 @@ impl Bsp {
             trace,
         );
         // read the header
-        let bsp_header = <Header as DataTypeRead>::read(&mut dtr)?;
+        let bsp_header = <Header as reader::DataTypeRead>::read(&mut dtr)?;
 
         let texture_data = dtr.read_data_from_directory_entry(bsp_header.textures)?; //red(&mut datatypereader)?;
                                                                                      //
