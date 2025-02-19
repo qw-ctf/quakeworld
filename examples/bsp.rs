@@ -22,6 +22,20 @@ fn parse_file(filename: String, bspname: String) -> Result<bool, Box<dyn Error>>
         Some(&mut trace),
     )?;
 
+    let palette = pak
+        .files
+        .iter()
+        .find(|&item| item.name.ascii_string() == "gfx/palette.lmp")
+        .or_else(|| {
+            println!("\"{}\" not found in \"{}\".", bspname, "palette.lmp");
+            None
+        });
+    if !palette.is_some() {
+        return Ok(false);
+    }
+    let palette = pak.get_data(palette.unwrap())?;
+    let palette = quakeworld::lmp::Palette::from(palette)?;
+
     let f = pak
         .files
         .iter()
@@ -34,7 +48,7 @@ fn parse_file(filename: String, bspname: String) -> Result<bool, Box<dyn Error>>
         return Ok(false);
     }
     let d = pak.get_data(f.unwrap())?;
-    println!("{}", d.len());
+    // println!("{}", d.len());
     #[cfg(feature = "trace")]
     let mut tr = Trace::new();
     let b = Bsp::parse(
@@ -42,11 +56,13 @@ fn parse_file(filename: String, bspname: String) -> Result<bool, Box<dyn Error>>
         #[cfg(feature = "trace")]
         Some(&mut tr),
     )?;
-    // let o = b.header.entities.offset as usize;
-    // let l = (b.header.entities.offset + b.header.entities.size) as usize;
-    // let entities = d[o..l].to_vec();
-    // let s = String::from_utf8(entities).unwrap();
-    // println!("{}", s);
+
+    let atlas_map = quakeworld::texture::atlas::Atlas::from_textures(b.textures);
+    let png_data =
+        quakeworld::texture::png::from_palette_data(&palette, &atlas_map.data, 512, 4096);
+
+    std::fs::write("atlas.png", png_data);
+
     Ok(true)
 }
 

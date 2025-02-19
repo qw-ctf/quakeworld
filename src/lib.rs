@@ -44,6 +44,9 @@ pub mod qtv;
 #[cfg(feature = "vfs")]
 pub mod vfs;
 
+// #[cfg(feature = "texture")]
+pub mod texture;
+
 #[cfg(test)]
 mod tests {
     // use crate::utils::ascii_converter::AsciiConverter;
