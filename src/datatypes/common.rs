@@ -111,6 +111,7 @@ pub enum DataType {
     PAKFILE(crate::datatypes::pak::File),
     BSPHEADER(bsp::Header),
     BSP(Bsp),
+    BSPMODEL(bsp::Model),
     DIRECTORYENTRY(DirectoryEntry),
     MDLSKIN(mdl::Skin),
     MDLFRAME(mdl::Frame),
@@ -121,6 +122,11 @@ pub enum DataType {
     TRIANGLE(Triangle),
     TEXTURECOORDINATE(TextureCoordinate),
     VERTEX(Vertex),
+    EDGE(Edge),
+    FACE(Face),
+    NODE(Node),
+    LEAF(Leaf),
+    CLIPNODE(ClipNode),
     QTV(crate::qtv::QtvType),
     VECTOR3GENERIC,
     BOUNDINGBOXGENERIC,
@@ -202,6 +208,62 @@ pub struct Vertex {
     pub normal_index: u8,
 }
 
+#[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
+#[datatyperead(internal)]
+pub struct Edge {
+    pub vertex_0: u16,
+    pub vertex_1: u16,
+}
+
+#[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
+#[datatyperead(internal)]
+pub struct Node {
+    pub plane_index: u32,
+    pub front: u16,
+    pub back: u16,
+    pub bounding_box: BoundingBox<i16>,
+    pub face_index: u16,
+    pub face_count: u16,
+}
+
+#[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
+#[datatyperead(internal)]
+pub struct Face {
+    pub plane_index: u16,
+    pub side: u16,
+    pub edge_index: i32,
+    pub edge_count: u16,
+    pub texture_index: u16,
+    pub light_type: u8,
+    pub light_base: u8,
+    #[datatyperead(size_from = 2)]
+    pub light_additional: Vec<u8>,
+    // TODO: implement a way to read slices
+    // pub light_additional: [u8; 2],
+    pub lightmap_index: i32,
+}
+
+#[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
+#[datatyperead(internal)]
+pub struct Leaf {
+    pub r#type: i32,
+    pub visibility_list_index: i32,
+    pub bounding_box: BoundingBox<i16>,
+    pub face_index: u16,
+    pub face_count: u16,
+    pub sound_sky: u8,
+    pub sound_limit: u8,
+    pub sound_lava: u8,
+}
+
+#[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
+#[datatyperead(internal)]
+pub struct ClipNode {
+    pub plane_index: u32,
+    pub front: i16,
+    pub back: u16,
+}
+
 #[derive(Serialize, Clone, Debug, Copy, DataTypeRead, Default)]
 #[datatyperead(internal)]
 pub struct Plane {
@@ -233,19 +295,11 @@ pub struct TextureInfo {
 }
 
 #[derive(Serialize, Clone, Debug, Default)]
-pub struct MipTexture {
-    pub width: u32,
-    pub height: u32,
-    pub data: Vec<u8>,
-}
-
-#[derive(Serialize, Clone, Debug, Default)]
 pub struct Texture {
     pub name: String,
     pub width: u32,
     pub height: u32,
     pub data: Vec<u8>,
-    pub mips: Vec<MipTexture>,
 }
 
 #[derive(Serialize, Clone, Debug, DataTypeRead, Default)]
