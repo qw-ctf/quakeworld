@@ -22,7 +22,7 @@ pub struct AtlasTextureLight {
     pub height: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Atlas {
     pub width: u32,
     pub height: u32,
@@ -32,6 +32,9 @@ pub struct Atlas {
 
 impl Atlas {
     pub fn from_textures(textures: Vec<TextureParsed>) -> Atlas {
+        return Atlas::default();
+    }
+    pub fn from_textures_working(textures: Vec<TextureParsed>) -> Atlas {
         let mut bucket_map: Vec<HashMap<u32, Bucket>> = vec![
             HashMap::new(),
             HashMap::new(),

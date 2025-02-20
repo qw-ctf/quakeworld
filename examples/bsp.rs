@@ -11,6 +11,8 @@ use quakeworld::pak::Pak;
 use quakeworld::trace::Trace;
 
 fn parse_file(filename: String, bspname: String) -> Result<bool, Box<dyn Error>> {
+    let map_name = bspname.clone();
+    let bspname = format!("maps/{}.bsp", bspname);
     // read the file into a buffer
     let data = fs::read(&filename)?;
     #[cfg(feature = "trace")]
@@ -27,7 +29,7 @@ fn parse_file(filename: String, bspname: String) -> Result<bool, Box<dyn Error>>
         .iter()
         .find(|&item| item.name.ascii_string() == "gfx/palette.lmp")
         .or_else(|| {
-            println!("\"{}\" not found in \"{}\".", bspname, "palette.lmp");
+            println!("\"{}\" not found in \"{}\".", "palette.lmp", filename);
             None
         });
     if !palette.is_some() {
@@ -58,10 +60,14 @@ fn parse_file(filename: String, bspname: String) -> Result<bool, Box<dyn Error>>
     )?;
 
     let atlas_map = quakeworld::texture::atlas::Atlas::from_textures(b.textures);
-    let png_data =
-        quakeworld::texture::png::from_palette_data(&palette, &atlas_map.data, 512, 4096);
+    let png_data = quakeworld::texture::png::from_palette_data(
+        &palette,
+        &atlas_map.data,
+        atlas_map.width,
+        atlas_map.height,
+    )?;
 
-    std::fs::write("atlas.png", png_data);
+    std::fs::write(format!("{}_atlas.png", map_name), png_data);
 
     Ok(true)
 }
