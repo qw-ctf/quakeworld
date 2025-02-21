@@ -136,7 +136,8 @@ pub struct VfsQueryDirectory {
 }
 
 impl VfsQueryDirectory {
-    pub fn new(path: VfsPath, _node: Option<VfsHash>) -> Self {
+    pub fn new(path: impl Into<VfsPath>, _node: Option<VfsHash>) -> Self {
+        let path = path.into();
         Self { path }
     }
 }
@@ -218,8 +219,12 @@ pub struct Vfs {
 
 /// An abstraction of a filesystem where nodes can be inserted at specific locations
 impl Vfs {
+    pub fn new() -> Self {
+        Self::default()
+    }
     // inserts a node into the vfs stack
-    pub fn insert_node(&mut self, node: impl VfsNode, path: VfsPath) {
+    pub fn insert_node(&mut self, node: impl VfsNode, path: impl Into<VfsPath>) {
+        let path = path.into();
         let n = node.boxed();
         self.nodes.push(VfsNodeEntry { node: n, path });
     }
@@ -234,7 +239,8 @@ impl Vfs {
     }
 
     /// list all entries in a directory
-    pub fn list(&self, directory: VfsQueryDirectory) -> Result<Vec<VfsList>> {
+    pub fn list(&self, directory: impl Into<VfsQueryDirectory>) -> Result<Vec<VfsList>> {
+        let directory = directory.into();
         let mut entries = vec![];
         for n in &self.nodes {
             // if !directory.path.starts_with(&n.path) {
@@ -265,7 +271,12 @@ impl Vfs {
         Ok(entries)
     }
 
-    pub fn read(&self, file: VfsQueryFile, node_hash: Option<VfsHash>) -> Result<VfsRawData> {
+    pub fn read(
+        &self,
+        file: impl Into<VfsQueryFile>,
+        node_hash: Option<VfsHash>,
+    ) -> Result<VfsRawData> {
+        let file = file.into();
         for node in &self.nodes {
             let mut file_path = file.clone();
             file_path.path = file_path.path.subtract(&node.path);

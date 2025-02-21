@@ -37,6 +37,12 @@ pub struct VfsFlattenedListEntry {
     pub entry: VfsEntry,
 }
 
+impl Into<VfsQueryFile> for VfsEntry {
+    fn into(self) -> VfsQueryFile {
+        VfsQueryFile { path: self.path() }
+    }
+}
+
 #[allow(dead_code)]
 impl VfsFlattenedListEntry {
     pub fn flatten(lists: Vec<VfsList>) -> Vec<VfsFlattenedListEntry> {

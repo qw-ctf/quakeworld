@@ -75,10 +75,10 @@ pub fn directory_integration() -> Result<(), quakeworld::vfs::Error> {
 
     let directory_node = VfsInternalNode::new_from_directory(directory_path.to_path_buf());
     let directory_node_hash = directory_node.hash().clone();
-    vfs.insert_node(directory_node, vfs_mount_path.try_into()?);
+    vfs.insert_node(directory_node, vfs_mount_path);
 
     // check directory querying
-    let directory_entry = VfsQueryDirectory::new("some".try_into()?, None);
+    let directory_entry = VfsQueryDirectory::new("some", None);
     let de_path = directory_entry.clone();
     let lists = vfs.list(directory_entry)?;
     assert_eq!(lists.len(), 1);
@@ -90,10 +90,10 @@ pub fn directory_integration() -> Result<(), quakeworld::vfs::Error> {
     check_directory!(entry, "path");
 
     // check file reading from directory
-    let data = vfs.read("some/path/data/file1.data".into(), None)?;
+    let data = vfs.read("some/path/data/file1.data", None)?;
     assert_eq!(data, b"deadbeef");
 
-    let directory_entry = VfsQueryDirectory::new("".try_into()?, None);
+    let directory_entry = VfsQueryDirectory::new("", None);
     let lists = vfs.list(directory_entry)?;
     assert_eq!(lists.len(), 1);
     let list = &lists[0];
@@ -111,9 +111,9 @@ pub fn file_integration() -> Result<(), quakeworld::vfs::Error> {
     let file_path = std::path::Path::new("tests/data/file1.data");
     let file_node = VfsInternalNode::new_from_file(file_path.to_path_buf());
     let file_node_hash = file_node.hash().clone();
-    vfs.insert_node(file_node, "".try_into()?);
+    vfs.insert_node(file_node, "");
 
-    let directory_entry = VfsQueryDirectory::new(VfsPath::new("")?, None);
+    let directory_entry = VfsQueryDirectory::new("", None);
 
     let lists = vfs.list(directory_entry)?;
     assert_eq!(lists.len(), 1);
@@ -133,9 +133,9 @@ pub fn file_integration() -> Result<(), quakeworld::vfs::Error> {
     let file_path = std::path::Path::new("tests/data/file1.data");
     let file_node = VfsInternalNode::new_from_file(file_path.to_path_buf());
     let file_node_hash = file_node.hash().clone();
-    vfs.insert_node(file_node, "some/path".try_into()?);
+    vfs.insert_node(file_node, "some/path");
 
-    let directory_entry = VfsQueryDirectory::new("".try_into()?, None);
+    let directory_entry = VfsQueryDirectory::new("", None);
 
     let lists = vfs.list(directory_entry)?;
     assert_eq!(lists.len(), 1);
@@ -144,7 +144,7 @@ pub fn file_integration() -> Result<(), quakeworld::vfs::Error> {
     let entry = &list.entries[0];
     check_directory!(entry, "some");
 
-    let directory_entry = VfsQueryDirectory::new("some/path".try_into()?, None);
+    let directory_entry = VfsQueryDirectory::new("some/path", None);
 
     let lists = vfs.list(directory_entry)?;
     assert_eq!(lists.len(), 1);
@@ -154,7 +154,7 @@ pub fn file_integration() -> Result<(), quakeworld::vfs::Error> {
     check_file!(entry, "file1.data", 8);
 
     // check file reading
-    let data = vfs.read("some/path/file1.data".into(), None)?;
+    let data = vfs.read("some/path/file1.data", None)?;
     assert_eq!(data, b"deadbeef");
     Ok(())
 }
@@ -164,9 +164,9 @@ pub fn pak_integration() -> Result<(), quakeworld::vfs::Error> {
     let mut vfs = Vfs::default();
     let pak_node = create_pak_node!("test0.pak", ("testfile.dat", b"deadbeef"));
     let pak_node_hash = pak_node.hash().clone();
-    vfs.insert_node(pak_node, "test".try_into()?);
+    vfs.insert_node(pak_node, "test");
 
-    let directory_entry = VfsQueryDirectory::new("".try_into()?, None);
+    let directory_entry = VfsQueryDirectory::new("", None);
 
     let lists = vfs.list(directory_entry)?;
     assert_eq!(lists.len(), 1);
@@ -175,7 +175,7 @@ pub fn pak_integration() -> Result<(), quakeworld::vfs::Error> {
     let entry = &list.entries[0];
     check_directory!(entry, "test");
 
-    let directory_entry = VfsQueryDirectory::new("test".try_into()?, None);
+    let directory_entry = VfsQueryDirectory::new("test", None);
 
     let lists = vfs.list(directory_entry)?;
     assert_eq!(lists.len(), 1);
@@ -191,7 +191,7 @@ pub fn pak_integration() -> Result<(), quakeworld::vfs::Error> {
         }
     };
 
-    let data = vfs.read("test/testfile.dat".into(), None)?;
+    let data = vfs.read("test/testfile.dat", None)?;
     assert_eq!(data.len(), 8);
     assert_eq!(data, b"deadbeef");
 
@@ -204,19 +204,19 @@ pub fn hash_integration() -> Result<(), quakeworld::vfs::Error> {
 
     let pak_node = create_pak_node!("test0.pak", ("testfile.dat", b"deadbeef"));
     let pak_0_node_hash = pak_node.hash().clone();
-    vfs.insert_node(pak_node, "".try_into()?);
+    vfs.insert_node(pak_node, "");
 
     let pak_node = create_pak_node!("test0_reverse.pak", ("testfile.dat", b"beefdead"));
     let pak_0_reverse_node_hash = pak_node.hash().clone();
-    vfs.insert_node(pak_node, "".try_into()?);
+    vfs.insert_node(pak_node, "");
 
     // mount the "tests/data/file1.data" under "/"
     let file_path = std::path::Path::new("tests/data/testfile.dat");
     let file_node = VfsInternalNode::new_from_file(file_path.to_path_buf());
     let file_node_hash = file_node.hash().clone();
-    vfs.insert_node(file_node, "".try_into()?);
+    vfs.insert_node(file_node, "");
 
-    let list = match vfs.list("".into()) {
+    let list = match vfs.list("") {
         Ok(l) => l,
         Err(e) => panic!("{}", e),
     };
@@ -248,7 +248,7 @@ pub fn hash_integration() -> Result<(), quakeworld::vfs::Error> {
         assert_eq!(entry.node_hash, *hash);
         let entry = &entry.entries[0];
         check_file!(entry, "testfile.dat", 8);
-        let data = vfs.read("testfile.dat".into(), Some(hash.clone()))?;
+        let data = vfs.read("testfile.dat", Some(hash.clone()))?;
         assert_eq!(data, **binary);
     }
     Ok(())
@@ -256,7 +256,7 @@ pub fn hash_integration() -> Result<(), quakeworld::vfs::Error> {
 
 #[test]
 pub fn conversion_integration() -> Result<(), quakeworld::vfs::Error> {
-    let path: VfsPath = "this/is/a/test".try_into()?;
+    let path: VfsPath = "this/is/a/test".into();
     // conversion from path into String
     assert!(path.equals_string("this/is/a/test"));
     Ok(())
