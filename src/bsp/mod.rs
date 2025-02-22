@@ -69,6 +69,10 @@ impl Bsp {
         let mut textures: Vec<TextureParsed> = vec![];
         // reading mip texture info
         for offset in texture_header.offsets {
+            // TODO: why is this a thing?
+            if offset < 0 {
+                continue;
+            }
             dtr_texture.set_position(offset as u64);
             let t = <crate::datatypes::common::TextureInfo>::read(&mut dtr_texture)?;
             // println!("{}", t.name.ascii_string());
