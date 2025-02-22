@@ -245,7 +245,8 @@ impl Vfs {
         for n in &self.nodes {
             // if !directory.path.starts_with(&n.path) {
             if !n.path.starts_with(&directory.path) {
-                continue;
+                // TODO: this needs some fixing
+                // continue;
             }
 
             // check if the we are still below the mount path

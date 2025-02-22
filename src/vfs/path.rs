@@ -146,6 +146,14 @@ impl VfsPath {
     pub fn is_empty(&self) -> bool {
         self.nodes.len() == 0
     }
+
+    pub fn last(&self) -> String {
+        if self.nodes.len() > 0 {
+            return self.nodes[self.nodes.len() - 1].clone().to_string();
+        } else {
+            return "".to_string();
+        }
+    }
 }
 
 #[cfg(test)]
