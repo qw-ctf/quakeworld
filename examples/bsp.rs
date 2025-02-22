@@ -4,9 +4,10 @@ use std::fs;
 use std::hash::{DefaultHasher, Hasher};
 use std::io::prelude::*;
 
-use quakeworld::bsp::Bsp;
+use quakeworld::bsp::{Bsp, TextureParsed};
 use quakeworld::datatypes::common::AsciiString;
 use quakeworld::pak::Pak;
+use quakeworld::texture::atlas::AtlasTile;
 #[cfg(feature = "trace")]
 use quakeworld::trace::Trace;
 
@@ -59,15 +60,87 @@ fn parse_file(filename: String, bspname: String) -> Result<bool, Box<dyn Error>>
         Some(&mut tr),
     )?;
 
-    let atlas_map = quakeworld::texture::atlas::Atlas::from_textures(b.textures);
-    let png_data = quakeworld::texture::png::from_palette_data(
-        &palette,
-        &atlas_map.data,
-        atlas_map.width,
-        atlas_map.height,
-    )?;
+    let textures_list = b.textures.clone();
+    let statistics = quakeworld::texture::atlas::Statistics::gather(&textures_list, 0);
+    let mut atlas = quakeworld::texture::atlas::Atlas::new(512, 512);
+    atlas.insert_textures(statistics.textures);
+    // println!("atlas tiles: {}", atlas.tiles.len());
+    // panic!();
+    let tiles_absolut = atlas.tiles.len();
 
-    std::fs::write(format!("{}_atlas.png", map_name), png_data);
+    let limit = 81;
+    let mut count_up = vec![];
+    for i in 1..82 {
+        count_up.push(i);
+    }
+    for count in count_up {
+        let mut textures_list: Vec<TextureParsed> = vec![];
+        // textures for statistics
+        for n in 0..b.textures.len() as usize {
+            textures_list.push(b.textures[n].clone());
+        }
+
+        let statistics = quakeworld::texture::atlas::Statistics::gather(&textures_list, 0);
+        let mut atlas = quakeworld::texture::atlas::Atlas::new(512, 512);
+        let mut new_texture_list = vec![];
+        for (c, t) in statistics.textures.iter().enumerate() {
+            if c == count {
+                break;
+            }
+            new_texture_list.push(t.clone());
+        }
+        atlas.insert_textures(new_texture_list);
+        for (e, tile) in atlas.tiles.iter().enumerate() {
+            println!("tile {}:", e);
+            // println!("\t b: {:?}", tile.boxes);
+            for t in &tile.textures {
+                println!(
+                    "\t t: {} {} - {}",
+                    t.position, t.size, b.textures[t.index].name,
+                );
+            }
+
+            let mut area = 0;
+            for b in &tile.boxes {
+                println!("\t b: {} {}", b.position, b.size);
+                area += b.size.area();
+            }
+            println!(
+                "\t {} - {} = {}",
+                area,
+                tile.size.area(),
+                area as i64 - tile.size.area() as i64
+            );
+        }
+        if atlas.tiles.len() < tiles_absolut {
+            atlas.tiles.push(AtlasTile {
+                size: atlas.tile_size.clone(),
+                boxes: vec![],
+                textures: vec![],
+                full: false,
+            });
+        }
+        let atlas_map = atlas.generate_texture(&b.textures)?;
+
+        println!(
+            "{} - {} {} - {} - {}",
+            atlas_map.len(),
+            atlas.size.width,
+            atlas.size.height,
+            atlas.size.area(),
+            atlas.tiles.len(),
+        );
+        let png_data = quakeworld::texture::png::from_palette_data(
+            &palette,
+            &atlas_map,
+            atlas.size.width,
+            atlas.size.height,
+        )?;
+        println!("png data size: {}", png_data.len());
+        println!("atlas tiles: {}", atlas.tiles.len());
+
+        std::fs::write(format!("{}_atlas_{:0>4}.png", map_name, count), png_data);
+    }
 
     Ok(true)
 }
