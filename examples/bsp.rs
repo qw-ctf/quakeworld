@@ -124,7 +124,7 @@ fn parse_file(filename: String, bspname: String) -> Result<bool, Box<dyn Error>>
 
         println!(
             "{} - {} {} - {} - {}",
-            atlas_map.len(),
+            atlas_map.data.len(),
             atlas.size.width,
             atlas.size.height,
             atlas.size.area(),
@@ -132,7 +132,7 @@ fn parse_file(filename: String, bspname: String) -> Result<bool, Box<dyn Error>>
         );
         let png_data = quakeworld::texture::png::from_palette_data(
             &palette,
-            &atlas_map,
+            &atlas_map.data,
             atlas.size.width,
             atlas.size.height,
         )?;
