@@ -108,6 +108,7 @@ pub enum DataType {
     F32(f32),
     PAK(crate::pak::Pak),
     PAKHEADER(crate::datatypes::pak::Header),
+    PAKHEADERLIGHT(crate::datatypes::pak::HeaderLight),
     PAKFILE(crate::datatypes::pak::File),
     BSPHEADER(bsp::Header),
     BSP(Bsp),

@@ -6,7 +6,7 @@ use crate::datatypes::reader::Error as ReaderError;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("header mismath: {0} != {1}")]
+    #[error("header magic mismath: {0} != {1}")]
     HeaderMismatch(u32, u32),
     #[error("io {0}")]
     Io(std::io::Error),

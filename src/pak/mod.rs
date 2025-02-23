@@ -6,6 +6,7 @@ use protocol_macros::DataTypeBoundCheckDerive;
 use serde::Serialize;
 
 use crate::datatypes::pak;
+use crate::datatypes::reader::DataTypeSize;
 use crate::datatypes::reader::{DataTypeBoundCheck, DataTypeRead, DataTypeReader};
 
 mod error;
@@ -14,7 +15,7 @@ pub use error::{Error, Result};
 #[cfg(feature = "trace")]
 use crate::trace::Trace;
 
-static HEADER: u32 = 0x4b434150; // PACK
+static HEADER_MAGIC: u32 = 0x4b434150; // PACK
 pub const MAX_NAME_LENGTH: usize = 55;
 const NAME_LENGTH: u32 = 56;
 
@@ -62,8 +63,8 @@ impl Pak {
         let header = <pak::Header as DataTypeRead>::read(&mut datatypereader)?;
         header.check_bounds(&mut datatypereader)?;
 
-        if header.version != HEADER {
-            return Err(Error::HeaderMismatch(header.version, HEADER));
+        if header.version != HEADER_MAGIC {
+            return Err(Error::HeaderMismatch(header.version, HEADER_MAGIC));
         }
 
         let file_count = header.directory_offset.size / (NAME_LENGTH + 4 * 2);
@@ -88,6 +89,63 @@ impl Pak {
         let mut buf = vec![0; size];
         cursor.seek(SeekFrom::Start(file.offset as u64))?;
         cursor.read_exact(&mut buf)?;
+        Ok(buf)
+    }
+}
+
+#[derive(Serialize, Debug, Default, Clone, DataTypeBoundCheckDerive)]
+pub struct PakOnDisk {
+    pub name: String,
+    pub files: Vec<pak::File>,
+}
+
+impl PakOnDisk {
+    pub fn load(
+        name: impl Into<String>,
+        mut file: std::fs::File,
+        #[cfg(feature = "trace")] trace: Option<&mut Trace>,
+    ) -> Result<Self> {
+        let name = name.into();
+        let header_size = <pak::HeaderLight>::datatype_size();
+        let mut header_data: Vec<u8> = vec![0; header_size];
+        file.read_exact(&mut header_data)?;
+
+        let mut dtr_header = DataTypeReader::new(
+            header_data.clone(),
+            #[cfg(feature = "trace")]
+            trace,
+        );
+        let header = <pak::HeaderLight as DataTypeRead>::read(&mut dtr_header)?;
+        if header.version != HEADER_MAGIC {
+            return Err(Error::HeaderMismatch(header.version, HEADER_MAGIC));
+        }
+        file.seek(SeekFrom::Start(header.directory_offset.offset as u64))?;
+
+        let mut file_data: Vec<u8> = vec![0; header.directory_offset.size as usize];
+        file.read_exact(&mut file_data)?;
+
+        let file_count = header.directory_offset.size / (NAME_LENGTH + 4 * 2);
+
+        let mut dtr_file = DataTypeReader::new(
+            file_data,
+            #[cfg(feature = "trace")]
+            trace,
+        );
+
+        let mut files = Vec::new();
+        for _ in 0..file_count {
+            let f = <pak::File as DataTypeRead>::read(&mut dtr_file)?;
+            files.push(f);
+        }
+
+        Ok(PakOnDisk { name, files })
+    }
+
+    pub fn get_data(&self, pak: &mut std::fs::File, file: &pak::File) -> Result<Vec<u8>> {
+        let size: usize = file.size.try_into()?;
+        let mut buf = vec![0; size];
+        pak.seek(SeekFrom::Start(file.offset as u64))?;
+        pak.read_exact(&mut buf)?;
         Ok(buf)
     }
 }
@@ -141,7 +199,7 @@ impl PakWriter {
     pub fn write_data(self) -> Result<Vec<u8>> {
         let mut buffer: Vec<u8> = Vec::new();
         let mut c = Cursor::new(&mut buffer);
-        c.write_all(&HEADER.to_le_bytes())?;
+        c.write_all(&HEADER_MAGIC.to_le_bytes())?;
         let dir_offset: u32 = 4 * 3;
         c.write_all(&dir_offset.to_le_bytes())?;
         let dir_size: u32 = (self.files.len() * (MAX_NAME_LENGTH + 1 + 8)) as u32;

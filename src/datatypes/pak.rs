@@ -22,6 +22,15 @@ pub struct Header {
     pub directory_offset: DirectoryEntry,
 }
 
+#[derive(Serialize, Clone, Debug, Copy, DataTypeRead, DataTypeBoundCheckDerive)]
+#[datatyperead(prefix = "pak", internal)]
+pub struct HeaderLight {
+    /// Pak version
+    pub version: Version,
+    /// List of files
+    pub directory_offset: DirectoryEntry,
+}
+
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead, DataTypeBoundCheckDerive)]
 #[datatyperead(prefix = "pak", internal)]
 pub struct File {
