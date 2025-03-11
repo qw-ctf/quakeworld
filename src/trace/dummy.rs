@@ -5,7 +5,7 @@ macro_rules! trace_start {
     ( $dr:ident, $name:expr) => {};
     ( $dr:ident, $name:expr) => {};
 }
-pub(crate) use trace_start;
+pub use trace_start;
 
 #[macro_export]
 macro_rules! trace_stop {
@@ -13,7 +13,7 @@ macro_rules! trace_stop {
     ($dr:expr, $value:expr) => {};
     ($self:expr) => {};
 }
-pub(crate) use trace_stop;
+pub use trace_stop;
 
 #[macro_export]
 macro_rules! trace_abort {
@@ -25,7 +25,7 @@ macro_rules! trace_annotate {
     ($dr:ident, $name:expr) => {};
     ($dr:ident, $name:expr) => {};
 }
-pub(crate) use trace_annotate;
+pub use trace_annotate;
 
 #[macro_export]
 macro_rules! trace_info {

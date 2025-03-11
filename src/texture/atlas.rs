@@ -382,6 +382,7 @@ pub struct Atlas {
     pub size: AtlasSize,
     pub tiles: Vec<AtlasTile>,
     pub debug_boxes: bool,
+    pub mip_level: usize,
 }
 
 static DEBUGCOLORS: &[u8; 10] = &[128, 108, 160, 176, 192, 208, 224, 84, 100, 108];
@@ -397,6 +398,7 @@ impl Atlas {
                 ..Default::default()
             },
             debug_boxes: false,
+            mip_level: 0,
         }
     }
 
@@ -455,7 +457,7 @@ impl Atlas {
                     for _ in 0..texture.size.area() {
                         gd.push(c as u8);
                     }
-                    let real_texture = &textures[texture.index].mip_levels[0];
+                    let real_texture = &textures[texture.index].mip_levels[self.mip_level];
                     let ft = TextureMip {
                         width: real_texture.width,
                         height: real_texture.height,

@@ -6,9 +6,9 @@ use std::io::{Cursor, Read};
 
 use crate::datatypes::common::AsciiString;
 pub use crate::datatypes::common::DataType;
+use crate::trace::{trace_start, trace_stop};
 #[cfg(feature = "trace")]
-use crate::trace::Trace;
-use crate::trace::{trace_start, trace_stop, TraceOptional};
+use crate::trace::{Trace, TraceOptional};
 
 mod error;
 pub use error::{Error, Result};
@@ -34,7 +34,7 @@ pub struct DataTypeReader {
     pub env: HashMap<String, Environment>,
 }
 
-impl<'a> DataTypeReader {
+impl<'a> DataTypeReader<'_> {
     pub fn new(data: Vec<u8>, #[cfg(feature = "trace")] trace: Option<Trace>) -> Self {
         DataTypeReader {
             data: data.clone(),
@@ -128,7 +128,7 @@ impl<'a> DataTypeReader {
     }
 }
 
-impl DataTypeReader {
+impl DataTypeReader<'_> {
     pub fn read_exact_generic<T: DataTypeRead>(&mut self, buf: &mut Vec<T>) -> Result<()> {
         let n = buf.capacity();
         trace_start!(self, format!("Vec<generic>[{}]", n));

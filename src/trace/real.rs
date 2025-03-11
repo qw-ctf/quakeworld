@@ -229,10 +229,13 @@ macro_rules! trace_stop {
             }
         }
     };
-    ($self:expr) => {
-        // if $self.trace.enabled && !$self.trace.locked {
-        //     $self.read_trace_stop(TraceValue::None);
-        // }
+    ($dr:expr) => {
+        paste::paste! {
+            let p = $dr.position();
+            if let Some(trace) = &mut $dr.trace {
+                trace.stop(p, DataType::None);
+            }
+        }
     };
 }
 pub(crate) use trace_stop;

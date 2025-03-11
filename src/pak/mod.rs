@@ -8,13 +8,12 @@ use serde::Serialize;
 use crate::datatypes::pak;
 use crate::datatypes::reader::DataTypeSize;
 use crate::datatypes::reader::{DataTypeBoundCheck, DataTypeRead, DataTypeReader};
-use crate::trace::TraceOptional;
 
 mod error;
 pub use error::{Error, Result};
 
 #[cfg(feature = "trace")]
-use crate::trace::Trace;
+use crate::trace::{Trace, TraceOptional};
 
 static HEADER_MAGIC: u32 = 0x4b434150; // PACK
 pub const MAX_NAME_LENGTH: usize = 55;

@@ -1016,6 +1016,7 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
                 let size_from_environment: usize = #lit_int;
                 let mut #field_identifier: #field_type = Vec::with_capacity(size_from_environment);
                 #field_offset
+                #crate_prefix ::trace::trace_annotate!(datareader, stringify!(#field_name));
                 datareader. #read_exect_type (&mut #field_identifier)?;
                 #field_offset_after
                 #field_environment
@@ -1025,6 +1026,7 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
                 let mut #field_identifier: #field_type = Vec::with_capacity(size_from_environment);
                 #field_size_recalc
                 #field_offset
+                #crate_prefix ::trace::trace_annotate!(datareader, stringify!(#field_name));
                 datareader.read_exact_generic_v2(&mut #field_identifier)?;
                 #field_offset_after
                 #field_environment
@@ -1036,6 +1038,7 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
                 #field_size_recalc
                 let mut #field_identifier: #field_type = Vec::with_capacity(size_from_environment);
                 #field_offset
+                #crate_prefix ::trace::trace_annotate!(datareader, stringify!(#field_name));
                 datareader.read_exact_generic_v2(&mut #field_identifier)?;
                 #field_offset_after
                 #field_environment }
