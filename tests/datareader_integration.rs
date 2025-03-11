@@ -65,7 +65,7 @@ pub fn sized_vector_string_sized() -> Result<(), quakeworld::vfs::Error> {
     let mut datatypereader = DataTypeReader::new(
         raw_data.clone(),
         #[cfg(feature = "trace")]
-        trace,
+        None,
     );
     let sized_vector = match <SizedVectorSizedString as DataTypeRead>::read(&mut datatypereader) {
         Ok(v) => v,
@@ -84,7 +84,7 @@ pub fn sized_vector_sized() -> Result<(), quakeworld::vfs::Error> {
     let mut datatypereader = DataTypeReader::new(
         raw_data.clone(),
         #[cfg(feature = "trace")]
-        trace,
+        None,
     );
     let sized_vector = match <SizedVectorSized as DataTypeRead>::read(&mut datatypereader) {
         Ok(v) => v,
@@ -101,7 +101,7 @@ pub fn sized_vector_sized_named_from_environment() -> Result<(), quakeworld::vfs
     let mut datatypereader = DataTypeReader::new(
         raw_data.clone(),
         #[cfg(feature = "trace")]
-        trace,
+        None,
     );
 
     // missing environment variable
@@ -146,7 +146,7 @@ pub fn environment_directory_entry_size_sequential(
     let mut datatypereader = DataTypeReader::new(
         raw_data.clone(),
         #[cfg(feature = "trace")]
-        trace,
+        None,
     );
 
     let directory_entry =
@@ -185,7 +185,7 @@ pub fn environment_directory_entry_size_offset() -> Result<(), quakeworld::datat
     let mut datatypereader = DataTypeReader::new(
         raw_data.clone(),
         #[cfg(feature = "trace")]
-        trace,
+        None,
     );
 
     let directory_entry =
@@ -249,7 +249,7 @@ pub fn environment_directory_entry_size_offset_complex(
     let mut datatypereader = DataTypeReader::new(
         raw_data.clone(),
         #[cfg(feature = "trace")]
-        trace,
+        None,
     );
 
     let directory_entry =

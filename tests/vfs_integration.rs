@@ -56,7 +56,10 @@ macro_rules! create_pak_node {
     ($name: expr, $($rest:tt)*) => {
         {
             let pak_data = create_pak!($($rest)*);
-            let pak = Pak::load($name, pak_data).unwrap();
+            let pak = Pak::load($name, pak_data,
+                    #[cfg(feature="trace")]
+                    None
+                ).unwrap();
             let pak_node = VfsInternalNode::new_from_pak(
             pak,
             VfsMetaData { ..Default::default() },);

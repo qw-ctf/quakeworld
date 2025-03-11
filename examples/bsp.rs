@@ -16,13 +16,12 @@ fn parse_file(filename: String, bspname: String) -> Result<bool, Box<dyn Error>>
     let bspname = format!("maps/{}.bsp", bspname);
     // read the file into a buffer
     let data = fs::read(&filename)?;
-    #[cfg(feature = "trace")]
-    let mut trace = Trace::new();
+
     let pak = Pak::parse(
         filename.clone(),
         data,
         #[cfg(feature = "trace")]
-        Some(&mut trace),
+        None,
     )?;
 
     let palette = pak
@@ -52,12 +51,10 @@ fn parse_file(filename: String, bspname: String) -> Result<bool, Box<dyn Error>>
     }
     let d = pak.get_data(f.unwrap())?;
     // println!("{}", d.len());
-    #[cfg(feature = "trace")]
-    let mut tr = Trace::new();
     let b = Bsp::parse(
         d.clone(),
         #[cfg(feature = "trace")]
-        Some(&mut tr),
+        None,
     )?;
 
     let textures_list = b.textures.clone();

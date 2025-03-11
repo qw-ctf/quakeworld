@@ -20,7 +20,7 @@ fn create_atlas(paks: Vec<String>, bspname: String) -> Result<bool, Box<dyn Erro
             pak,
             pak_data,
             #[cfg(feature = "trace")]
-            trace,
+            None,
         )?;
         let node = VfsInternalNode::new_from_pak(pak, VfsMetaData::default());
         vfs.insert_node(node, "/");
@@ -33,12 +33,10 @@ fn create_atlas(paks: Vec<String>, bspname: String) -> Result<bool, Box<dyn Erro
     let palette_data = vfs.read("gfx/palette.lmp", None)?;
     let palette = quakeworld::lmp::Palette::from(palette_data)?;
 
-    #[cfg(feature = "trace")]
-    let mut tr = Trace::new();
     let b = Bsp::parse(
         bsp_data.clone(),
         #[cfg(feature = "trace")]
-        Some(&mut tr),
+        None,
     )?;
 
     let textures_list = b.textures.clone();

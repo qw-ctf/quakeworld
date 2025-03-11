@@ -16,7 +16,7 @@ fn parse_file(filename: String) -> Result<bool, Box<dyn Error>> {
     #[cfg(feature = "trace")]
     {
         let mut trace = Trace::new();
-        let mdl = Mdl::parse(data, Some(&mut trace))?;
+        let mdl = Mdl::parse(data, Some(trace.clone()))?;
     }
     #[cfg(not(feature = "trace"))]
     let mdl = Mdl::parse(data)?;

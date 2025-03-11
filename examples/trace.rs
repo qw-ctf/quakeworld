@@ -5,6 +5,8 @@ use quakeworld::protocol::types::{ServerClient, ServerMessage};
 use quakeworld::utils::trace::print_message_trace;
 #[cfg(feature = "trace")]
 fn main() {
+    use quakeworld::protocol::message::trace::MessageTrace;
+
     let b: Vec<u8> = vec![8, 2, 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x0];
     let mut message = Message::new(
         Box::new(b.clone()),
@@ -16,6 +18,7 @@ fn main() {
         },
         None,
         MessageType::Connection,
+        MessageTrace::default(),
     );
     message.trace.enabled = true;
     let msg_cmd = match message.read_u8(false) {

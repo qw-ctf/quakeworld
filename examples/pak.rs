@@ -21,23 +21,9 @@ fn parse_file(filename: String) -> Result<bool, Box<dyn Error>> {
         filename,
         file,
         #[cfg(feature = "trace")]
-        Some(&mut trace),
+        None,
     )?;
 
-    #[cfg(feature = "trace")]
-    for t in trace.trace.traces {
-        println!(
-            "{} {} start({}) stop({})",
-            t.field_name, t.field_type, t.index, t.index_stop
-        );
-        println!(" value: {:?}", t.value);
-        for t1 in &t.traces {
-            println!(
-                "\t{} {} start({}) stop({})",
-                t1.field_type, t1.field_name, t1.index, t1.index_stop
-            );
-        }
-    }
     for file in &pak.files {
         //let b = pak.get_data(file)?;
         println!(

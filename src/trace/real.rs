@@ -180,7 +180,7 @@ macro_rules! function {
     }};
 }
 #[allow(unused)]
-pub(crate) use function;
+pub use function;
 
 #[macro_export]
 macro_rules! trace_start {
@@ -209,7 +209,7 @@ macro_rules! trace_start {
         }
     };
 }
-pub(crate) use trace_start;
+pub use trace_start;
 
 #[macro_export]
 macro_rules! trace_stop {
@@ -238,7 +238,7 @@ macro_rules! trace_stop {
         }
     };
 }
-pub(crate) use trace_stop;
+pub use trace_stop;
 
 #[macro_export]
 macro_rules! trace_annotate {
@@ -253,4 +253,4 @@ macro_rules! trace_annotate {
         }
     };
 }
-pub(crate) use trace_annotate;
+pub use trace_annotate;

@@ -16,7 +16,7 @@ use std::fs::File;
 use quakeworld::bsp::{Bsp, TextureParsed};
 use quakeworld::datatypes::common::AsciiString;
 use quakeworld::pak::Pak;
-use quakeworld::texture::atlas::AtlasTile;
+use quakeworld::texture::atlas::{AtlasTile, TextureBox};
 #[cfg(feature = "trace")]
 use quakeworld::trace::Trace;
 use quakeworld::vfs::{Vfs, VfsFlattenedListEntry, VfsInternalNode, VfsMetaData};
@@ -29,7 +29,7 @@ fn create_atlas(paks: Vec<String>, bspname: String) -> Result<bool, Box<dyn Erro
             pak,
             pak_data,
             #[cfg(feature = "trace")]
-            trace,
+            None,
         )?;
         let node = VfsInternalNode::new_from_pak(pak, VfsMetaData::default());
         vfs.insert_node(node, "/");
@@ -39,18 +39,17 @@ fn create_atlas(paks: Vec<String>, bspname: String) -> Result<bool, Box<dyn Erro
     if bspname == "ALLMAPS" {
         let map_names: Vec<String> = vec![];
         let entries = vfs.list("/maps")?;
-        for entry in &entries {
-            for e in &entry.entries {
-                match e {
-                    quakeworld::vfs::VfsEntry::File(vfs_entry_file) => {
-                        let name = vfs_entry_file.path.last();
-                        let name_without_extension = name[0..name.len() - 4].to_string();
-                        let name = format!("maps/{}.bsp", name_without_extension);
-                        let bsp_data = vfs.read(name, None)?;
-                        maps.push((name_without_extension.clone(), bsp_data));
-                    }
-                    quakeworld::vfs::VfsEntry::Directory(vfs_entry_directory) => {}
+        let flatten = VfsFlattenedListEntry::flatten(entries);
+        for e in &flatten {
+            match &e.entry {
+                quakeworld::vfs::VfsEntry::File(vfs_entry_file) => {
+                    let name = vfs_entry_file.path.last();
+                    let name_without_extension = name[0..name.len() - 4].to_string();
+                    let name = format!("maps/{}.bsp", name_without_extension);
+                    let bsp_data = vfs.read(name, None)?;
+                    maps.push((name_without_extension.clone(), bsp_data));
                 }
+                quakeworld::vfs::VfsEntry::Directory(vfs_entry_directory) => {}
             }
         }
     } else {
@@ -63,18 +62,29 @@ fn create_atlas(paks: Vec<String>, bspname: String) -> Result<bool, Box<dyn Erro
 
     for (bsp_name, bsp_data) in maps {
         println!("creating {}_atlas.gif", bsp_name);
-        #[cfg(feature = "trace")]
-        let mut tr = Trace::new();
         let b = Bsp::parse(
             bsp_data.clone(),
             #[cfg(feature = "trace")]
-            Some(&mut tr),
+            None,
         )?;
 
+        let mip_level = 3;
+
+        let tile_minimum_box = TextureBox {
+            width: 512,
+            height: 512,
+            x: 0,
+            y: 0,
+            index: 0,
+        };
+
         let textures_list = b.textures.clone();
-        let statistics = quakeworld::texture::atlas::Statistics::gather(&textures_list, 0);
-        let mut atlas = quakeworld::texture::atlas::Atlas::new(512, 512);
-        atlas.insert_textures(statistics.textures);
+        let final_statistics =
+            quakeworld::texture::atlas::Statistics::gather(&textures_list, mip_level);
+        let mut atlas =
+            quakeworld::texture::atlas::Atlas::new(tile_minimum_box.width, tile_minimum_box.height);
+        atlas.mip_level = mip_level;
+        atlas.insert_textures(final_statistics.textures);
         let tiles_absolut = atlas.tiles.len();
 
         let limit = b.textures.len();
@@ -93,8 +103,13 @@ fn create_atlas(paks: Vec<String>, bspname: String) -> Result<bool, Box<dyn Erro
                 textures_list.push(b.textures[n].clone());
             }
 
-            let statistics = quakeworld::texture::atlas::Statistics::gather(&textures_list, 0);
-            let mut atlas = quakeworld::texture::atlas::Atlas::new(512, 512);
+            let statistics =
+                quakeworld::texture::atlas::Statistics::gather(&textures_list, mip_level);
+            let mut atlas = quakeworld::texture::atlas::Atlas::new(
+                tile_minimum_box.width,
+                tile_minimum_box.height,
+            );
+            atlas.mip_level = mip_level;
             atlas.debug_boxes = true;
             let mut new_texture_list = vec![];
             for (c, t) in statistics.textures.iter().enumerate() {
