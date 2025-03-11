@@ -7,7 +7,7 @@ use super::{
     common::{BoundingBox, Vector3},
     reader::{DataTypeBoundCheck, DataTypeRead, DataTypeReader, DataTypeSize, Error},
 };
-use crate::trace::{trace_start, trace_stop};
+use crate::trace::{trace_annotate, trace_start, trace_stop};
 use protocol_macros::DataTypeBoundCheckDerive;
 
 use crate::datatypes::common::{DataType, DirectoryEntry};
@@ -106,6 +106,6 @@ pub struct Model {
     pub node_id2: i32,
     pub node_id3: i32,
     pub leafs_count: i32,
-    pub face_iindex: i32,
+    pub face_index: i32,
     pub face_count: i32,
 }

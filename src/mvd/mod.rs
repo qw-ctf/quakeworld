@@ -1,6 +1,8 @@
 use std::thread;
 
 use crate::protocol::errors::MvdParseError;
+#[cfg(feature = "trace")]
+use crate::protocol::message::trace::{MessageTrace, ToTraceValue, TraceOptions, TraceValue};
 use crate::protocol::message::Message;
 use crate::protocol::message::MessageFlags;
 use crate::protocol::message::MessageType;
@@ -91,7 +93,7 @@ impl Mvd {
     ) -> Result<Mvd, std::io::Error> {
         let buffer_heap = Box::new(buffer.clone());
 
-        let message = Message::new(
+        let mut message = Message::new(
             buffer_heap,
             0,
             buffer.len(),
@@ -100,6 +102,8 @@ impl Mvd {
             #[cfg(feature = "ascii_strings")]
             maybe_ascii_converter,
             MessageType::Mvd,
+            #[cfg(feature = "trace")]
+            MessageTrace::default(),
         );
 
         #[cfg(feature = "trace")]
@@ -292,7 +296,7 @@ impl Mvd {
                     // outgoing
                     trace::trace_annotate!(self.message, "sequence_ack");
                     let _ = self.message.read_u32(false);
-                    trace::trace_stop!(self.message, frame);
+                    trace::trace_stop!(self.message, *frame);
                     return Ok(frame);
                 }
                 DemoCommand::Read => {}

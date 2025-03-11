@@ -96,12 +96,13 @@ pub enum VfsEntry {
 
 #[allow(dead_code)]
 impl VfsEntry {
-    fn path(&self) -> VfsPath {
+    pub fn path(&self) -> VfsPath {
         match self {
             VfsEntry::File(vfs_entry_file) => vfs_entry_file.path.clone(),
             VfsEntry::Directory(vfs_entry_directory) => vfs_entry_directory.path.clone(),
         }
     }
+
     fn path_prefix(&self) -> VfsPath {
         match self {
             VfsEntry::File(vfs_entry_file) => {

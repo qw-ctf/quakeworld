@@ -1,7 +1,7 @@
 //use crate::mdl::mdl::Frame;
-use crate::trace::trace_annotate;
 #[cfg(feature = "trace")]
 use crate::trace::Trace;
+use crate::trace::{trace_annotate, TraceOptional};
 
 use crate::datatypes::common::{TextureCoordinate, Triangle};
 use crate::datatypes::mdl;
@@ -92,10 +92,7 @@ pub struct Mdl {
 }
 
 impl Mdl {
-    pub fn parse(
-        data: Vec<u8>,
-        #[cfg(feature = "trace")] trace: Option<&mut Trace>,
-    ) -> Result<Mdl> {
+    pub fn parse(data: Vec<u8>, #[cfg(feature = "trace")] trace: Option<Trace>) -> Result<Mdl> {
         let mut datatypereader = reader::DataTypeReader::new(
             data,
             #[cfg(feature = "trace")]

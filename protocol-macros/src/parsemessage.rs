@@ -49,9 +49,9 @@ fn impl_parsemessage_macro(ast: &syn::DeriveInput) -> TokenStream {
         impl #struct_name {
             fn read(message: &mut Message) -> Result<ServerMessage, MessageError>
             {
-                trace_start!(message, false);
+                trace::trace_start!(message, false);
                 #(
-                trace_annotate!(message, #field_name_annotate);
+                trace::trace_annotate!(message, #field_name_annotate);
                 let #field_name_value = message.#field_function(false)?;
                  )*
                 let v = ServerMessage::#struct_name(
@@ -61,7 +61,7 @@ fn impl_parsemessage_macro(ast: &syn::DeriveInput) -> TokenStream {
                                 )*
                         });
 
-                trace_stop!(message, v);
+                trace::trace_stop!(message, v);
                 Ok(v)
             }
         }

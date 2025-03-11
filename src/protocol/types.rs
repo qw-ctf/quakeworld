@@ -9,6 +9,9 @@ use crate::protocol::message::errors::*;
 use crate::protocol::message::trace;
 use crate::protocol::message::*;
 
+#[cfg(feature = "trace")]
+use crate::protocol::message::trace::ToTraceValue;
+
 use protocol_macros::ParseMessage;
 
 #[cfg(feature = "ascii_strings")]

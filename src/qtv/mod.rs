@@ -48,6 +48,9 @@ type QtvResult<T> = Result<T, QtvError>;
 use crate::trace::{trace_annotate, trace_start, trace_stop};
 
 #[cfg(feature = "trace")]
+use paste::paste;
+
+#[cfg(feature = "trace")]
 use crate::trace::Trace;
 
 #[derive(Default, Debug, PartialEq)]

@@ -4,6 +4,7 @@ use crate::datatypes::common::{
 };
 use crate::datatypes::reader::{self, DataTypeSize};
 use crate::datatypes::reader::{DataTypeRead, DataTypeReader};
+use crate::trace::TraceOptional;
 use serde::Serialize;
 
 #[cfg(feature = "trace")]
@@ -42,14 +43,12 @@ pub struct Bsp {
 }
 
 impl Bsp {
-    pub fn parse(
-        data: Vec<u8>,
-        #[cfg(feature = "trace")] trace: Option<&mut Trace>,
-    ) -> Result<Self> {
+    pub fn parse(data: Vec<u8>, #[cfg(feature = "trace")] trace: Option<Trace>) -> Result<Self> {
+        #[cfg(feature = "trace")]
         let mut dtr = DataTypeReader::new(
             data,
             #[cfg(feature = "trace")]
-            trace,
+            trace.clone(),
         );
         // read the header
         let bsp_header = <Header as reader::DataTypeRead>::read(&mut dtr)?;
@@ -59,7 +58,7 @@ impl Bsp {
         let mut dtr_texture = DataTypeReader::new(
             texture_data,
             #[cfg(feature = "trace")]
-            trace,
+            trace.clone(),
         );
 
         let texture_header =

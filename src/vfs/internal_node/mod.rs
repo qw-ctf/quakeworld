@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::vfs::{Result, VfsEntry, VfsHash, VfsNode, VfsPath, VfsRawData};
 use uuid::Uuid;
 
-use super::{meta::VfsMetaData, VfsQueryDirectory, VfsQueryFile};
+use super::{meta::VfsMetaData, VfsEntryFile, VfsQueryDirectory, VfsQueryFile};
 
 mod directory;
 mod file;
@@ -45,6 +45,19 @@ impl Into<VfsQueryFile> for VfsEntry {
 
 #[allow(dead_code)]
 impl VfsFlattenedListEntry {
+    pub fn flatten_files(lists: Vec<VfsList>) -> Vec<VfsEntryFile> {
+        let mut r: Vec<VfsEntryFile> = vec![];
+        for list in &lists {
+            for entry in &list.entries {
+                match entry {
+                    VfsEntry::File(vfs_entry_file) => r.push(vfs_entry_file.clone()),
+                    VfsEntry::Directory(_) => {}
+                };
+            }
+        }
+        r
+    }
+
     pub fn flatten(lists: Vec<VfsList>) -> Vec<VfsFlattenedListEntry> {
         let mut hash_map: HashMap<String, VfsFlattenedListEntry> = HashMap::new();
         for list in &lists {

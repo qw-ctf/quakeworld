@@ -4,10 +4,11 @@ use std::collections::HashMap;
 
 use std::io::{Cursor, Read};
 
+use crate::datatypes::common::AsciiString;
 pub use crate::datatypes::common::DataType;
 #[cfg(feature = "trace")]
 use crate::trace::Trace;
-use crate::trace::{trace_start, trace_stop};
+use crate::trace::{trace_start, trace_stop, TraceOptional};
 
 mod error;
 pub use error::{Error, Result};
@@ -25,20 +26,21 @@ pub struct DataTypeReader<'a> {
 }
 
 #[cfg(feature = "trace")]
-pub struct DataTypeReader<'a> {
+pub struct DataTypeReader {
     pub data: Vec<u8>,
     pub cursor: Cursor<Vec<u8>>,
-    pub trace: Option<&'a mut Trace>,
+    #[cfg(feature = "trace")]
+    pub trace: Option<Trace>,
     pub env: HashMap<String, Environment>,
 }
 
-impl DataTypeReader<'_> {
-    pub fn new(data: Vec<u8>, #[cfg(feature = "trace")] trace: Option<&'a mut Trace>) -> Self {
+impl<'a> DataTypeReader {
+    pub fn new(data: Vec<u8>, #[cfg(feature = "trace")] trace: Option<Trace>) -> Self {
         DataTypeReader {
             data: data.clone(),
             cursor: Cursor::new(data),
             #[cfg(feature = "trace")]
-            trace,
+            trace: trace.clone(),
             #[cfg(not(feature = "trace"))]
             trace_stub: None,
             env: HashMap::new(),
@@ -67,7 +69,7 @@ impl DataTypeReader<'_> {
                 buf.push(b);
             }
         }
-        trace_stop!(self, DataType::GENERICVECTORSTRING(i));
+        trace_stop!(self, DataType::GENERICVECTORSTRING(n));
         Ok(())
     }
 
@@ -126,7 +128,7 @@ impl DataTypeReader<'_> {
     }
 }
 
-impl DataTypeReader<'_> {
+impl DataTypeReader {
     pub fn read_exact_generic<T: DataTypeRead>(&mut self, buf: &mut Vec<T>) -> Result<()> {
         let n = buf.capacity();
         trace_start!(self, format!("Vec<generic>[{}]", n));

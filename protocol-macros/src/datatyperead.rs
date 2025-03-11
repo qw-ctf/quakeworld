@@ -1007,6 +1007,7 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
         let fc = match sp {
             SizeParsed::None => quote! {
                 #field_offset
+                #crate_prefix ::trace::trace_annotate!(datareader, stringify!(#field_name));
                 let #field_identifier = <#field_type as #datatypes_reader_path ::DataTypeRead>::read(datareader)?;
                 #field_offset_after
                 #field_environment
@@ -1115,14 +1116,14 @@ pub fn datatyperead_derive_2(input: TokenStream) -> TokenStream {
     let read_trait = quote! {
         impl #struct_impl_generics #datatypes_reader_path::DataTypeRead for #si_identifier #struct_type_generics #struct_where_clause {
             fn read(datareader: &mut #datatypes_reader_path::DataTypeReader) -> #datatypes_reader_path::Result <Self> {
-                trace_start!(datareader, stringify!( #si_identifier));
+                #crate_prefix ::trace::trace_start!(datareader, stringify!( #si_identifier));
 
                     #(#field_creations)*
 
                     let s = Self {
                         #(#field_assignments)*
                     };
-                trace_stop!(datareader, s);
+                #crate_prefix ::trace::trace_stop!(datareader, s.to_datatype());
                 Ok(s)
 
             }

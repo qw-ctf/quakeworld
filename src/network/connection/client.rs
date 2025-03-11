@@ -1,4 +1,6 @@
 use crate::network::channel::Channel;
+#[cfg(feature = "trace")]
+use crate::protocol::message::trace::MessageTrace;
 use crate::protocol::message::Message;
 use crate::protocol::message::MessageFlags;
 use crate::protocol::message::MessageType;
@@ -151,6 +153,8 @@ impl Client {
             self.protocol,
             None,
             MessageType::Connection,
+            #[cfg(feature = "trace")]
+            MessageTrace::default(),
         );
         let p = match message.read_packet() {
             Ok(p) => p,

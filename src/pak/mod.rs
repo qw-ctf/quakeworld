@@ -8,6 +8,7 @@ use serde::Serialize;
 use crate::datatypes::pak;
 use crate::datatypes::reader::DataTypeSize;
 use crate::datatypes::reader::{DataTypeBoundCheck, DataTypeRead, DataTypeReader};
+use crate::trace::TraceOptional;
 
 mod error;
 pub use error::{Error, Result};
@@ -29,11 +30,11 @@ pub struct Pak {
     pub files: Vec<pak::File>,
 }
 
-impl Pak {
+impl<'a> Pak {
     pub fn load(
         name: impl Into<String>,
         mut reader: impl Read,
-        #[cfg(feature = "trace")] trace: Option<&mut Trace>,
+        #[cfg(feature = "trace")] trace: Option<Trace>,
     ) -> Result<Pak> {
         let mut data = Vec::new();
         match reader.read_to_end(&mut data) {
@@ -51,14 +52,14 @@ impl Pak {
     pub fn parse(
         name: impl Into<String>,
         data: impl Into<Vec<u8>>,
-        #[cfg(feature = "trace")] trace: Option<&mut Trace>,
+        #[cfg(feature = "trace")] trace: Option<Trace>,
     ) -> Result<Pak> {
         let name = name.into();
         let data = data.into();
         let mut datatypereader = DataTypeReader::new(
             data.clone(),
             #[cfg(feature = "trace")]
-            trace,
+            trace.clone(),
         );
         let header = <pak::Header as DataTypeRead>::read(&mut datatypereader)?;
         header.check_bounds(&mut datatypereader)?;
@@ -99,26 +100,33 @@ pub struct PakOnDisk {
     pub files: Vec<pak::File>,
 }
 
-impl PakOnDisk {
+impl<'a> PakOnDisk {
     pub fn load(
         name: impl Into<String>,
         mut file: std::fs::File,
-        #[cfg(feature = "trace")] trace: Option<&mut Trace>,
+        #[cfg(feature = "trace")] trace: Option<Trace>,
     ) -> Result<Self> {
         let name = name.into();
         let header_size = <pak::HeaderLight>::datatype_size();
         let mut header_data: Vec<u8> = vec![0; header_size];
         file.read_exact(&mut header_data)?;
 
+        #[cfg(feature = "trace")]
+        let trace = match trace {
+            Some(v) => Some(v.clone()),
+            None => None,
+        };
+
         let mut dtr_header = DataTypeReader::new(
             header_data.clone(),
             #[cfg(feature = "trace")]
-            trace,
+            trace.clone(),
         );
         let header = <pak::HeaderLight as DataTypeRead>::read(&mut dtr_header)?;
         if header.version != HEADER_MAGIC {
             return Err(Error::HeaderMismatch(header.version, HEADER_MAGIC));
         }
+
         file.seek(SeekFrom::Start(header.directory_offset.offset as u64))?;
 
         let mut file_data: Vec<u8> = vec![0; header.directory_offset.size as usize];
@@ -129,7 +137,7 @@ impl PakOnDisk {
         let mut dtr_file = DataTypeReader::new(
             file_data,
             #[cfg(feature = "trace")]
-            trace,
+            trace.clone(),
         );
 
         let mut files = Vec::new();

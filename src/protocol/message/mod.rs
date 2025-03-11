@@ -406,6 +406,8 @@ impl Message {
             #[cfg(feature = "ascii_strings")]
             ascii_converter: AsciiConverter::new(),
             r#type: MessageType::Connection,
+            #[cfg(feature = "trace")]
+            trace: MessageTrace::default(),
         }
     }
 
@@ -426,6 +428,7 @@ impl Message {
         flags: MessageFlags,
         maybe_ascii_converter: Option<AsciiConverter>,
         r#type: MessageType,
+        #[cfg(feature = "trace")] trace: MessageTrace,
     ) -> Message {
         let ascii_converter: AsciiConverter;
         if let Some(ascii_convter_in) = maybe_ascii_converter {
@@ -443,6 +446,8 @@ impl Message {
             flags,
             ascii_converter,
             r#type,
+            #[cfg(feature = "trace")]
+            trace,
         }
     }
 

@@ -1,5 +1,8 @@
 use std::collections::HashMap;
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use serde::Serialize;
 use strum_macros::Display;
 
@@ -38,9 +41,19 @@ pub struct TraceEntry {
     pub info: HashMap<String, String>,
 }
 
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Default, Clone, Serialize)]
+pub struct TraceOptions {
+    pub enabled: bool,
+    pub depth_limit: u64,
+}
+
+pub type TraceOptional<'a> = Option<std::rc::Rc<&'a mut Trace>>;
+
+#[derive(Debug, Default, Clone)]
 pub struct Trace {
-    pub trace: TraceEntry,
+    pub trace: Rc<RefCell<TraceEntry>>,
+    pub enabled: bool,
+    // pub options: TraceOptions,
     annotation_prepend: Option<String>,
 }
 
@@ -50,8 +63,13 @@ pub trait TraceBase {
 
 impl TraceBase for Trace {
     fn get_trace(self) -> Vec<TraceEntry> {
-        vec![self.trace]
+        let t = self.trace.borrow();
+        vec![t.clone()]
     }
+}
+
+pub trait Traceable {
+    fn get_position(self) -> u64;
 }
 
 pub trait TraceEvent {
@@ -87,9 +105,10 @@ impl TraceEvent for TraceEntry {
 impl Trace {
     pub fn new() -> Self {
         Trace {
-            trace: TraceEntry {
+            trace: Rc::new(RefCell::new(TraceEntry {
                 ..Default::default()
-            },
+            })),
+            enabled: false,
             annotation_prepend: None,
         }
     }
@@ -116,7 +135,7 @@ impl Trace {
             value: TraceValue::None,
             info: HashMap::new(),
         };
-        self.trace.stack.push(ts);
+        self.trace.borrow_mut().stack.push(ts);
     }
 
     pub fn annotate(&mut self, annotation_prepend: impl Into<String>) {
@@ -128,18 +147,19 @@ impl Trace {
         let mut size = size;
         size = size.saturating_sub(1);
         // pop the most recent trace
-        if let Some(mut p) = self.trace.stack.pop() {
+        let mut t = self.trace.borrow_mut();
+        if let Some(mut p) = t.stack.pop() {
             //p.value = value;
             p.index_stop = size;
             p.value = TraceValue::Data(value);
             // get the last trace on the stack
-            if let Some(l) = self.trace.stack.last_mut() {
+            if let Some(l) = t.stack.last_mut() {
                 l.index_stop = p.index_stop;
                 // put that trace on the last element in the stack if it exists
                 l.traces.push(p);
             } else {
                 // if not the trace is finished
-                self.trace.traces.push(p);
+                t.traces.push(p);
             }
         } else {
             panic!("ok?");
@@ -194,7 +214,7 @@ pub(crate) use trace_start;
 #[macro_export]
 macro_rules! trace_stop {
     ( $dr:ident, $value:expr, $valueType:ident) => {
-        paste! {
+        paste::paste! {
             let p = $dr.position();
             if let Some(trace) = &mut $dr.trace {
                 trace.stop(p, $value.to_datatype());
@@ -202,7 +222,7 @@ macro_rules! trace_stop {
         }
     };
     ($dr:expr, $value:expr) => {
-        paste! {
+        paste::paste! {
             let p = $dr.position();
             if let Some(trace) = &mut $dr.trace {
                 trace.stop(p, $value);
