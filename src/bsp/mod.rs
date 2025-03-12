@@ -35,7 +35,7 @@ pub struct Bsp {
     pub nodes: Vec<Node>,
     pub faces: Vec<Face>,
     pub vertices: Vec<Vector3<f32>>,
-    pub edges_list: Vec<i16>,
+    pub edges_list: Vec<i32>,
     pub clip_nodes: Vec<ClipNode>,
     pub light_maps: Vec<u8>,
     pub leaves: Vec<Leaf>,
@@ -133,7 +133,7 @@ impl Bsp {
         trace_stop!(dtr);
 
         // read Edges
-        dtr.set_position(bsp_header.edges.offset as u64);
+        dtr.set_position(bsp_header.edges.offset as u64 + 2);
         trace_start!(dtr, "edges");
         let edge_count = bsp_header.edges.size / Edge::datatype_size() as u32;
         let mut edges: Vec<Edge> = Vec::with_capacity(edge_count as usize);
@@ -143,7 +143,6 @@ impl Bsp {
         // read Faces
         dtr.set_position(bsp_header.faces.offset as u64);
         trace_start!(dtr, "faces");
-        let faces_data = dtr.read_data_from_directory_entry(bsp_header.faces)?;
         let face_count = bsp_header.faces.size / Face::datatype_size() as u32;
         let mut faces: Vec<Face> = Vec::with_capacity(face_count as usize);
         dtr.read_exact_generic_v2(&mut faces)?;
@@ -181,8 +180,8 @@ impl Bsp {
 
         dtr.set_position(bsp_header.edges_list.offset as u64);
         trace_start!(dtr, "edges_list");
-        let edges_list_count = bsp_header.edges_list.size / i16::datatype_size() as u32;
-        let mut edges_list: Vec<i16> = Vec::with_capacity(edges_list_count as usize);
+        let edges_list_count = bsp_header.edges_list.size / i32::datatype_size() as u32;
+        let mut edges_list: Vec<i32> = Vec::with_capacity(edges_list_count as usize);
         dtr.read_exact_generic_v2(&mut edges_list)?;
         trace_stop!(dtr);
 
