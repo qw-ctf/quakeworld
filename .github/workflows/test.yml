@@ -1,0 +1,19 @@
+name: Build & Test
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  build_and_test:
+    name: Rust project - latest
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain:
+          - stable
+          - beta
+          - nightly
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
+      - run: cargo build --all-targets --verbose
+      - run: cargo test --verbose
