@@ -3,6 +3,9 @@ use num_enum::TryFromPrimitive;
 use paste::paste;
 use serde::Serialize;
 use std::fmt;
+use std::hash::BuildHasherDefault;
+use std::ops::Index;
+use std::ops::IndexMut;
 use strum_macros::Display;
 
 use crate::protocol::message::errors::*;
@@ -206,7 +209,7 @@ pub struct VelocityVectorOption {
     pub z: Option<Velocity>,
 }
 
-#[derive(Debug, PartialEq, PartialOrd, Copy, Clone, Serialize)]
+#[derive(Debug, PartialEq, PartialOrd, Copy, Clone, Serialize, Default)]
 pub struct CoordinateVectorOption {
     pub x: Option<Coordinate>,
     pub y: Option<Coordinate>,
@@ -247,6 +250,29 @@ pub struct AngleVector {
     pub x: Angle,
     pub y: Angle,
     pub z: Angle,
+}
+
+impl IndexMut<usize> for AngleVector {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        match index {
+            0 => &mut self.x,
+            1 => &mut self.y,
+            2 => &mut self.z,
+            _ => panic!("index out of range"),
+        }
+    }
+}
+
+impl Index<usize> for AngleVector {
+    type Output = f32;
+    fn index(&self, index: usize) -> &Self::Output {
+        match index {
+            0 => &self.x,
+            1 => &self.y,
+            2 => &self.z,
+            _ => panic!("index out of range"),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Copy, Clone, Serialize, Default)]
@@ -484,7 +510,84 @@ pub struct Stufftext {
     pub text: StringByte,
 }
 
-#[derive(Debug, PartialEq, PartialOrd, ParseMessage, Serialize, Default, Copy, Clone)]
+macro_rules! read_field {
+    ($msg:ident, $annotate:expr, $typ:ty) => {
+        paste! {
+        {
+            trace::trace_annotate!($msg, $annotate);
+            $msg. [< read_ $typ >](false)?
+        }
+        }
+    };
+}
+
+#[derive(Debug, PartialEq, PartialOrd, Serialize, Default, Copy, Clone)]
+pub struct Baseentity {
+    pub model_index: u8,
+    pub model_frame: u8,
+    pub colormap: u8,
+    pub skinnum: u8,
+    pub origin: CoordinateVector,
+    pub angle: AngleVector,
+}
+
+impl Baseentity {
+    fn read(message: &mut Message) -> Result<Baseentity, MessageError> {
+        trace::trace_start!(message, false);
+        let model_index = read_field!(message, "model_index", u8);
+        let model_frame = read_field!(message, "model_frame", u8);
+        let colormap = read_field!(message, "colormap ", u8);
+        let skinnum = read_field!(message, "skinnum", u8);
+        let mut origin = CoordinateVector::default();
+        let mut angle = AngleVector::default();
+        origin.x = read_field!(message, "origin x", coordinate);
+        angle.x = read_field!(message, "angle x", angle);
+        origin.y = read_field!(message, "origin y", coordinate);
+        angle.y = read_field!(message, "angle y", angle);
+        origin.z = read_field!(message, "origin z", coordinate);
+        angle.z = read_field!(message, "angle z", angle);
+
+        let v = Baseentity {
+            model_index,
+            model_frame,
+            colormap,
+            skinnum,
+            origin,
+            angle,
+        };
+        trace::trace_stop!(message, v);
+        Ok(v)
+    }
+}
+
+impl Into<Spawnstatic> for Baseentity {
+    fn into(self) -> Spawnstatic {
+        Spawnstatic {
+            model_index: self.model_index,
+            model_frame: self.model_frame,
+            colormap: self.colormap,
+            skinnum: self.skinnum,
+            origin: self.origin,
+            angle: self.angle,
+        }
+    }
+}
+
+impl Into<Spawnbaseline> for Baseentity {
+    fn into(self) -> Spawnbaseline {
+        Spawnbaseline {
+            index: 0,
+            model_index: self.model_index,
+            model_frame: self.model_frame,
+            colormap: self.colormap,
+            skinnum: self.skinnum,
+            origin: self.origin,
+            angle: self.angle,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, PartialOrd, Serialize, Default, Copy, Clone)]
 pub struct Spawnstatic {
     pub model_index: u8,
     pub model_frame: u8,
@@ -494,7 +597,14 @@ pub struct Spawnstatic {
     pub angle: AngleVector,
 }
 
-#[derive(Debug, PartialEq, PartialOrd, ParseMessage, Serialize, Default, Clone)]
+impl Spawnstatic {
+    fn read(message: &mut Message) -> Result<ServerMessage, MessageError> {
+        let base = Baseentity::read(message)?;
+        Ok(ServerMessage::Spawnstatic(base.into()))
+    }
+}
+
+#[derive(Debug, PartialEq, PartialOrd, Serialize, Default, Clone)]
 pub struct Spawnbaseline {
     pub index: u16,
     pub model_index: u8,
@@ -503,6 +613,14 @@ pub struct Spawnbaseline {
     pub skinnum: u8,
     pub origin: CoordinateVector,
     pub angle: AngleVector,
+}
+impl Spawnbaseline {
+    fn read(message: &mut Message) -> Result<ServerMessage, MessageError> {
+        let index = read_field!(message, "index", u16);
+        let mut base: Spawnbaseline = Baseentity::read(message)?.into();
+        base.index = index;
+        Ok(ServerMessage::Spawnbaseline(base))
+    }
 }
 
 #[derive(Debug, PartialEq, PartialOrd, ParseMessage, Serialize, Clone, Default)]
@@ -947,7 +1065,9 @@ impl Packetentities {
             if bits == 0 {
                 break;
             }
-            let baseline_index = bits & 511;
+            //  WARNING: this is so wrong i hope :P
+            // let mut baseline_index = entities.len() as u16;
+            let mut baseline_index = bits & 511;
             bits &= !511;
             let mut flags = UpdateTypes::from_bits_truncate(bits);
             if flags.contains(UpdateTypes::MOREBITS) {
@@ -1095,6 +1215,8 @@ impl FteSpawnbaseline2 {
         let mut bits = message.read_u16(false)?;
         let mut baseline_index = bits & 511;
         bits &= !511;
+        // WARNING: this is so wrong
+        // baseline_index = baseline_index % 63;
         let mut flags = UpdateTypes::from_bits_truncate(bits);
         if flags.contains(UpdateTypes::MOREBITS) {
             #[cfg(feature = "trace")]
@@ -1519,7 +1641,7 @@ impl Deltapacketentities {
             if flags.contains(UpdateTypes::ORIGIN2) {
                 trace::trace_annotate!(message, "origin2");
                 let tmp = message.read_coordinate(false)?;
-                origin_internal.z = Some(tmp);
+                origin_internal.y = Some(tmp);
             }
 
             if flags.contains(UpdateTypes::ANGLE2) {
@@ -1547,6 +1669,12 @@ impl Deltapacketentities {
             if !angle_internal.is_empty() {
                 angle = Some(angle_internal);
             }
+
+            // if baseline_index == 37 {
+            //     println!("delta: flags({:?})", flags);
+            //     println!("delta: origin_internal({:?})", origin_internal);
+            //     println!("delta: angle_internal({:?})", angle_internal);
+            // }
 
             let p = Packetentity {
                 entity_index: baseline_index,
@@ -1709,6 +1837,7 @@ pub struct Tempentity {
     pub start: CoordinateVector,
     pub entity: u16,
     pub count: i8,
+    pub time: f64,
 }
 
 impl Tempentity {
@@ -1757,6 +1886,7 @@ impl Tempentity {
             start,
             entity,
             count,
+            time: 0.,
         });
         trace::trace_stop!(message, r);
         Ok(r)

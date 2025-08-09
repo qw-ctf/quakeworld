@@ -25,6 +25,26 @@ pub enum TraceCommandType {
     Pak(TraceCommandPak),
     /// trace a bsp file
     Bsp(TraceCommandBsp),
+    /// trace a mdl file
+    Mdl(TraceCommandMdl),
+}
+
+#[derive(Debug, Args)]
+pub struct TraceCommandMdl {
+    #[arg(long, default_value = "-1")]
+    /// depth at wich to stop recoding values
+    pub trace_value_depth: i32,
+
+    #[arg(long, default_value = "-1")]
+    /// depth at wich to stop tracing
+    pub trace_depth_limit: i32,
+
+    #[arg(short)]
+    /// paks to mount
+    pub paks: Option<Vec<String>>,
+
+    /// file to trace
+    pub file: PathBuf,
 }
 
 #[derive(Debug, Args)]

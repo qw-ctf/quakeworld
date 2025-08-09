@@ -68,7 +68,7 @@ fn create_atlas(paks: Vec<String>, bspname: String) -> Result<bool, Box<dyn Erro
             None,
         )?;
 
-        let mip_level = 3;
+        let mip_level = 0;
 
         let tile_minimum_box = TextureBox {
             width: 512,

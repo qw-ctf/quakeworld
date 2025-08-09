@@ -35,7 +35,7 @@ impl Default for MvdTarget {
     }
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 pub struct Mvd {
     pub size: usize,
     pub finished: bool,
@@ -53,6 +53,7 @@ pub struct MvdFrame {
     pub messages: Vec<ServerMessage>,
     pub frame: u32,
     pub time: f64,
+    pub time_diff: f64,
     pub last: MvdTarget,
 }
 
@@ -62,6 +63,7 @@ impl MvdFrame {
             messages: vec![],
             frame: 0,
             time: 0.0,
+            time_diff: 0.0,
             last: MvdTarget {
                 ..Default::default()
             },
@@ -90,7 +92,7 @@ impl Mvd {
         buffer: Vec<u8>,
         #[cfg(feature = "ascii_strings")] maybe_ascii_converter: Option<AsciiConverter>,
         #[cfg(feature = "trace")] trace_options: TraceOptions,
-    ) -> Result<Mvd, std::io::Error> {
+    ) -> Result<Mvd, MvdParseError> {
         let buffer_heap = Box::new(buffer.clone());
 
         let mut message = Message::new(
@@ -242,6 +244,14 @@ impl Mvd {
         Ok(rval)
     }
 
+    pub fn peek_demotime(&mut self) -> Result<f64, MvdParseError> {
+        trace::trace_annotate!(self.message, "peek_demotime");
+        let demo_time = self.message.read_u8(false)?;
+        trace::trace_info!(self.message, "peek_demotime", demo_time);
+        self.message.position -= 1;
+        Ok(demo_time as f64 * 0.001)
+    }
+
     pub fn parse_frame(&mut self) -> Result<Box<MvdFrame>, MvdParseError> {
         let mut frame = Box::new(MvdFrame::empty());
         frame.frame = self.frame;
@@ -252,7 +262,8 @@ impl Mvd {
         trace::trace_annotate!(self.message, "demo_time");
         let demo_time = self.message.read_u8(false)?;
         trace::trace_info!(self.message, "demo_time", demo_time);
-        self.time += demo_time as f64 * 0.001;
+        frame.time_diff = demo_time as f64 * 0.001;
+        self.time += frame.time_diff;
         frame.time = self.time;
 
         trace::trace_annotate!(self.message, "cmd");

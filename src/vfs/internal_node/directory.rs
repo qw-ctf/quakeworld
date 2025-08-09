@@ -55,6 +55,15 @@ pub fn list(directory: &Directory, path: &VfsQueryDirectory, hash: &VfsHash) -> 
     })
 }
 
+pub fn exists(file: &Directory, path: &VfsQueryFile, _hash: &VfsHash) -> bool {
+    let mut filename = file.clone();
+    for p in &path.path.nodes {
+        let s: &str = p;
+        filename.push(std::path::PathBuf::from(s));
+    }
+    filename.exists()
+}
+
 pub fn read(file: &Directory, path: &VfsQueryFile, _hash: &VfsHash) -> Result<VfsRawData> {
     let mut filename = file.clone();
     for p in &path.path.nodes {

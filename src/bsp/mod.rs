@@ -1,6 +1,7 @@
 use crate::datatypes::bsp::Model;
 use crate::datatypes::common::{
-    AsciiString, BoundingBox, ClipNode, DirectoryEntry, Edge, Face, Leaf, Node, Vector3,
+    AsciiString, BoundingBox, ClipNode, DirectoryEntry, Edge, Face, Leaf, Node, Plane,
+    TextureFaceInfo, TextureInfo, Vector3,
 };
 use crate::datatypes::reader::{self, DataTypeSize};
 use crate::datatypes::reader::{DataType, DataTypeRead, DataTypeReader};
@@ -8,6 +9,8 @@ use serde::Serialize;
 
 #[cfg(feature = "trace")]
 use crate::trace::{Trace, TraceOptional, TraceValue};
+
+use paste::paste;
 
 pub type Header = crate::datatypes::bsp::Header;
 
@@ -27,9 +30,11 @@ pub struct TextureParsed {
     pub mip_levels: Vec<TextureMip>,
 }
 
+#[derive(Debug)]
 pub struct Bsp {
     pub header: Header,
     pub textures: Vec<TextureParsed>,
+    pub texture_infos: Vec<TextureFaceInfo>,
     pub models: Vec<Model>,
     pub edges: Vec<Edge>,
     pub nodes: Vec<Node>,
@@ -39,6 +44,22 @@ pub struct Bsp {
     pub clip_nodes: Vec<ClipNode>,
     pub light_maps: Vec<u8>,
     pub leaves: Vec<Leaf>,
+    pub planes: Vec<Plane>,
+}
+
+macro_rules! read_directory_entry {
+    ($datatypereader: ident, $directory_entry: expr, $type: ty, $trace_name: literal) => {{
+        $datatypereader.set_position($directory_entry.offset as u64);
+        trace_start!($datatypereader, $trace_name);
+        paste! {
+        let size = $type::datatype_size();
+        }
+        let count = $directory_entry.size / size as u32;
+        let mut de_data: Vec<$type> = Vec::with_capacity(count as usize);
+        $datatypereader.read_exact_generic_v2(&mut de_data)?;
+        trace_stop!($datatypereader);
+        de_data
+    }};
 }
 
 impl Bsp {
@@ -115,54 +136,24 @@ impl Bsp {
         }
         trace_stop!(dtr);
 
-        // read Models
-        dtr.set_position(bsp_header.models.offset as u64);
-        trace_start!(dtr, "models");
-        let model_size = Model::datatype_size();
-        let model_count = bsp_header.models.size / model_size as u32;
-        let mut models: Vec<Model> = Vec::with_capacity(model_count as usize);
-        dtr.read_exact_generic_v2(&mut models)?;
-        trace_stop!(dtr);
+        let texture_infos = read_directory_entry!(
+            dtr,
+            bsp_header.texture_info,
+            TextureFaceInfo,
+            "face texture info"
+        );
 
-        // read Vertices
-        dtr.set_position(bsp_header.vertices.offset as u64);
-        trace_start!(dtr, "vertices");
-        let vertex_count = bsp_header.vertices.size / Vector3::<f32>::datatype_size() as u32;
-        let mut vertices: Vec<Vector3<f32>> = Vec::with_capacity(vertex_count as usize);
-        dtr.read_exact_generic_v2(&mut vertices)?;
-        trace_stop!(dtr);
+        let models = read_directory_entry!(dtr, bsp_header.models, Model, "model");
 
-        // read Edges
-        dtr.set_position(bsp_header.edges.offset as u64 + 2);
-        trace_start!(dtr, "edges");
-        let edge_count = bsp_header.edges.size / Edge::datatype_size() as u32;
-        let mut edges: Vec<Edge> = Vec::with_capacity(edge_count as usize);
-        dtr.read_exact_generic_v2(&mut edges)?;
-        trace_stop!(dtr);
+        let vertices = read_directory_entry!(dtr, bsp_header.vertices, Vector3::<f32>, "vertices");
 
-        // read Faces
-        dtr.set_position(bsp_header.faces.offset as u64);
-        trace_start!(dtr, "faces");
-        let face_count = bsp_header.faces.size / Face::datatype_size() as u32;
-        let mut faces: Vec<Face> = Vec::with_capacity(face_count as usize);
-        dtr.read_exact_generic_v2(&mut faces)?;
-        trace_stop!(dtr);
+        let edges = read_directory_entry!(dtr, bsp_header.edges, Edge, "edges");
 
-        // read nodes
-        dtr.set_position(bsp_header.nodes.offset as u64);
-        trace_start!(dtr, "nodes");
-        let node_count = bsp_header.nodes.size / Node::datatype_size() as u32;
-        let mut nodes: Vec<Node> = Vec::with_capacity(node_count as usize);
-        dtr.read_exact_generic_v2(&mut nodes)?;
-        trace_stop!(dtr);
+        let faces = read_directory_entry!(dtr, bsp_header.faces, Face, "faces");
 
-        // read leaves
-        dtr.set_position(bsp_header.leaves.offset as u64);
-        trace_start!(dtr, "leaves");
-        let leaves_count = bsp_header.leaves.size / Leaf::datatype_size() as u32;
-        let mut leaves: Vec<Leaf> = Vec::with_capacity(leaves_count as usize);
-        dtr.read_exact_generic_v2(&mut leaves)?;
-        trace_stop!(dtr);
+        let nodes = read_directory_entry!(dtr, bsp_header.nodes, Node, "nodes");
+
+        let leaves = read_directory_entry!(dtr, bsp_header.leaves, Leaf, "leaves");
 
         // `read` lighmaps
         trace_start!(dtr, "lightmaps");
@@ -170,20 +161,11 @@ impl Bsp {
         let light_maps = dtr.read_data_from_directory_entry(bsp_header.leaves)?;
         trace_stop!(dtr);
 
-        // ClipNodes
-        dtr.set_position(bsp_header.clipnodes.offset as u64);
-        trace_start!(dtr, "clipnodes");
-        let clipnodes_count = bsp_header.clipnodes.size / ClipNode::datatype_size() as u32;
-        let mut clip_nodes: Vec<ClipNode> = Vec::with_capacity(clipnodes_count as usize);
-        dtr.read_exact_generic_v2(&mut clip_nodes)?;
-        trace_stop!(dtr);
+        let clip_nodes = read_directory_entry!(dtr, bsp_header.clipnodes, ClipNode, "clipnodes");
 
-        dtr.set_position(bsp_header.edges_list.offset as u64);
-        trace_start!(dtr, "edges_list");
-        let edges_list_count = bsp_header.edges_list.size / i32::datatype_size() as u32;
-        let mut edges_list: Vec<i32> = Vec::with_capacity(edges_list_count as usize);
-        dtr.read_exact_generic_v2(&mut edges_list)?;
-        trace_stop!(dtr);
+        let edges_list = read_directory_entry!(dtr, bsp_header.edges_list, i32, "idgelist");
+
+        let planes = read_directory_entry!(dtr, bsp_header.planes, Plane, "planes");
 
         Ok(Bsp {
             header: bsp_header,
@@ -197,6 +179,8 @@ impl Bsp {
             vertices,
             light_maps,
             leaves,
+            planes,
+            texture_infos,
         })
     }
 }

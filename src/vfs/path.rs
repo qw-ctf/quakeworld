@@ -1,11 +1,11 @@
-use std::{fmt::Display, rc::Rc};
+use std::{fmt::Display, sync::Arc};
 
 /// Internal Path Definitions
 use crate::vfs::Result;
 
 #[derive(Clone, Debug, Default)]
 pub struct VfsPath {
-    pub nodes: Vec<Rc<str>>,
+    pub nodes: Vec<Arc<str>>,
 }
 
 impl Display for VfsPath {
@@ -24,6 +24,15 @@ impl From<&str> for VfsPath {
     }
 }
 
+impl From<String> for VfsPath {
+    fn from(value: String) -> Self {
+        match VfsPath::new(&value) {
+            Ok(p) => p,
+            Err(e) => panic!("{}", e),
+        }
+    }
+}
+
 impl From<&VfsPath> for String {
     fn from(val: &VfsPath) -> Self {
         val.to_string().clone()
@@ -33,6 +42,17 @@ impl From<&VfsPath> for String {
 impl From<VfsPath> for String {
     fn from(val: VfsPath) -> Self {
         val.to_string().clone()
+    }
+}
+
+impl Into<std::path::PathBuf> for VfsPath {
+    fn into(self) -> std::path::PathBuf {
+        let mut pb = std::path::PathBuf::new();
+        for p in self.nodes {
+            let p = (*p).to_string();
+            pb.push(p);
+        }
+        pb
     }
 }
 
@@ -48,7 +68,7 @@ impl VfsPath {
                 std::path::Component::ParentDir => todo!(),
                 std::path::Component::Normal(n) => {
                     if let Some(p) = n.to_str() {
-                        nodes.push(Rc::from(p));
+                        nodes.push(Arc::from(p));
                     }
                 }
             };
@@ -72,7 +92,8 @@ impl VfsPath {
                 if node == p {
                     continue;
                 } else {
-                    panic!("should probably handle this")
+                    break;
+                    // panic!("should probably handle this")
                 }
             }
             new_path.push(node.to_string());
@@ -99,7 +120,7 @@ impl VfsPath {
 
     pub fn extend(&mut self, path: &VfsPath) {
         for p in &path.nodes {
-            self.nodes.push(Rc::clone(p));
+            self.nodes.push(Arc::clone(p));
         }
     }
 

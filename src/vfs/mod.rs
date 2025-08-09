@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::{convert::Infallible, fmt::Display, io::Write, path::Path};
+use std::{convert::Infallible, fmt::Display, io::Write, path::Path, sync::Arc};
 use time::OffsetDateTime;
 
 mod internal_node;
@@ -102,7 +102,6 @@ impl VfsEntry {
             VfsEntry::Directory(vfs_entry_directory) => vfs_entry_directory.path.clone(),
         }
     }
-
     fn path_prefix(&self) -> VfsPath {
         match self {
             VfsEntry::File(vfs_entry_file) => {
@@ -152,7 +151,7 @@ impl Display for VfsQueryDirectory {
 impl From<String> for VfsQueryDirectory {
     fn from(value: String) -> Self {
         VfsQueryDirectory {
-            path: VfsPath::new(&value).unwrap(),
+            path: VfsPath::new(&value.clone()).unwrap(),
         }
     }
 }
@@ -171,6 +170,14 @@ impl From<String> for VfsQueryFile {
     }
 }
 
+impl From<&std::path::Path> for VfsQueryFile {
+    fn from(value: &std::path::Path) -> Self {
+        VfsQueryFile {
+            path: VfsPath::new(value.to_str().unwrap()).unwrap(),
+        }
+    }
+}
+
 impl From<&str> for VfsQueryFile {
     fn from(value: &str) -> Self {
         VfsQueryFile {
@@ -179,13 +186,11 @@ impl From<&str> for VfsQueryFile {
     }
 }
 
-// impl From<&str> for &VfsQueryFile {
-//     fn from(value: &str) -> Self {
-//         return std::rc::Rc::new(VfsQueryFile {
-//             path: VfsPath::new(&value).unwrap(),
-//         });
-//     }
-// }
+impl Into<std::path::PathBuf> for VfsQueryFile {
+    fn into(self) -> std::path::PathBuf {
+        self.path.into()
+    }
+}
 
 impl VfsQueryFile {
     pub fn new(path: VfsPath) -> Self {
@@ -198,17 +203,18 @@ impl Display for VfsQueryFile {
     }
 }
 
-pub trait VfsNode: std::fmt::Debug {
+pub trait VfsNode: std::fmt::Debug + Send + Sync {
     fn list(&self, path: &VfsQueryDirectory) -> Result<VfsList>;
     fn read(&self, path: &VfsQueryFile) -> Result<VfsRawData>;
+    fn exists(&self, path: &VfsQueryFile) -> bool;
     fn compare(&self, hash: &VfsHash) -> bool;
     fn hash(&self) -> &VfsHash;
-    fn boxed(self) -> Box<dyn VfsNode>;
+    fn boxed(self) -> Arc<Box<dyn VfsNode>>;
 }
 
 #[derive(Debug)]
 pub struct VfsNodeEntry {
-    pub node: Box<dyn VfsNode>,
+    pub node: Arc<Box<dyn VfsNode>>,
     /// the path under wich the node will be mounted
     pub path: VfsPath,
 }
@@ -237,6 +243,11 @@ impl Vfs {
         };
         self.nodes.remove(index);
         Ok(())
+    }
+
+    pub fn file_exists(&self, directory: impl Into<VfsQueryFile>) -> bool {
+        let directory = directory.into();
+        return false;
     }
 
     /// list all entries in a directory
@@ -300,6 +311,19 @@ impl Vfs {
         } else {
             Err(Error::FileNotFound(file.clone()))
         }
+    }
+
+    pub fn exists(&self, file: impl Into<VfsQueryFile>) -> bool {
+        let file = file.into();
+        for node in &self.nodes {
+            let mut file_path = file.clone();
+            file_path.path = file_path.path.subtract(&node.path);
+
+            if node.node.exists(&file_path) {
+                return true;
+            };
+        }
+        return false;
     }
 }
 

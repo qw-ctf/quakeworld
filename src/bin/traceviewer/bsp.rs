@@ -27,9 +27,9 @@ pub fn trace_bsp(options: args::TraceCommandBsp) -> Result<TraceView, Box<dyn Er
     trace.enabled = true;
 
     let time_start = Instant::now();
-    match quakeworld::bsp::Bsp::parse(data.clone(), Some(trace.clone())) {
-        Ok(_) => {}
-        Err(e) => return Err(Box::from(format!("{} - bsp parse error", e))),
+    let error = match quakeworld::bsp::Bsp::parse(data.clone(), Some(trace.clone())) {
+        Ok(_) => None,
+        Err(e) => Some(format!("{:?}", e)),
     };
     let bsp_parse_time = time_start.elapsed();
 
@@ -67,5 +67,6 @@ pub fn trace_bsp(options: args::TraceCommandBsp) -> Result<TraceView, Box<dyn Er
         trace_entry_list_read,
         trace_entry_list_stack,
         initialization_traces,
+        error,
     })
 }

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::vfs::{Result, VfsEntry, VfsHash, VfsNode, VfsPath, VfsRawData};
 use uuid::Uuid;
@@ -122,7 +122,16 @@ impl VfsNode for VfsInternalNode {
             VfsInternalNodeType::None => todo!(),
             VfsInternalNodeType::File(f) => file::read(f),
             VfsInternalNodeType::Directory(d) => directory::read(d, path, self.hash()),
-            VfsInternalNodeType::Pak(pak) => pak::read(pak, path, self.hash()), //return list_pak(&pak, path, self.hash()),
+            VfsInternalNodeType::Pak(pak) => pak::read(pak, path, self.hash()),
+        }
+    }
+
+    fn exists(&self, path: &VfsQueryFile) -> bool {
+        match &self.data {
+            VfsInternalNodeType::None => todo!(),
+            VfsInternalNodeType::File(f) => file::exists(f),
+            VfsInternalNodeType::Directory(d) => directory::exists(d, path, self.hash()),
+            VfsInternalNodeType::Pak(pak) => pak::exists(pak, path, self.hash()),
         }
     }
 
@@ -134,7 +143,7 @@ impl VfsNode for VfsInternalNode {
         &self.hash
     }
 
-    fn boxed(self) -> Box<dyn VfsNode> {
-        Box::new(self.clone())
+    fn boxed(self) -> Arc<Box<dyn VfsNode>> {
+        Arc::new(Box::new(self.clone()))
     }
 }

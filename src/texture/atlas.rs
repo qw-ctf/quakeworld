@@ -343,29 +343,53 @@ impl AtlasTile {
 }
 
 #[derive(Debug)]
-pub struct AtlasUV {
+pub struct UV {
     pub u: f32,
     pub v: f32,
 }
 
-impl Index<usize> for AtlasUV {
+#[derive(Debug)]
+pub struct AtlasUV {
+    pub min: UV,
+    pub max: UV,
+}
+
+impl AtlasUV {
+    pub fn min_max_as_array(&self) -> [f32; 4] {
+        [self.min.u, self.min.v, self.max.u, self.max.v]
+    }
+    pub fn scale_uv(&self, uv: [f32; 2]) -> [f32; 2] {
+        [
+            self.min.u + (self.max.u - self.min.u) * uv[0],
+            self.min.v + (self.max.v - self.min.v) * uv[1],
+        ]
+    }
+}
+
+impl Index<usize> for UV {
     type Output = f32;
     fn index(&self, index: usize) -> &f32 {
         match index {
             0 => &self.u,
             1 => &self.v,
-            n => panic!("Invalid AtlasUV index: {}", n),
+            n => panic!("Invalid UV index: {}", n),
         }
+    }
+}
+
+impl UV {
+    fn as_array(self) -> [f32; 2] {
+        [self.u, self.v]
     }
 }
 
 #[derive(Debug)]
 pub struct AtlasTextureParsed {
+    pub original_index: usize,
     pub name: String,
     pub position: AtlasPosition,
     pub size: AtlasSize,
-    // TODO: make an actual implementation
-    uv: AtlasUV,
+    pub uv: AtlasUV,
 }
 
 #[derive(Debug)]
@@ -474,11 +498,20 @@ impl Atlas {
                         texture_pos.y,
                     )?;
                     let rt = &textures[texture.index];
-                    let mut uv = AtlasUV { u: 0.0, v: 0.0 };
-                    // TODO: this seems massively wrong
-                    uv.u = texture_pos.x as f32 / self.size.width as f32;
-                    uv.v = texture_pos.y as f32 / self.size.height as f32;
+                    let min_u = texture_pos.x as f32 / self.size.width as f32;
+                    let min_v = texture_pos.y as f32 / self.size.height as f32;
+
+                    let max_u =
+                        (texture_pos.x as f32 + texture.size.width as f32) / self.size.width as f32;
+                    let max_v = (texture_pos.y as f32 + texture.size.height as f32)
+                        / self.size.height as f32;
+
+                    let uv = AtlasUV {
+                        min: UV { u: min_u, v: min_v },
+                        max: UV { u: max_u, v: max_v },
+                    };
                     let new_texture = AtlasTextureParsed {
+                        original_index: texture.index,
                         name: rt.name.clone(),
                         position: texture_pos,
                         size: AtlasSize {
@@ -516,6 +549,14 @@ impl Atlas {
         }
         atlas_texture.data = data;
         atlas_texture.size = self.size.clone();
+        atlas_texture.textures.sort_by(|a, b| {
+            if a.original_index < b.original_index {
+                return Ordering::Less;
+            } else if a.original_index < b.original_index {
+                return Ordering::Greater;
+            }
+            Ordering::Equal
+        });
         Ok(atlas_texture)
     }
 }

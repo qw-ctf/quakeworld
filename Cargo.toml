@@ -67,7 +67,7 @@ unstringify = "0.1.4"
 png = "0.17.11"
 anyhow = { version = "1.0.81", optional = true }
 palette = { version = "0.7.5", optional = true }
-uuid = { version = "1.13.1", features = ["v4"] }
+uuid = { version = "1.12.0", features = ["v4"] }
 time = { version = "0.3.37", features = ["formatting"] }
 proc-macro2 = "1.0.93"
 

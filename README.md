@@ -56,4 +56,7 @@ could be better, aka non existing at the moment
 * [minimal pak parser](./examples/pak.rs)
 * [trace feature example](./examples/trace.rs)
 * [quakeworld swiss army knife](https://github.com/jogi1/qwsak)
-* [more elaborate mvd parser](https://github.com/jogi1/statyr) soon™
+
+### Thank
+
+Spoike, Bigfoot, [fte](https://fte.triptohell.info/), and [quake specs](https://www.gamers.org/dEngine/quake/spec/quake-spec34/) for all the information

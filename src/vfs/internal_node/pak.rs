@@ -70,14 +70,17 @@ pub fn list(pak: &PakAbstraction, path: &VfsQueryDirectory, hash: &VfsHash) -> R
     })
 }
 
+pub fn exists(pak: &PakAbstraction, path: &VfsQueryFile, _hash: &VfsHash) -> bool {
+    for f in &pak.files {
+        if f.path.equals(&path.path) {
+            return true;
+        }
+    }
+    false
+}
+
 pub fn read(pak: &PakAbstraction, path: &VfsQueryFile, _hash: &VfsHash) -> Result<VfsRawData> {
     for f in &pak.files {
-        // println!(
-        //     "we are here? -- ({}) ({}) {}",
-        //     f.path.as_string(),
-        //     path.path.as_string(),
-        //     f.path.equals(&path.path)
-        // );
         if f.path.equals(&path.path) {
             // FIXME: this seems stupid
             let d = pak.pak.get_data(&pak.pak.files[f.index])?;

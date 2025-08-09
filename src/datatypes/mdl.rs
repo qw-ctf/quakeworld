@@ -5,7 +5,8 @@ use serde::Serialize;
 
 use super::common::{BoundingBox, DataType, Vector3, Vertex};
 use super::reader::{DataTypeRead, DataTypeReader, DataTypeSize, Error, Result};
-use crate::trace::{trace_start, trace_stop};
+use crate::datatypes::reader;
+use crate::trace::{trace_annotate, trace_start, trace_stop};
 
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
 #[datatyperead(prefix = "mdl", internal)]
@@ -25,18 +26,66 @@ pub struct Header {
     pub sync_types: u32,
     pub flags: u32,
     pub size: f32,
-    pub skin_type: u32,
+}
+
+#[derive(Serialize, Debug, Default, Clone)]
+// #[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
+// #[datatyperead(prefix = "mdl", internal)]
+pub struct Frame {
+    pub frame_type: u32,
+    pub frame: FrameType,
 }
 
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
 #[datatyperead(prefix = "mdl", internal)]
-pub struct Frame {
-    pub frame_type: u32,
+pub struct FrameSimple {
     pub bounding_box: BoundingBox<Vertex>,
     #[datatyperead(size_from = 16, string)]
     pub name: Vec<u8>,
     #[datatyperead(size_from = "vertex_count")]
     pub vertex: Vec<Vertex>,
+}
+
+#[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
+#[datatyperead(prefix = "mdl", internal)]
+pub struct FrameGroup {
+    #[datatyperead(environment)]
+    pub count: u32,
+    pub bounding_box: BoundingBox<Vertex>,
+    #[datatyperead(size_from = "count")]
+    pub times: Vec<f32>,
+    #[datatyperead(size_from = "count")]
+    pub frames: Vec<FrameSimple>,
+}
+
+#[derive(Serialize, Debug, Default, Clone)]
+pub enum FrameType {
+    #[default]
+    None,
+    Single(FrameSimple),
+    Group(FrameGroup),
+}
+
+impl DataTypeRead for Frame {
+    fn read(dtr: &mut DataTypeReader) -> Result<Self> {
+        trace_annotate!(dtr, "type");
+        let frame_type = <u32 as reader::DataTypeRead>::read(dtr)?;
+        let frame = if frame_type == 0 {
+            FrameType::Single(<FrameSimple as reader::DataTypeRead>::read(dtr)?)
+        } else {
+            FrameType::Group(<FrameGroup as reader::DataTypeRead>::read(dtr)?)
+        };
+        Ok(Self { frame_type, frame })
+    }
+
+    fn to_datatype(&self) -> DataType {
+        DataType::MDLFRAME(self.clone())
+    }
+
+    fn environment(&self, datatypereader: &mut DataTypeReader, name: impl Into<String>) {
+        panic!("we do get called?");
+        // compile_error!("you need to implement the environment function");
+    }
 }
 
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
@@ -47,25 +96,10 @@ pub struct Skin {
     pub data: Vec<u8>,
 }
 
-//
-// impl Frame {
-//     fn read_special(
-//         datatypereader: &mut DataTypeReader,
-//         vertex_count: u32,
-//     ) -> Result<Self, Error> {
-//         let frame_type = <u32 as DataTypeRead>::read(datatypereader)?;
-//         let bounding_box = <BoundingBox<Vertex> as DataTypeRead>::read(datatypereader)?;
-//         let name = <MdlFrameName as DataTypeRead>::read(datatypereader)?;
-//         let mut vertexes: Vec<Vertex> = Vec::with_capacity(vertex_count as usize);
-//         datatypereader.read_exact_generic(&mut vertexes)?;
-//         Ok(Frame {
-//             frame_type,
-//             bounding_box,
-//             name,
-//             vertexes,
-//         })
-//     }
-//     fn to_datatype(&self) -> DataType {
-//         DataType::MDLFRAME(self.clone())
-//     }
-// }
+#[derive(Serialize, Debug, Default, Clone)]
+pub enum SkinType {
+    #[default]
+    None,
+    Single(Skin),
+    Group(Vec<Skin>),
+}

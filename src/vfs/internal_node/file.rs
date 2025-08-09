@@ -1,4 +1,5 @@
 use std::io::Read;
+use std::path::Path;
 
 use crate::vfs::path::VfsPath;
 use crate::vfs::{Result, VfsEntry, VfsEntryFile, VfsHash, VfsQueryDirectory, VfsRawData};
@@ -15,6 +16,10 @@ pub fn read(file: &File) -> Result<VfsRawData> {
     let mut buffer = vec![0; metadata.len() as usize];
     let _ = f.read(&mut buffer)?;
     Ok(buffer)
+}
+
+pub fn exists(file: &File) -> bool {
+    Path::new(file).exists()
 }
 
 // TODO: check why path is unused

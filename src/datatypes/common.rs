@@ -31,6 +31,41 @@ where
     pub z: T,
 }
 
+// impl<E, T> Into<Vector3<E>> for Vector3<T> {
+//     fn into(self) -> Vector3<E> {
+//         Vector3::<E>::new(self.x.try_into(), self.y.try_into(), self.z.try_into())
+//     }
+// }
+
+impl<
+        T: std::clone::Clone
+            + DataTypeRead
+            + std::ops::Mul<Output = T>
+            + std::ops::Add<Output = T>
+            + Copy,
+    > Vector3<T>
+{
+    pub fn as_array(&self) -> [T; 3] {
+        [self.x.clone(), self.y.clone(), self.z.clone()]
+    }
+
+    pub fn scale(&self, factor: T) -> Self {
+        Self {
+            x: self.x * factor,
+            y: self.y * factor,
+            z: self.z * factor,
+        }
+    }
+
+    pub fn dot_product(&self, other: &Vector3<T>) -> T {
+        self.x * other.x + self.y * other.y + self.z * other.z
+    }
+
+    pub fn new(x: T, y: T, z: T) -> Self {
+        Self { x, y, z }
+    }
+}
+
 impl<T: std::clone::Clone + DataTypeRead> DataTypeSize for Vector3<T> {
     fn datatype_size() -> usize {
         std::mem::size_of::<T>() * 3
@@ -116,6 +151,8 @@ pub enum DataType {
     DIRECTORYENTRY(DirectoryEntry),
     MDLSKIN(mdl::Skin),
     MDLFRAME(mdl::Frame),
+    MDLFRAMESIMPLE(mdl::FrameSimple),
+    MDLFRAMEGROUP(mdl::FrameGroup),
     MDLHEADER(mdl::Header),
     GENERICSTRING(String),
     GENERICVECTOR(usize),
@@ -134,6 +171,7 @@ pub enum DataType {
     PLANE(Plane),
     TEXTUREHEADER(TextureHeader),
     TEXTUREINFO(TextureInfo),
+    TEXTUREFACEINFO(TextureFaceInfo),
     TEXTURE(Texture),
     Throwaway,
 }
@@ -207,6 +245,22 @@ pub struct Triangle {
 pub struct Vertex {
     pub v: Vector3<u8>,
     pub normal_index: u8,
+}
+
+impl Index<usize> for Vertex {
+    type Output = u8;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        if index > 3 {
+            panic!("index > 3")
+        }
+        match index {
+            0 => return &self.v.x,
+            1 => return &self.v.y,
+            2 => return &self.v.z,
+            _ => panic!("unhandled index"),
+        }
+    }
 }
 
 #[derive(Serialize, Debug, Default, Clone, DataTypeRead)]
@@ -293,6 +347,17 @@ pub struct TextureInfo {
     pub offset2: u32, // offset to u_char Pix[width/2 * height/2]
     pub offset4: u32, // offset to u_char Pix[width/4 * height/4]
     pub offset8: u32, // offset to u_char Pix[width/8 * height/8]
+}
+
+#[derive(Serialize, Clone, Debug, DataTypeRead, Default)]
+#[datatyperead(internal)]
+pub struct TextureFaceInfo {
+    pub vec_s: Vector3<f32>,
+    pub distance_s: f32,
+    pub vec_t: Vector3<f32>,
+    pub distance_t: f32,
+    pub texture_index: u32,
+    pub animated: u32,
 }
 
 #[derive(Serialize, Clone, Debug, Default)]

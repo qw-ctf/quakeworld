@@ -1,4 +1,7 @@
+#[cfg(target_os = "unix")]
 use std::os::unix::fs::MetadataExt;
+#[cfg(target_os = "windows")]
+use std::os::windows::fs::MetadataExt;
 
 pub type VfsMetaTimestamp = std::time::SystemTime;
 pub fn new_timestamp() -> VfsMetaTimestamp {
@@ -41,7 +44,7 @@ impl From<std::fs::Metadata> for VfsMetaData {
         };
 
         Self {
-            size: metadata.size(),
+            size: 0, //metadata.size(),
             time: VfsMetaTime { created, modified },
         }
     }

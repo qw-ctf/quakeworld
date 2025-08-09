@@ -7,7 +7,7 @@ pub enum PaletteError {
     ParseError(String),
 }
 
-#[derive(Serialize, Debug, Default)]
+#[derive(Serialize, Debug, Default, Clone)]
 pub struct Color {
     pub r: u8,
     pub g: u8,
@@ -15,7 +15,7 @@ pub struct Color {
     pub a: u8,
 }
 
-#[derive(Serialize, Debug, Default)]
+#[derive(Clone, Serialize, Debug, Default)]
 pub struct Palette {
     pub colors: Vec<Color>,
 }

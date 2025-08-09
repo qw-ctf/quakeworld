@@ -12,9 +12,9 @@ pub fn trace_pak(options: args::TraceCommandPak) -> Result<TraceView, Box<dyn Er
     trace.enabled = true;
 
     let time_start = Instant::now();
-    match quakeworld::pak::Pak::parse("dontcare", data.clone(), Some(trace.clone())) {
-        Ok(_) => {}
-        Err(e) => return Err(Box::from(format!("{} - pak parse error", e))),
+    let error = match quakeworld::pak::Pak::parse("dontcare", data.clone(), Some(trace.clone())) {
+        Ok(_) => None,
+        Err(e) => Some(format!("{:?}", e)),
     };
     let pak_parse_time = time_start.elapsed();
 
@@ -52,5 +52,6 @@ pub fn trace_pak(options: args::TraceCommandPak) -> Result<TraceView, Box<dyn Er
         trace_entry_list_read,
         trace_entry_list_stack,
         initialization_traces,
+        error,
     })
 }

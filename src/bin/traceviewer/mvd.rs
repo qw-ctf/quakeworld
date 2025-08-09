@@ -8,8 +8,7 @@ use quakeworld::{
 
 use crate::{
     args::{self, TraceviewerArgs},
-    init_error_hooks, init_terminal, read_file, restore_terminal, App, DebugValue, TraceReplace,
-    TraceView,
+    read_file, App, DebugValue, TraceReplace, TraceView,
 };
 
 pub fn trace_mvd(options: args::TraceCommandMvd) -> Result<TraceView, Box<dyn std::error::Error>> {
@@ -32,6 +31,7 @@ pub fn trace_mvd(options: args::TraceCommandMvd) -> Result<TraceView, Box<dyn st
     let time_start = Instant::now();
     mvd.message.trace.value_track_limit = options.trace_value_depth;
     mvd.message.trace.depth_limit = options.trace_depth_limit;
+    let mut error = None;
     while mvd.finished == false {
         if options.frame_start > 0 || options.frame_stop != 0 {
             if mvd.frame >= options.frame_start && mvd.frame <= options.frame_stop {
@@ -45,14 +45,12 @@ pub fn trace_mvd(options: args::TraceCommandMvd) -> Result<TraceView, Box<dyn st
         let frame = match mvd.parse_frame() {
             Ok(v) => v,
             Err(e) => {
-                eprintln!("{:?}", e);
+                error = Some(format!("{:?}", e));
                 break;
             }
         };
     }
     let mvd_parse_time = time_start.elapsed();
-    init_error_hooks()?;
-    let terminal = init_terminal()?;
 
     let time_start = Instant::now();
     // in case we want to look at the faile/still opened traces change .read to .stack
@@ -115,5 +113,6 @@ pub fn trace_mvd(options: args::TraceCommandMvd) -> Result<TraceView, Box<dyn st
         trace_entry_list_read,
         trace_entry_list_stack,
         initialization_traces,
+        error,
     })
 }

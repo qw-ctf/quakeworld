@@ -7,6 +7,8 @@ use std::env;
 use std::error::Error;
 use std::fs::File;
 use std::io::Read;
+use std::time::{Duration, Instant};
+use time::Time;
 
 #[cfg(feature = "trace")]
 use quakeworld::utils::trace::*;
@@ -31,8 +33,14 @@ fn parse_file(filename: String) -> Result<bool, Box<dyn Error>> {
         TraceOptions::default(),
     )?;
 
+    let mut print_models = true;
     let mut state = State::new();
+    let start_time = Instant::now();
     while mvd.finished == false {
+        // println!(
+        //     "--------------- new frame ({}) ------------------",
+        //     mvd.time
+        // );
         //let frame = mvd.parse_frame()?;
         let frame = match mvd.parse_frame() {
             Ok(v) => v,
@@ -47,22 +55,53 @@ fn parse_file(filename: String) -> Result<bool, Box<dyn Error>> {
         //println!("--- frame {}:{} ---", frame.frame, frame.time);
         // if you need to keep the last state
         // let old_state = state.clone();
-        state.apply_messages_mvd(&frame.messages, frame.last);
+        state.apply_messages_mvd(&frame.messages, &frame.last);
+
+        // for (index, player) in &state.players {
+        //     if player.spectator || player.name.string.len() == 0 {
+        //         continue;
+        //     }
+        // }
+
+        // let mut entities_with_no_model = 0;
+        // for (index, ent) in state.entities.iter() {
+        //     if ent.model == 0 {
+        //         entities_with_no_model += 1;
+        //     }
+        // }
+        // if state.models.len() > 1 && print_models {
+        //     for (i, m) in state.models.iter().enumerate() {
+        //         println!("{}: {}", i, m.string);
+        //     }
+        //     print_models = false;
+        // }
+        // println!(
+        //     "{}: entities with no model: {}/{}",
+        //     mvd.time,
+        //     entities_with_no_model,
+        //     state.entities.len()
+        // );
+
+        // for (index, ent) in state.entities.iter() {
+        //     println!("ent model: {}", ent.model);
+        // }
         // get the players when intermission is reached
-        for message in frame.messages {
-            match message {
-                ServerMessage::Intermission(_) => {
-                    println!("{:#?}", state.players);
-                }
-                _ => {}
-            }
-        }
+        // for message in frame.messages {
+        //     match message {
+        //         ServerMessage::Intermission(_) => {
+        //             // println!("{:#?}", state.players);
+        //         }
+        //         _ => {}
+        //     }
+        // }
         #[cfg(feature = "trace")]
         if false {
             // if you want to print a trace of each read frame
             print_message_trace(&mvd.message, false, 0, 2, false)?;
         }
     }
+    let duration = Instant::now() - start_time;
+    println!("{:?}", duration);
     return Ok(true);
 }
 

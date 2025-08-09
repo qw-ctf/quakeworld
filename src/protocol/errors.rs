@@ -1,5 +1,5 @@
-use thiserror::Error;
 use crate::protocol::message::errors::MessageError;
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum MvdParseError {
@@ -11,6 +11,8 @@ pub enum MvdParseError {
     QwdCommand,
     #[error("read error {0}")]
     MessageError(MessageError),
+    #[error("io error {0}")]
+    IoError(#[from] std::io::Error),
 }
 
 impl From<MessageError> for MvdParseError {
@@ -18,4 +20,3 @@ impl From<MessageError> for MvdParseError {
         MvdParseError::MessageError(err)
     }
 }
-

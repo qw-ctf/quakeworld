@@ -41,6 +41,9 @@ use mvd::trace_mvd;
 mod bsp;
 use bsp::trace_bsp;
 
+mod mdl;
+use mdl::trace_mdl;
+
 use color_eyre::{config::HookBuilder, owo_colors::OwoColorize};
 use crossterm::{
     event::{self, Event, KeyCode, KeyEventKind},
@@ -149,6 +152,7 @@ struct TraceView {
     pub trace_entry_list_read: TraceEntry,
     pub trace_entry_list_stack: TraceEntry,
     pub initialization_traces: HashMap<String, DebugValue>,
+    pub error: Option<String>,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -160,6 +164,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 args::TraceCommandType::Qtv(options) => trace_qtv(options),
                 args::TraceCommandType::Pak(options) => trace_pak(options),
                 args::TraceCommandType::Bsp(options) => trace_bsp(options),
+                args::TraceCommandType::Mdl(options) => trace_mdl(options),
             };
             match traces {
                 Ok(t) => {
@@ -251,14 +256,6 @@ impl<'a> App<'a> {
             self.tracelist_read.trace_get_current_selected()
         }
     }
-
-    // fn trace_set_current_selected(&mut self) {
-    //     if self.show_stack_traces {
-    //         self.tracelist_stack.trace_get_current_selected()
-    //     } else {
-    //         self.tracelist_read.trace_get_current_selected()
-    //     }
-    // }
 
     fn index_current(&self) -> usize {
         if self.show_stack_traces {
@@ -690,9 +687,13 @@ impl App<'_> {
                         .assign_if_greater(format!("{}", item.index_stop).len());
                 }
 
-                let mut remaining_size = area.width as usize - column_widths.width();
+                let mut remaining_size = if column_widths.width() > area.width as usize {
+                    0
+                } else {
+                    (area.width as usize - column_widths.width()) / 4
+                };
                 let column_widths_before = column_widths.clone();
-                column_widths.grow_by((remaining_size / 4) - 1);
+                column_widths.grow_by(remaining_size);
 
                 let cft = column_widths.field_type;
                 let cfn = column_widths.field_name;
